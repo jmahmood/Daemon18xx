@@ -13,9 +13,9 @@ class BidType(Enum):
 
 class BuyPrivateCompanyMove(Move):
     bid_type: BidType
-    bid_amount: int
     private_company: PrivateCompany  # This is a unique identifier for the private company in this game.
     player: Player
+    bid_amount: int
 
 
 class BuyPrivateCompany(Minigame):
@@ -58,5 +58,13 @@ class BuyPrivateCompany(Minigame):
 
         return False
 
-    def next(self) -> str:
-        pass
+    def next(self,  **kwargs) -> str:
+        private_companies: List[PrivateCompany] = kwargs.get('private_companies')
+
+        for pc in private_companies:
+            if not pc.hasOwner() and not pc.hasBids():
+                return "BuyPrivateCompany"
+            if not pc.hasOwner() and pc.hasBids():
+                return "BiddingForPrivateCompany"
+
+        return "BuyStock"

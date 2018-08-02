@@ -54,6 +54,12 @@ class PrivateCompany:
 
         return pc
 
+    def hasOwner(self) -> bool:
+        return self.belongs_to is not None
+
+    def hasBids(self) -> bool:
+        return len(self.player_bids) > 0
+
     def passed(self):
         self.pass_count += 1
 
