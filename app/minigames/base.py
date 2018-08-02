@@ -13,5 +13,5 @@ class Minigame:
     def errors(self) -> List[str]:
         raise NotImplementedError()
 
-    def next(self) -> str:
+    def next(self, **kwargs) -> str:
         raise NotImplementedError()
