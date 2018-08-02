@@ -2,6 +2,7 @@ from typing import List
 
 from app.base import Player, Move, PrivateCompany
 from app.minigames.base import Minigame
+from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
 
 
 class Game:
@@ -30,7 +31,14 @@ class Game:
 
     def getMinigame(self) -> Minigame:
         """Creates a NEW INSTANCE of a mini game and passes it"""
-        pass
+        classes = {
+            "BiddingForPrivateCompany": BiddingForPrivateCompany,
+            "BuyPrivateCompany": BuyPrivateCompany,
+            "BuyStock": None  # TODO
+        }
+
+        cls: type(Minigame) = classes.get(self.minigame_class)
+        return cls()
 
     def performedMove(self, move: Move) -> bool:
         """
@@ -53,7 +61,7 @@ class Game:
     def setMinigame(self, minigame_class: str) -> None:
         """A Minigame is a specific game state that evaluates more complex game rules.
         Bidding during private bidding, etc..."""
-        pass
+        self.minigame_class = minigame_class
 
     def saveState(self) -> None:
         """This saves the current state to a data store.  Pickle or SQL.

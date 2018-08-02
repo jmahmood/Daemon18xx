@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from typing import List, NamedTuple
 
@@ -12,10 +13,42 @@ class BidType(Enum):
 
 
 class BuyPrivateCompanyMove(Move):
+    @staticmethod
+    def fromMove(move: "Move") -> "Move":
+        ret = BuyPrivateCompanyMove()
+        msg: dict = json.loads(move.msg)
+        ret.bid_type = msg.get('bid_type')
+        ret.private_company_order = msg.get('private_company')
+        ret.private_company = None
+        ret.player_id = msg.get("player")
+        ret.player = None
+        ret.bid_amount = msg.get("bid_amount")
+        return ret
+
     bid_type: BidType
+
     private_company: PrivateCompany  # This is a unique identifier for the private company in this game.
+    private_company_order: str
+
     player: Player
+    player_id: str
+
     bid_amount: int
+
+    def backfill(self, **kwargs):
+        """We do not have all the context when we receive a move; we are only passed a JSON text file, not the
+        objects themselves.  We receive the objects from the game object when executing the Minigame.
+        We bind those objects when the minigame is run, keeping ID values to allow us to match them up to the object itself"""
+
+        for player in kwargs.get("players"):
+            if player.id == self.player_id:
+                self.player = player
+                break
+
+        for private_company in kwargs.get("private_companies"):
+            if private_company.order == self.private_company_order:
+                self.private_company = private_company
+                break
 
 
 class BiddingForPrivateCompany(Minigame):
@@ -47,6 +80,7 @@ class BiddingForPrivateCompany(Minigame):
         return False
 
     def run(self, move: BuyPrivateCompanyMove, **kwargs) -> bool:
+        move.backfill(**kwargs)
 
         if BidType.BID == BidType(move.bid_type):
             if self.validate_bid(move):
@@ -60,8 +94,7 @@ class BiddingForPrivateCompany(Minigame):
                 self.validate_sold(move)
                 return True
 
-
-        return True
+        return False
 
     def next(self, **kwargs) -> str:
         private_companies: List[PrivateCompany] = kwargs.get('private_companies')

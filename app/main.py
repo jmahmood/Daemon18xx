@@ -31,13 +31,15 @@ def ongoing_game(pipe_filen="/tmp/mypipe"):
 
 def main(players: List[Player], saved_game=None):
     """
-    Game Damemon
+    Game Daemon
+    :param saved_game:
     :param players:
     :param state:
     :return:
     """
     game = Game.initialize(players, saved_game)
     for move in ongoing_game("/tmp/mypipe"):
+
         if game.isValidMove(move) and game.isValidPlayer(move.player) and game.performedMove(move):
             game.saveState()
 

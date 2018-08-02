@@ -86,6 +86,15 @@ class Move:
     """
     Contains all details of a move that is made, who made that move, and the data that they convey to represent the move.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.msg = None
+
+    @staticmethod
+    def fromMove(move: "Move") -> "Move":
+        raise NotImplementedError
+
     @staticmethod
     def fromMessage(msg) -> "Move":
         """
