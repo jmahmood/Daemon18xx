@@ -17,7 +17,7 @@ class BuyPrivateCompanyMove(Move):
     def fromMove(move: "Move") -> "Move":
         ret = BuyPrivateCompanyMove()
         msg: dict = json.loads(move.msg)
-        ret.bid_type = msg.get('bid_type')
+        ret.move_type = msg.get('bid_type')
         ret.private_company_order = msg.get('private_company')
         ret.private_company = None
         ret.player_id = msg.get("player")
@@ -25,7 +25,7 @@ class BuyPrivateCompanyMove(Move):
         ret.bid_amount = msg.get("bid_amount")
         return ret
 
-    bid_type: BidType
+    move_type: BidType
 
     private_company: PrivateCompany  # This is a unique identifier for the private company in this game.
     private_company_order: str
@@ -58,14 +58,21 @@ class BiddingForPrivateCompany(Minigame):
     def validate_bid(self, move: BuyPrivateCompanyMove):
         # User needs to be one of the users who bid already.
         # User needs to not have passed on this company yet.
+        # TODO
         pass
 
     def validate_pass(self, move: BuyPrivateCompanyMove):
         # User needs to be one of the users who bid already.
         # You can't pass if you are the last user with a bid.
+        # TODO
         pass
 
     def validate_sold(self, move: BuyPrivateCompanyMove):
+        """
+        If there is only one bidder left who hasn't passed, the stock belongs to him.
+        :param move:
+        :return:
+        """
         all_bidders = set([player_bid.player for player_bid in move.private_company.player_bids])
         all_passers = set([pc.passed_by for pc in move.private_company.passed_by])
 
@@ -82,13 +89,13 @@ class BiddingForPrivateCompany(Minigame):
     def run(self, move: BuyPrivateCompanyMove, **kwargs) -> bool:
         move.backfill(**kwargs)
 
-        if BidType.BID == BidType(move.bid_type):
+        if BidType.BID == BidType(move.move_type):
             if self.validate_bid(move):
                 move.private_company.bid(move.player, move.bid_amount)
                 self.validate_sold(move)
                 return True
 
-        if BidType.PASS == BidType(move.bid_type):
+        if BidType.PASS == BidType(move.move_type):
             if self.validate_pass(move):
                 move.private_company.passed(move.player)
                 self.validate_sold(move)
@@ -106,7 +113,7 @@ class BiddingForPrivateCompany(Minigame):
             if not pc.hasOwner() and pc.hasBids():
                 return "BiddingForPrivateCompany"
 
-        return "BuyStock"
+        return "StockRound"
 
 
 class BuyPrivateCompany(Minigame):
@@ -131,17 +138,17 @@ class BuyPrivateCompany(Minigame):
         """kwargs passes along additional read-only variables that provide context, such as
         the number of players (so you know if you need to reduce the price on a private company)"""
 
-        if BidType.BUY == BidType(move.bid_type):
+        if BidType.BUY == BidType(move.move_type):
             if self.validate_buy(move):
                 move.private_company.belongs(move.player)
                 return True
 
-        if BidType.BID == BidType(move.bid_type):
+        if BidType.BID == BidType(move.move_type):
             if self.validate_bid(move):
                 move.private_company.bid(move.player, move.bid_amount)
                 return True
 
-        if BidType.PASS == BidType(move.bid_type):
+        if BidType.PASS == BidType(move.move_type):
             if self.validate_pass(move): # You cannot pass on a free company.
                 move.private_company.passed(move.player)
                 move.private_company.reduce_price(len(kwargs.get('Players')))
@@ -159,4 +166,4 @@ class BuyPrivateCompany(Minigame):
             if not pc.hasOwner() and pc.hasBids():
                 return "BiddingForPrivateCompany"
 
-        return "BuyStock"
+        return "StockRound"

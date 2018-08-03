@@ -1,13 +1,104 @@
+from enum import Enum
 from typing import NamedTuple, List
 
+class StockMarket:
+    """This class holds information about different ordering on the stock market itself"""
+    pass
 
 class Player:
-    pass
+    def __init__(self):
+        self.cash: int = 0
+        self.order: int = 0
+        self.portfolio = set()
+
+    def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
+        """TODO: Is there a way to avoid cross-linking between Player and Public Company?
+        Wouldn't that cause problems when trying to calculate a player's total wealth?"""
+        self.portfolio.add(company)
+        self.cash = self.cash - amount * price
 
 
 class PlayerBid(NamedTuple):
     player: Player
     bid_amount: int
+
+
+class StockPurchaseSource(Enum):
+    IPO = 1
+    BANK = 2
+
+
+class StockStatus(Enum):
+    NORMAL = 1
+    YELLOW = 2
+    ORANGE = 3
+    BROWN = 4
+
+
+class PublicCompany:
+    def __init__(self):
+        self._floated = None
+        self.president: Player = None
+        self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
+        self.owners = {}
+        self.stocks = {StockPurchaseSource.IPO: 10, StockPurchaseSource.BANK: 0}
+        self.stock_status = StockStatus.NORMAL
+
+    def buy(self, player: Player, source: StockPurchaseSource, amount: int):
+        # TODO: Check if this is the first sale.
+        self.stocks[source] -= amount
+        self.grantStock(player, amount)
+        price = self.stockPrice[source]
+        player.addToPortfolio(self, amount, price)
+
+    def grantStock(self, player: Player, amount: int):
+        self.owners[player] = self.owners.get(player, 0) + amount
+
+    def sell(self, player: Player, amount: int):
+        self.owners[player] = self.owners.get(player, 0) - amount
+        self.stocks[StockPurchaseSource.BANK] += amount
+        # TODO: Player has to get paid for this.
+        self.priceDown(amount)
+
+        pass
+
+    def checkPriceIncrease(self):
+        if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
+            self.priceUp(1)
+        pass
+
+    def priceUp(self, spaces):
+        # TODO: Market goes up if there are no stocks left over..
+        pass
+
+    def priceDown(self, spaces):
+        # TODO: Market price tanks on news.
+        pass
+
+    def checkPresident(self):
+        """Goes through owners and determines who the president is."""
+        # TODO: Should this go into the minigame instead since it affects state?
+        # Or keep it here because this is repetitive logic?
+        # Ownership can technically change in an operating round (Train rusting = no money = sell stock = less money)
+        max_ownership = max(self.owners.values())
+        top_owners = [k for k,v in self.owners.items() if v == max_ownership]
+        if self.president not in top_owners:
+            play_order = self.president.order
+
+            """
+            Go through each potential owner and calculate the distance from the previous president based on play order.
+            if I am the old president, the person closest to me in turn order would be the next president.  We
+            get this by subtracting the president's turn order from the potential president's order and finding
+            the person with minimal distance.
+           """
+            new_president = min([(owner, owner.order - play_order) for owner in top_owners], lambda v: v[1])[0]
+            self.president = new_president
+
+    def checkFloated(self):
+        if not self._floated and self.stocks[StockPurchaseSource.IPO] < 5:
+            self._floated = True
+            return True
+        return False
 
 
 class PrivateCompany:
@@ -91,6 +182,10 @@ class Move:
         super().__init__()
         self.msg = None
 
+    def backfill(self, **kwargs) -> None:
+        """Used to add additional contextual fields (Player instead of Player ID)"""
+        raise NotImplementedError
+
     @staticmethod
     def fromMove(move: "Move") -> "Move":
         raise NotImplementedError
@@ -106,6 +201,3 @@ class Move:
         ret = Move()
         ret.msg = msg
         return ret
-
-
-

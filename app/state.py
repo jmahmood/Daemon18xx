@@ -29,12 +29,15 @@ class Game:
     def isValidPlayer(self, player: Player) -> bool:
         pass
 
+    def getState(self) -> dict:
+        return {}
+
     def getMinigame(self) -> Minigame:
         """Creates a NEW INSTANCE of a mini game and passes it"""
         classes = {
             "BiddingForPrivateCompany": BiddingForPrivateCompany,
             "BuyPrivateCompany": BuyPrivateCompany,
-            "BuyStock": None  # TODO
+            "StockRound": None  # TODO
         }
 
         cls: type(Minigame) = classes.get(self.minigame_class)
@@ -47,7 +50,7 @@ class Game:
         :return:
         """
         minigame = self.getMinigame()
-        success = minigame.run(move)
+        success = minigame.run(move, **self.getState())
 
         self.setMinigame(minigame.next()) if success else self.setError(minigame.errors())
 
