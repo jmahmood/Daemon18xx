@@ -113,34 +113,34 @@ class StockRound(Minigame):
         cost_of_stock = move.public_company.checkPrice(move.source, STOCK_CERTIFICATE, move.ipo_price)
 
         return self.validate(
-            {"You have too many certificates. There are {} players, and you are allowed a total of {} certificates."
+            [("You have too many certificates. There are {} players, and you are allowed a total of {} certificates."
              "You own {} certificates and would have one more if you bought."
                 .format(number_of_total_players,
                         VALID_CERTIFICATE_COUNT[number_of_total_players],
-                        player_certificates):
-                 player_certificates + 1 <= VALID_CERTIFICATE_COUNT[number_of_total_players],
+                        player_certificates),
+                 player_certificates + 1 <= VALID_CERTIFICATE_COUNT[number_of_total_players]),
 
-             "The company does not have enough stock in category {}".format(move.source):
-                 move.public_company.hasStock(move.source, 10),
+             ("The company does not have enough stock in category {}".format(move.source),
+                 move.public_company.hasStock(move.source, 10)),
 
-             "You cannot afford poorboi. {} (You have: {})".format(cost_of_stock, move.player.cash):
-                 move.player.hasEnoughMoney(cost_of_stock)
-             }
+             ("You cannot afford poorboi. {} (You have: {})".format(cost_of_stock, move.player.cash),
+                 move.player.hasEnoughMoney(cost_of_stock))
+             ]
         )
 
     def validateSell(self, move: StockRoundMove, **kwargs) -> bool:
-        return self.validate(
-            {"You must have more stock than you are trying to sell {}".format(move.amount):
-                 move.player.hasStock(move.public_company) > move.amount,
-             "You can't sell that much ({}); the bank can only have 50 shares max.".format(move.amount):
-                 move.public_company.availableStock(StockPurchaseSource.BANK) + move.amount <= 60,
-             "There are no other potential presidents, so you can't sell your shares.":
-                 len(move.public_company.potentialPresidents() - {move.player}) > 0,
-             "You can only sell in units of 10 stocks ({})".format(move.amount):
-                 move.amount % STOCK_CERTIFICATE == 0,
-             "You can only sell after the first stock round.":
-                 kwargs.get('stock_round_count') > 1
-             }
+        return self.validate([
+            ("You must have more stock than you are trying to sell {}".format(move.amount),
+                 move.player.hasStock(move.public_company) > move.amount),
+            ("You can't sell that much ({}); the bank can only have 50 shares max.".format(move.amount),
+                 move.public_company.availableStock(StockPurchaseSource.BANK) + move.amount <= 60),
+            ("There are no other potential presidents, so you can't sell your shares.",
+                 len(move.public_company.potentialPresidents() - {move.player}) > 0),
+            ("You can only sell in units of 10 stocks ({})".format(move.amount),
+                 move.amount % STOCK_CERTIFICATE == 0),
+            ("You can only sell after the first stock round.",
+                 kwargs.get('stock_round_count') > 1)
+             ]
         )
 
     def validatePass(self, move: StockRoundMove):
@@ -148,18 +148,16 @@ class StockRound(Minigame):
         return True
 
     def validateFirstPurchase(self, move: StockRoundMove) -> bool:
-
-        cost_of_stock = move.public_company.checkPrice(move.source, 20, move.ipo_price)
+        cost_of_stock = move.public_company.checkPrice(move.source, STOCK_PRESIDENT_CERTIFICATE, move.ipo_price)
         valid_ipo_prices = ",".join([str(p) for p in VALID_IPO_PRICES])
 
-        return self.validate(
-            {"Invalid IPO Price ({}).  Valid prices are {}.".format(move.ipo_price, valid_ipo_prices):
-                 move.ipo_price in VALID_IPO_PRICES,
-             "You need to purchase stock from the IPO as this is an initial purchase":
-                 move.source == StockPurchaseSource.IPO,
-             "You cannot afford to be president poorboi. {} (You have: {})".format(cost_of_stock, move.player.cash):
-                 move.player.hasEnoughMoney(cost_of_stock)
-             }
+        return self.validate([
+            ("Invalid IPO Price ({}).  Valid prices are {}.".format(move.ipo_price, valid_ipo_prices),
+                 move.ipo_price in VALID_IPO_PRICES),
+             ("You need to purchase stock from the IPO as this is an initial purchase",
+                 move.source == StockPurchaseSource.IPO),
+             ("You cannot afford to be president poorboi. {} (You have: {})".format(cost_of_stock, move.player.cash),
+                 move.player.hasEnoughMoney(cost_of_stock))]
         )
 
     def isFirstPurchase(self, move: StockRoundMove) -> bool:
