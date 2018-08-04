@@ -1,21 +1,41 @@
 from enum import Enum
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Set
+
 
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""
     pass
 
+
 class Player:
+    """This is the individual player.
+    Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
     def __init__(self):
         self.cash: int = 0
         self.order: int = 0
-        self.portfolio = set()
+        self.portfolio: Set['PublicCompany'] = set()
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
         """TODO: Is there a way to avoid cross-linking between Player and Public Company?
         Wouldn't that cause problems when trying to calculate a player's total wealth?"""
         self.portfolio.add(company)
         self.cash = self.cash - amount * price
+
+    def getCertificateCount(self):
+        total_stock_certificates = 0
+
+        for public_company in self.portfolio:
+            total_stock_certificates += public_company.owners[self] / 10
+            if public_company.president == self: # President has a 20% stock certificate
+                total_stock_certificates -= 1
+
+        return total_stock_certificates
+
+    def hasEnoughMoney(self, cost_of_stock: int):
+        return self.cash >= cost_of_stock
+
+    def hasStock(self, public_company: "PublicCompany"):
+        return public_company.owners[self] if public_company in self.portfolio else 0
 
 
 class PlayerBid(NamedTuple):
@@ -45,7 +65,6 @@ class PublicCompany:
         self.stock_status = StockStatus.NORMAL
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
-        # TODO: Check if this is the first sale.
         self.stocks[source] -= amount
         self.grantStock(player, amount)
         price = self.stockPrice[source]
@@ -58,7 +77,6 @@ class PublicCompany:
         self.owners[player] = self.owners.get(player, 0) - amount
         self.stocks[StockPurchaseSource.BANK] += amount
         # TODO: Player has to get paid for this.
-        self.priceDown(amount)
 
         pass
 
@@ -76,12 +94,13 @@ class PublicCompany:
         pass
 
     def checkPresident(self):
-        """Goes through owners and determines who the president is."""
+        """Goes through owners and determines who the president is.
+        The minimum ownership (20%) is not enforced here."""
         # TODO: Should this go into the minigame instead since it affects state?
         # Or keep it here because this is repetitive logic?
         # Ownership can technically change in an operating round (Train rusting = no money = sell stock = less money)
         max_ownership = max(self.owners.values())
-        top_owners = [k for k,v in self.owners.items() if v == max_ownership]
+        top_owners = [k for k, v in self.owners.items() if v == max_ownership]
         if self.president not in top_owners:
             play_order = self.president.order
 
@@ -99,6 +118,28 @@ class PublicCompany:
             self._floated = True
             return True
         return False
+
+    def availableStock(self, sps: StockPurchaseSource):
+        return self.stocks[sps]
+
+    def setPresident(self, player: Player):
+        self.president = player
+
+    def setInitialPrice(self, ipo_price: int):
+        self.stockPrice[StockPurchaseSource.IPO] = self.stockPrice[StockPurchaseSource.BANK] = ipo_price
+
+    def hasStock(self, sps: StockPurchaseSource, amount: int) -> bool:
+        return self.stocks[sps] >= amount
+
+    def checkPrice(self, source: StockPurchaseSource, amount: int, ipo_price: int):
+        if source == StockPurchaseSource.IPO and  self.stockPrice[StockPurchaseSource.IPO] == 0:
+            return amount * ipo_price
+
+        return amount * self.stockPrice[source]
+
+    def potentialPresidents(self) -> Set[Player]:
+        """People with more than 20% stock are potential presidents"""
+        return set([owner for owner, amount in self.owners.items() if amount > 20])
 
 
 class PrivateCompany:

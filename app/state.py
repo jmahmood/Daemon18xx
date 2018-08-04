@@ -3,6 +3,7 @@ from typing import List
 from app.base import Player, Move, PrivateCompany
 from app.minigames.base import Minigame
 from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
+from app.minigames.stock_round import StockRound
 
 
 class Game:
@@ -37,7 +38,8 @@ class Game:
         classes = {
             "BiddingForPrivateCompany": BiddingForPrivateCompany,
             "BuyPrivateCompany": BuyPrivateCompany,
-            "StockRound": None  # TODO
+            "StockRound": StockRound,
+            "OperatingRound": None  # TODO
         }
 
         cls: type(Minigame) = classes.get(self.minigame_class)
@@ -45,7 +47,7 @@ class Game:
 
     def performedMove(self, move: Move) -> bool:
         """
-        Performs a move and sets the
+        Performs a move and mutate the Minigame / Player Order states
         :param move:
         :return:
         """
@@ -67,12 +69,13 @@ class Game:
         self.minigame_class = minigame_class
 
     def saveState(self) -> None:
-        """This saves the current state to a data store.  Pickle or SQL.
+        """This saves the current state to a data store.  Pickle or SQL?
         This is not necessary if you will run all the logic on the running process without quitting"""
         pass
 
     def notifyPlayers(self) -> None:
         """Sends a message to all players indicating that the state has been updated.
         Also sends error messages if any.
-        This is not necessary if we are testing the """
+
+        This is not necessary if we are testing the application, and can be overridden where necessary"""
         pass
