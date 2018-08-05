@@ -1,28 +1,71 @@
 from typing import List
 
-from app.base import Player, Move, PrivateCompany
+from app.base import Player, Move, PrivateCompany, PublicCompany
 from app.minigames.base import Minigame
 from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
 from app.minigames.stock_round import StockRound
 
-def BidOnPrivateCompany(players: List[Player], company: PrivateCompany):
-    """The player giving up the company for a bid lets the next x players make a bid for as long as
-    necessary for him to approve it."""
+"""
+# These are static function versions, but I probably want to use something else?
+
+def OfferPrivateCompanyForSale(players: List[Player], company: PrivateCompany):
+    # Happens when a player offers his private company for sale during his turn.
+    # In the interests of fairness, everyone gets a chance to bid on it.
     starting_player = company.belongs_to.order
     player_order_doubled = players.append(players)
-    return PlayerOrder(player_order_doubled[starting_player + 1:starting_player + len(players)])
+    pto = PlayerTurnOrder()
+    pto.stacking_type = True
+    pto.players = player_order_doubled[starting_player + 1:starting_player + len(players)]
+    return iter(pto)
 
 
 def PrivateCompanyBidPlayerOrder(company: PrivateCompany):
     players = [pb.player for pb in company.player_bids]
-    return PlayerOrder(players)
+    pto = PlayerTurnOrder()
+    pto.stacking_type = True
+    pto.players = players
+    return iter(pto)
 
 
-def PlayerOrder(players: List[Player]):
-    while True:
-        for p in players:
-            yield p
+def StockRoundPlayers(company: PrivateCompany, stock_round_iteration):
+    players = [pb.player for pb in company.player_bids]
+    starting_player = stock_round_iteration % len(players)
+    player_order_doubled = players.append(players)
 
+    pto = PlayerTurnOrder()
+    pto.overwrite_type = True
+    pto.players = player_order_doubled[starting_player:starting_player + len(players)]
+    return iter(pto)
+"""
+
+
+class PlayerTurnOrder:
+    def __init__(self):
+        self.stacking_type = False
+        self.overwrite_type = False
+        self.players: List[Player] = []
+        self.initial_player: Player = None
+        self.iteration = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Player:
+        player_position = self.iteration % len(self.players)
+        self.iteration += 1
+        return self.players[player_position]
+
+    def isStacking(self):
+        return self.stacking_type
+
+    def isOverwrite(self):
+        return self.overwrite_type
+
+    def removePlayer(self, player:Player):
+        self.players.remove(player)
+
+    def removeCompany(self, company:PublicCompany):
+        raise NotImplementedError
 
 class Game:
     """Holds state for the full ongoing game"""
@@ -38,6 +81,10 @@ class Game:
         game.players = players
         game.private_companies = PrivateCompany.allPrivateCompanies()
         return game
+
+    def __init__(self):
+        self.current_player = None
+        self.player_order_fn_list = []
 
     def isOngoing(self) -> bool:
         return True
@@ -64,79 +111,37 @@ class Game:
     def getState(self) -> dict:
         return {}
 
-    def getMinigamePlayerOrder(self):
-        """
-        You can either replace the current player order,
-        or temporarily replace this until the generator comes to an end.
+    def setPlayerOrderFn(self):
+        """Initializes a function that inherits from PlayerTurnOrder"""
+        self.player_order_fn_list.pop()
 
-        def player_order_fn(players, initial_player):
-            def inner_fn():
-                i = 0
-                while players.length > 0 and is valid:
-                    player_position = i % len(players)
-                    yield players[i]
-                    should_continue = yield
-
-                    if should_continue is of type player:
-                        players.remove(should_continue)
-
-                    if should_continue is of type boolean and not should_continue:
-                        is_valid = False
-                        break
-
-                    i+=1
-
-            return inner_fn
-
-        def bidding_on_private_company
-            blah blah
-            if is a pass:
-                current_player.send(current_player) # Current player should no longer come up.
-
-
-        def transitioning_to_stock_round
-            ...
-            current_player.send(False) # You need to stop this player order and start a brand new one
-            ...
-
-        def selling_a_private_company
-            ...
-            current_player.send("Stack") # You need to pause this? And start a new function?
-
-
-
-
-
-        x = player_order_fn()
-
-
-
-
-        while Game Is Not Finished
-        :
-            For player in player_order_fn:
-                current_player = player
-                await_command
-
-                if temporary_player_order_required:
-                    for player in temporary_player_order_fn:
-                        ...
-
-                elif transition:
-                    player_order_fn = new player_order_fn
-                    break
-
-        :return:
-        """
-        """
-        functions = {
-            "BuyPrivateCompany": (buy_company_player_order_fn(initial_player=), overwrites_previous_player_order=True)
-            "BiddingForPrivateCompany": (bid_for_private_company(initial_player=""), stack_player_order=True),
-            "StockRound": play_stock_round(initial_player=...), overwrites_previous_player_order=True
-            "StockRoundSellPrivateCompany": bid_for_private_company(initial_player=""), stack_player_order=True, #TODO
-            "OperatingRound": run_companies(company_order=[]), overwrites_previous_player_order=True  # TODO
+        player_order_functions = {
+            "BuyPrivateCompany": PlayerTurnOrder,
+            "BiddingForPrivateCompany": None,
+            "StockRound": None,
+            "StockRoundSellPrivateCompany": None,
+            "OperatingRound": None
         }
+
+        player_order_generator = player_order_functions.get(self.minigame_class)()
+
+        if player_order_generator.stacking_type:
+            self.player_order_fn_list.append(player_order_generator)
+
+        if player_order_generator.overwrite_type:
+            # Same class as the previous, keep the player order the same.
+            if self.player_order_fn_list[-1].__class__.__name__ == player_order_generator.__class__.__name__:
+                pass
+            else:
+                self.player_order_fn_list = [player_order_generator]
+
+
+    def setCurrentPlayer(self):
         """
+        Sets the player by incrementing the stacked player_order_fn
+        """
+        self.current_player = next(self.player_order_fn_list[-1])
+
     def getMinigame(self) -> Minigame:
         """Creates a NEW INSTANCE of a mini game and passes it"""
         classes = {
@@ -159,7 +164,16 @@ class Game:
         minigame = self.getMinigame()
         success = minigame.run(move, **self.getState())
 
-        self.setMinigame(minigame.next()) if success else self.setError(minigame.errors())
+        if success:
+            if self.minigame_class != minigame.next():
+                """When the minigame changes, you need to switch the player order usually."""
+                self.setMinigame(minigame.next())
+                self.setPlayerOrderFn()
+
+            self.setCurrentPlayer()
+
+        else:
+            self.setError(minigame.errors())
 
         return success
 
