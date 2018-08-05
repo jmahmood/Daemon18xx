@@ -1,7 +1,6 @@
+import json
 from enum import Enum
 from typing import List
-
-from functools import reduce
 
 from app.base import Move, PublicCompany, StockPurchaseSource, Player
 from app.minigames.base import Minigame
@@ -33,26 +32,38 @@ class StockRoundType(Enum):
     BUY = 1
     SELL = 2
     PASS = 3
-    SELL_PRIVATE_COMPANY = 4  # TODO - may choose to move it to a different minigame, since it involves player interaction
+    SELL_PRIVATE_COMPANY = 4
 
 
 class StockRoundMove(Move):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.ipo_price: int = 0
-        self.player: Player = None
-        self.source: StockPurchaseSource = None
+        self.public_company_id: str = None
         self.public_company: PublicCompany = None
+        self.ipo_price: int = None
+        self.source: StockPurchaseSource = None
+        self.private_company_order: int = None
         self.amount: int = None  # Only used for sale.
         self.move_type: StockRoundType = None
 
     def backfill(self, **kwargs) -> None:
-        # TODO
-        pass
+        super().backfill(**kwargs)
+        public_companies = [pc for pc in kwargs.get("public_companies") if pc.id == self.public_company_id]
+        self.public_company = public_companies[0]
 
     @staticmethod
     def fromMove(move: "Move") -> "Move":
         ret = StockRoundMove()
+
+        msg: dict = json.loads(move.msg)
+        ret.private_company_order = msg.get('private_company')
+        ret.player_id = msg.get("player_id")
+
+        ret.move_type = StockRoundType(msg.get('move_type'))
+        ret.ipo_price = int(msg.get("ipo_price", 0))
+        ret.source = StockPurchaseSource(msg.get("stock_source"))
+        ret.amount = int(msg.get("amount", 0))
+
         return ret
 
 
@@ -95,6 +106,21 @@ class StockRound(Minigame):
                 kwargs['stock_round_passed'] = kwargs['stock_round_passed'] + 1
                 # If every player passes during the stock round, the round is over.
                 return True
+
+        if StockRoundType.SELL_PRIVATE_COMPANY == StockRoundType(move.move_type):
+            # TODO - may choose to move it to a different minigame, since it involves player interaction
+            # Two implementation possibilities
+            # Interrupt the current player order, ask all players to submit a price they are willing to pay,
+            # Player can then select from between them.  He does not have to select the highest price.
+            # This kind of bidding dynamic would be cool if it was not turn-based but could happen in real time,
+            # like it would happen in the game itself..
+
+            # Alternative easy and non-entertaining method would be to allow the player to submit the other player id
+            # and the amount they have agreed on selling for.  There would be no validation involved, and it would
+            # be an obvious cheating vector.
+            raise NotImplementedError
+
+        return False
 
     def next(self, **kwargs) -> str:
         players: List[Player] = kwargs.get('players')

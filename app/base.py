@@ -10,7 +10,10 @@ class StockMarket:
 class Player:
     """This is the individual player.
     Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
+
     def __init__(self):
+        self.id: str = "1"
+        self.name: str = ""
         self.cash: int = 0
         self.order: int = 0
         self.portfolio: Set['PublicCompany'] = set()
@@ -26,7 +29,7 @@ class Player:
 
         for public_company in self.portfolio:
             total_stock_certificates += public_company.owners[self] / 10
-            if public_company.president == self: # President has a 20% stock certificate
+            if public_company.president == self:  # President has a 20% stock certificate
                 total_stock_certificates -= 1
 
         return total_stock_certificates
@@ -58,6 +61,7 @@ class StockStatus(Enum):
 class PublicCompany:
     def __init__(self):
         self._floated = None
+        self.id: str = None
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
@@ -75,10 +79,9 @@ class PublicCompany:
 
     def sell(self, player: Player, amount: int):
         self.owners[player] = self.owners.get(player, 0) - amount
-        self.stocks[StockPurchaseSource.BANK] += amount
-        # TODO: Player has to get paid for this.
 
-        pass
+        # Player has to get paid for this, this is not handled by this class.
+        self.stocks[StockPurchaseSource.BANK] += amount
 
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
@@ -132,7 +135,7 @@ class PublicCompany:
         return self.stocks[sps] >= amount
 
     def checkPrice(self, source: StockPurchaseSource, amount: int, ipo_price: int):
-        if source == StockPurchaseSource.IPO and  self.stockPrice[StockPurchaseSource.IPO] == 0:
+        if source == StockPurchaseSource.IPO and self.stockPrice[StockPurchaseSource.IPO] == 0:
             return amount * ipo_price
 
         return amount * self.stockPrice[source]
@@ -144,16 +147,17 @@ class PublicCompany:
 
 class PrivateCompany:
     def __init__(self):
-        self.player_bids = None
-        self.order = None
-        self.name = None
-        self.short_name = None
-        self.cost = None
-        self.actual_cost = None
-        self.revenue = None
-        self.belongs_to = None
+        self.player_bids: List[PlayerBid] = None
+        self.order: int = None
+        self.name: str = None
+        self.short_name: str = None
+        self.cost: int = None
+        self.actual_cost: int = None
+        self.revenue: int = None
+        self.belongs_to: Player = None
         self.player_bids: List[PlayerBid] = None
         self.passed_by: List[Player] = None
+        # ^-- This is a list of people who have passed on a private company in a bidding round.
         self.pass_count = None
 
     @staticmethod
@@ -206,9 +210,9 @@ class PrivateCompany:
         """No security at this level.  If you run this, any bid will be accepted."""
         self.player_bids.append(PlayerBid(player, amount))
 
-    def belongs(self, player: Player):
+    def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
-        self.belongs_to(player)
+        self.belongs_to = player
 
     def set_actual_cost(self, actual_cost):
         self.actual_cost = actual_cost
@@ -221,11 +225,19 @@ class Move:
 
     def __init__(self) -> None:
         super().__init__()
+        self.player_id: str = None
+        self.player: Player = None
         self.msg = None
 
     def backfill(self, **kwargs) -> None:
-        """Used to add additional contextual fields (Player instead of Player ID)"""
-        raise NotImplementedError
+        """We do not have all the context when we receive a move; we are only passed a JSON text file, not the
+        objects themselves.  We receive the objects from the game object when executing the Minigame.
+        We bind those objects when the minigame is run, keeping ID values to allow us to match them up to the object itself"""
+
+        for player in kwargs.get("players"):
+            if player.id == self.player_id:
+                self.player = player
+                break
 
     @staticmethod
     def fromMove(move: "Move") -> "Move":
