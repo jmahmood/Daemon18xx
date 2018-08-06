@@ -8,6 +8,11 @@ class Color(Enum):
     BROWN = 3
     RED = 4
 
+
+class Route(NamedTuple):
+    pass
+
+
 class Token(NamedTuple):
     pass
 
@@ -74,6 +79,7 @@ class StockStatus(Enum):
     ORANGE = 3
     BROWN = 4
 
+
 class GameBoard:
     def __init__(self):
         self.board = {}
@@ -86,9 +92,13 @@ class GameBoard:
         # TODO
         pass
 
+    def calculateRoute(self, route) -> int:
+        pass
+
 
 class PublicCompany:
     def __init__(self):
+        self._income: int = None
         self.cash: int = None
         self._floated = None
         self.id: str = None
@@ -175,6 +185,17 @@ class PublicCompany:
         """People with more than 20% stock are potential presidents"""
         return set([owner for owner, amount in self.owners.items() if amount > 20])
 
+    def payDividends(self):
+        for owner in self.owners.keys():
+            player: Player = owner
+            player.cash += int(self._income * self.owners.get(player) / 100.0)
+
+    def incomeToCash(self):
+        self.cash += self._income
+
+    def addIncome(self, amount: int) -> None:
+        self._income += amount
+
 
 class PrivateCompany:
     def __init__(self):
@@ -253,7 +274,7 @@ class PrivateCompany:
         if self.belongs_to:
             self.belongs_to.cash += self.revenue
         if self.belongs_to_company:
-            self.belongs_to_company.cash += self.revenue
+            self.belongs_to_company.addIncome(self.revenue)
 
 
 class Move:

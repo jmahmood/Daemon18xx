@@ -1,13 +1,17 @@
 # TODO: Create structure of how the Operating Round works
 from typing import List, NamedTuple
 
-from app.base import PrivateCompany, Move, GameBoard, Track, Token
+from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany
 from app.minigames.base import Minigame
 
 
 class OperatingRoundMove(Move):
     def __init__(self):
         super().__init__()
+        self.buyTrain:bool = None
+        self.payDividend: bool = None
+        self.routes: List[Route] = None
+        self.public_company: PublicCompany = None
         self.token: Token = None
         self.track: Track = None
 
@@ -20,41 +24,76 @@ class OperatingRound(Minigame):
         pass
 
     def run(self, move: OperatingRoundMove, **kwargs) -> bool:
+        """We need to be able to roll back changes as we could do something invalid later on.
+        Need to not change state until the end."""
         move.backfill(**kwargs)
 
         return False
 
     def constructTrack(self, move: OperatingRoundMove, **kwargs):
-        track = move.track
+        track: Track = move.track
         board: GameBoard = kwargs.get("board")
         if self.isValidTrackPlacement(track):
             board.set(track)
             # TODO: Auto-add token if it is the company's home territory.
 
-
     def purchaseToken(self, move: OperatingRoundMove, **kwargs):
-        token = move.token
+        token: Token = move.token
         board: GameBoard = kwargs.get("board")
         if self.isValidTokenPlacement(token):
             board.setToken(token)
         pass
 
-    def runTrains(self, move: OperatingRoundMove):
-        pass
+    def runTrains(self, move: OperatingRoundMove, **kwargs):
+        routes: List[Route] = move.routes
+        board: GameBoard = kwargs.get("board")
+        public_company = move.public_company
+
+        has_invalid_route =  False in [self.isValidRoute(route) for route in routes]
+
+        if not has_invalid_route:
+            for route in routes:
+                public_company.addIncome(board.calculateRoute(route))
+
 
     def payDividends(self, move: OperatingRoundMove):
-        pass
+        if move.payDividend:
+            raise NotImplementedError()  # TODO: Need to spread cash between owners and whatever.
+        else:
+            move.public_company.incomeToCash()
 
     def purchaseTrain(self, move: OperatingRoundMove):
-        pass
+        if move.buyTrain:
+            self.isValidTrainPurchase()
 
     @staticmethod
     def onStart(**kwargs) -> None:
+        # Can non-floated companies own private companies??
         private_companies: List[PrivateCompany] = kwargs.get("private_companies")
         for pc in private_companies:
             pc.distributeRevenue()
 
-        # Find and set the public companies that have already been floated.
+        # Create a list of floated companies (?)
+
+    def isValidTrainPurchase(self):
+        # you may have to
+        return self.validate([
+            ("You don't have enough money", False),
+            ("That train is not for sale", False),
+        ])
+
+
+    def isValidRoute(self, route):
+        return self.validate([
+            ("You must join at least two cities", False),
+            ("You cannot reverse across a junction", False),
+            ("You cannot change track at a cross-over", False),
+            ("You cannot travel the same track section twice", False),
+            ("You cannot use the same station twice", False),
+            ("Two trains cannot overlap", False),
+            ("At least one city must be occupied by that corporation's token", False),
+            ("You need to have a train in order to run a route", False),
+        ])
 
     def isValidTokenPlacement(self, token):
         return self.validate([
