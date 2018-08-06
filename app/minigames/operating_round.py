@@ -64,6 +64,8 @@ class OperatingRound(Minigame):
 
     def purchaseTrain(self, move: OperatingRoundMove):
         if move.buyTrain:
+            # This is an optional move to begin with.
+            # Need a smart way to handle train rusting here.
             self.isValidTrainPurchase()
 
     @staticmethod
@@ -76,7 +78,6 @@ class OperatingRound(Minigame):
         # Create a list of floated companies (?)
 
     def isValidTrainPurchase(self):
-        # you may have to
         return self.validate([
             ("You don't have enough money", False),
             ("That train is not for sale", False),
