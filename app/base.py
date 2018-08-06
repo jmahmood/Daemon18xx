@@ -2,6 +2,23 @@ from enum import Enum
 from typing import NamedTuple, List, Set
 
 
+class Color(Enum):
+    GRAY = 1
+    YELLOW = 2
+    BROWN = 3
+    RED = 4
+
+class Token(NamedTuple):
+    pass
+
+
+class Track(NamedTuple):
+    id: str
+    id_v2: str
+    color: Color
+    location: str
+    rotation: int
+
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""
     pass
@@ -57,9 +74,22 @@ class StockStatus(Enum):
     ORANGE = 3
     BROWN = 4
 
+class GameBoard:
+    def __init__(self):
+        self.board = {}
+
+    def set(self, track: Track):
+        self.board[track.location] = track
+        pass
+
+    def setToken(self, token: Token):
+        # TODO
+        pass
+
 
 class PublicCompany:
     def __init__(self):
+        self.cash: int = None
         self._floated = None
         self.id: str = None
         self.president: Player = None
@@ -119,6 +149,7 @@ class PublicCompany:
     def checkFloated(self):
         if not self._floated and self.stocks[StockPurchaseSource.IPO] < 5:
             self._floated = True
+            self.cash = self.stockPrice[StockPurchaseSource.IPO] * 10
             return True
         return False
 
@@ -147,6 +178,7 @@ class PublicCompany:
 
 class PrivateCompany:
     def __init__(self):
+        self.belongs_to_company: PublicCompany = None
         self.player_bids: List[PlayerBid] = None
         self.order: int = None
         self.name: str = None
@@ -214,8 +246,14 @@ class PrivateCompany:
         """No security at this level.  If you run this, any bid will be accepted."""
         self.belongs_to = player
 
-    def set_actual_cost(self, actual_cost):
+    def setActualCost(self, actual_cost):
         self.actual_cost = actual_cost
+
+    def distributeRevenue(self):
+        if self.belongs_to:
+            self.belongs_to.cash += self.revenue
+        if self.belongs_to_company:
+            self.belongs_to_company.cash += self.revenue
 
 
 class Move:

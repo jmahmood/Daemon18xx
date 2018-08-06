@@ -68,7 +68,12 @@ class PlayerTurnOrder:
         raise NotImplementedError
 
 class Game:
-    """Holds state for the full ongoing game"""
+    """Holds state for the full ongoing game
+
+    TODO: Need to clarify what state needs to be in the Game class,
+    This probably needs to wait for all the minigames to be implemented and cleaned up.
+    
+    """
     @staticmethod
     def initialize(players: List[Player], saved_game: dict = None) -> "Game":
         """
@@ -92,21 +97,13 @@ class Game:
     def isValidMove(self, move: Move) -> bool:
         """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
         IE: You normally can't sell stock during an Operating Round"""
-        pass
+        # TODO: How do we determine the move type?
+        # Some form of duck typing?
+        raise NotImplementedError
 
     def isValidPlayer(self, player: Player) -> bool:
-        """The person who submitted the move must be the current player.
-        This is more difficult than it seems, especially if we want to try to avoid holding unnecessary state.
-        -> Player order is fixed until phases end
-        -> Player order changes between different stock rounds
-        -> There can be temporary player orders
-            -> Private Company bid-offs
-            -> Requesting bids for one's private company (This is quite complicated if we want to do it correctly)
-                -> You make the request, everyone can submit a bid until you either accept one or cancel and do something else.
-                -> IE: Everyone can make a "Move" (submit a bid) or you can revert the state
-        -> Company operating rounds have different
-        """
-        pass
+        """The person who submitted the move must be the current player."""
+        return player == self.current_player
 
     def getState(self) -> dict:
         return {}
@@ -138,7 +135,7 @@ class Game:
 
     def setCurrentPlayer(self):
         """
-        Sets the player by incrementing the stacked player_order_fn
+        Sets the player by incrementing the newest player_order_fn
         """
         self.current_player = next(self.player_order_fn_list[-1])
 
@@ -162,13 +159,18 @@ class Game:
         :return:
         """
         minigame = self.getMinigame()
+        self.getMinigame().onTurnStart(**{})
         success = minigame.run(move, **self.getState())
 
         if success:
             if self.minigame_class != minigame.next():
                 """When the minigame changes, you need to switch the player order usually."""
+                minigame.onComplete(**{})
                 self.setMinigame(minigame.next())
                 self.setPlayerOrderFn()
+                self.getMinigame().onStart(**{})
+            else:
+                minigame.onTurnComplete(**{})
 
             self.setCurrentPlayer()
 
@@ -178,8 +180,7 @@ class Game:
         return success
 
     def setError(self, error_list: List[str]) -> None:
-        """A Minigame is a specific game state that evaluates more complex game rules.
-        Bidding during private bidding, etc..."""
+        # TODO: Sets the error that will be returned
         pass
 
     def setMinigame(self, minigame_class: str) -> None:
@@ -188,11 +189,13 @@ class Game:
         self.minigame_class = minigame_class
 
     def saveState(self) -> None:
+        # TODO: Saves State
         """This saves the current state to a data store.  Pickle or SQL?
         This is not necessary if you will run all the logic on the running process without quitting"""
         pass
 
     def notifyPlayers(self) -> None:
+        # TODO: Used for external communication to a front-end module.
         """Sends a message to all players indicating that the state has been updated.
         Also sends error messages if any.
 

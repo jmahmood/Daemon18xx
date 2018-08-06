@@ -1,9 +1,29 @@
 from typing import List, Tuple
 
+import logging
+
 from app.base import Move
 
 
-class Minigame:
+class LifeCycle:
+    @staticmethod
+    def onStart(**kwargs) -> None:
+        logging.info("Minigame started")
+
+    @staticmethod
+    def onTurnStart(**kwargs) -> None:
+        logging.info("Minigame started")
+
+    @staticmethod
+    def onComplete(**kwargs) -> None:
+        logging.info("Minigame complete")
+
+    @staticmethod
+    def onTurnComplete(**kwargs) -> None:
+        logging.info("Minigame turn complete")
+
+
+class Minigame(LifeCycle):
     """
     A State object for the game, used to evaluate rules that apply only to subsections of hte game itself.
     """

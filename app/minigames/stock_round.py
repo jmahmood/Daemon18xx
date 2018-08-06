@@ -2,6 +2,8 @@ import json
 from enum import Enum
 from typing import List
 
+import logging
+
 from app.base import Move, PublicCompany, StockPurchaseSource, Player
 from app.minigames.base import Minigame
 
@@ -127,11 +129,28 @@ class StockRound(Minigame):
         if kwargs['stock_round_play'] % len(players) == 0 \
                 and kwargs['stock_round_play'] > 0 \
                 and kwargs['stock_round_passed'] == len(players):
-            public_companies: List[PublicCompany] = kwargs.get('public_companies')
-            for public_company in public_companies:
-                public_company.checkPriceIncrease()
                 return "OperatingRound"
         return "StockRound"
+
+    @staticmethod
+    def onStart(**kwargs) -> None:
+        pass
+
+    @staticmethod
+    def onComplete(**kwargs) -> None:
+        """Transitioning out of the stock round: increment stock values."""
+        super().onComplete(**kwargs)
+
+        public_companies: List[PublicCompany] = kwargs.get("public_companies")
+        for pc in public_companies:
+            pc.checkPriceIncrease()
+
+
+    @staticmethod
+    def onTurnComplete(**kwargs):
+        """Transitioning out of the stock round: increment stock values."""
+        super().onTurnComplete(**kwargs)
+
 
     def validateBuy(self, move: StockRoundMove, **kwargs) -> bool:
         number_of_total_players = len(kwargs.get('players'))

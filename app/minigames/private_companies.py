@@ -41,7 +41,7 @@ class BuyPrivateCompanyMove(Move):
 
 class BiddingForPrivateCompany(Minigame):
 
-    def validate_bid(self, move: BuyPrivateCompanyMove):
+    def validateBid(self, move: BuyPrivateCompanyMove):
         # User needs to be one of the users who bid already.
         # User needs to not have passed on this company yet.
         valid_bidders = [pb.player for pb in move.private_company.player_bids]
@@ -65,7 +65,7 @@ class BiddingForPrivateCompany(Minigame):
              move.bid_amount >=  minimum_bid),
         ])
 
-    def validate_pass(self, move: BuyPrivateCompanyMove):
+    def validatePass(self, move: BuyPrivateCompanyMove):
         valid_bidders = [pb.player for pb in move.private_company.player_bids]
         is_valid_bidder = move.player in valid_bidders
         hasnt_passed = move.player not in move.private_company.passed_by
@@ -83,9 +83,7 @@ class BiddingForPrivateCompany(Minigame):
              other_bidder_remain),
         ])
 
-
-
-    def validate_sold(self, move: BuyPrivateCompanyMove):
+    def validateSold(self, move: BuyPrivateCompanyMove):
         """
         If there is only one bidder left who hasn't passed, the stock belongs to him.
         :param move:
@@ -99,7 +97,7 @@ class BiddingForPrivateCompany(Minigame):
             actual_cost_of_company = max([player_bid.bid_amount for player_bid in move.private_company.player_bids
                  if player_bid.player == purchaser]) # Player buys for max amount he bid.
 
-            move.private_company.set_actual_cost(actual_cost_of_company)
+            move.private_company.setActualCost(actual_cost_of_company)
             move.private_company.setBelongs(move.player)
             return True
         return False
@@ -108,15 +106,15 @@ class BiddingForPrivateCompany(Minigame):
         move.backfill(**kwargs)
 
         if BidType.BID == move.move_type:
-            if self.validate_bid(move):
+            if self.validateBid(move):
                 move.private_company.bid(move.player, move.bid_amount)
-                self.validate_sold(move)
+                self.validateSold(move)
                 return True
 
         if BidType.PASS == move.move_type:
-            if self.validate_pass(move):
+            if self.validatePass(move):
                 move.private_company.passed(move.player)
-                self.validate_sold(move)
+                self.validateSold(move)
                 return True
 
         return False
@@ -140,7 +138,7 @@ class BuyPrivateCompany(Minigame):
     Move:
     """
 
-    def validate_buy(self, move: BuyPrivateCompanyMove, **kwargs):
+    def validateBuy(self, move: BuyPrivateCompanyMove, **kwargs):
         """Ensures you can buy the Private company;
         Player order validations are out of scope"""
         private_companies: List[PrivateCompany] = kwargs.get("private_companies")
@@ -160,7 +158,7 @@ class BuyPrivateCompany(Minigame):
              move.player.hasEnoughMoney(cost_of_private_company)),
         ])
 
-    def validate_bid(self, move: BuyPrivateCompanyMove, **kwargs):
+    def validateBid(self, move: BuyPrivateCompanyMove, **kwargs):
         minimum_bid = max([move.private_company.actual_cost] +
                           [pb.bid_amount for pb in move.private_company.player_bids]) + 5
 
@@ -175,7 +173,7 @@ class BuyPrivateCompany(Minigame):
              move.bid_amount >=  minimum_bid),
         ])
 
-    def validate_pass(self, move: BuyPrivateCompanyMove):
+    def validatePass(self, move: BuyPrivateCompanyMove):
         actual_cost = move.private_company.actual_cost
         return self.validate([
             ("You must purchase the private company if its price has been reduced to zero. ({})".format(actual_cost),
@@ -187,17 +185,17 @@ class BuyPrivateCompany(Minigame):
         the number of players (so you know if you need to reduce the price on a private company)"""
 
         if BidType.BUY == move.move_type:
-            if self.validate_buy(move):
+            if self.validateBuy(move):
                 move.private_company.setBelongs(move.player)
                 return True
 
         if BidType.BID == move.move_type:
-            if self.validate_bid(move):
+            if self.validateBid(move):
                 move.private_company.bid(move.player, move.bid_amount)
                 return True
 
         if BidType.PASS == move.move_type:
-            if self.validate_pass(move):
+            if self.validatePass(move):
                 move.private_company.passed(move.player)
                 move.private_company.reduce_price(len(kwargs.get('players')))
                 return True
