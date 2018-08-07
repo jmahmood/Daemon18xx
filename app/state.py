@@ -1,6 +1,6 @@
 from typing import List
 
-from app.base import Player, Move, PrivateCompany, PublicCompany
+from app.base import Player, Move, PrivateCompany, PublicCompany, MutableGameState
 from app.minigames.base import Minigame
 from app.minigames.operating_round import OperatingRound
 from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
@@ -68,6 +68,7 @@ class PlayerTurnOrder:
     def removeCompany(self, company:PublicCompany):
         raise NotImplementedError
 
+
 class Game:
     """Holds state for the full ongoing game
 
@@ -106,9 +107,9 @@ class Game:
         """The person who submitted the move must be the current player."""
         return player == self.current_player
 
-    def getState(self) -> dict:
+    def getState(self) -> MutableGameState:
         #TODO: What is the state that we are passing in?
-        return {}
+        return MutableGameState()
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""

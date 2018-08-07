@@ -2,14 +2,35 @@ from enum import Enum
 from typing import NamedTuple, List, Set
 
 
+def err(validate: bool, error_msg: str, *format_error_msg_params):
+    if not validate:
+        return error_msg.format(*format_error_msg_params)
+
+
+class MutableGameState:
+    """This is state that needs to be modified by the minigames or other sections.  We are trapping it in its own
+    class so that fields that can be changed are clearly marked"""
+
+    def __init__(self):
+        """
+        players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
+        """
+        self.private_companies: List[PrivateCompany] = None
+        self.players: List[Player] = None
+
+    pass
+
+
 class Color(Enum):
     GRAY = 1
     YELLOW = 2
     BROWN = 3
     RED = 4
 
+
 class Train:
     pass
+
 
 class Route(NamedTuple):
     pass
@@ -26,6 +47,7 @@ class Track(NamedTuple):
     location: str
     rotation: int
 
+
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""
     pass
@@ -34,6 +56,9 @@ class StockMarket:
 class Player:
     """This is the individual player.
     Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
+
+    def __eq__(self, o: "Player") -> bool:
+        return isinstance(o, Player) and self.id == o.id
 
     def __init__(self):
         self.id: str = "1"
@@ -99,6 +124,9 @@ class GameBoard:
 
 
 class PublicCompany:
+    def __eq__(self, o: "PublicCompany") -> bool:
+        return isinstance(o, PublicCompany) and self.id == o.id
+
     def __init__(self):
         self.trains: List[Train] = None
         self._income: int = None
@@ -211,6 +239,10 @@ class PublicCompany:
 
 
 class PrivateCompany:
+    def __eq__(self, o: "PrivateCompany") -> bool:
+        """Allows duck typed comparisons between objects"""
+        return isinstance(o, PrivateCompany) and self.order == o.order
+
     def __init__(self):
         self.belongs_to_company: PublicCompany = None
         self.player_bids: List[PlayerBid] = None
@@ -262,6 +294,9 @@ class PrivateCompany:
     def hasOwner(self) -> bool:
         return self.belongs_to is not None
 
+    def hasNoOwner(self) -> bool:
+        return self.belongs_to is None
+
     def hasBids(self) -> bool:
         return len(self.player_bids) > 0
 
@@ -279,6 +314,7 @@ class PrivateCompany:
     def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
         self.belongs_to = player
+        self.belongs_to.cash -= self.actual_cost
 
     def setActualCost(self, actual_cost):
         self.actual_cost = actual_cost
@@ -301,15 +337,17 @@ class Move:
         self.player: Player = None
         self.msg = None
 
-    def backfill(self, **kwargs) -> None:
+    def backfill(self, kwargs: MutableGameState) -> None:
         """We do not have all the context when we receive a move; we are only passed a JSON text file, not the
         objects themselves.  We receive the objects from the game object when executing the Minigame.
         We bind those objects when the minigame is run, keeping ID values to allow us to match them up to the object itself"""
 
-        for player in kwargs.get("players"):
+        for player in kwargs.players:
             if player.id == self.player_id:
                 self.player = player
-                break
+                return
+
+        raise ValueError("Player not found when instantiating move")
 
     @staticmethod
     def fromMove(move: "Move") -> "Move":

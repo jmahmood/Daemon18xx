@@ -1,8 +1,9 @@
 import json
 from enum import Enum
-from typing import List, NamedTuple
+from typing import List
 
-from app.base import Move, Player, PrivateCompany
+from app.base import Move, PrivateCompany, err
+from app.base import MutableGameState
 from app.minigames.base import Minigame
 
 
@@ -13,6 +14,23 @@ class BidType(Enum):
 
 
 class BuyPrivateCompanyMove(Move):
+    """
+    To generate a Private Company Move, you need to pass in a message that looks like the one below.
+
+        {
+            "private_company_order": 1, # int
+            "move_type": "BUY",         # ENUM(BUY, BID, PASS)
+            "player_id": "A",           # str
+            "bid_amount": 0             # int
+        }
+
+    The "private_company_order" lets us determine which private company you were thinking about
+    when you made the move itself (This also helps if the front-end is showing the wrong private
+    company as the current one - we raise an error, and the frontend fixes it.)
+
+
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.private_company: PrivateCompany = None
@@ -20,18 +38,19 @@ class BuyPrivateCompanyMove(Move):
         self.move_type: BidType = None
         self.bid_amount: int = None
 
-    def backfill(self, **kwargs) -> None:
-        super().backfill(**kwargs)
+    def backfill(self, kwargs: MutableGameState) -> None:
+        super().backfill(kwargs)
 
-        private_companies = [pc for pc in kwargs.get("private_companies") if pc.order == self.private_company_order]
+        private_companies = [pc for pc in kwargs.private_companies if pc.order == self.private_company_order]
         self.private_company = private_companies[0]
 
     @staticmethod
-    def fromMove(move: "Move") -> "Move":
+    def fromMove(move: "Move") -> "BuyPrivateCompanyMove":
         ret = BuyPrivateCompanyMove()
         msg: dict = json.loads(move.msg)
-        ret.move_type = BidType(msg.get('move_type'))
-        ret.private_company_order = msg.get('private_company')
+        ret.move_type = BidType[msg.get('move_type')]
+        ret.private_company_order = msg.get(
+            'private_company_order')  # What is the current private company being bid on?
         ret.private_company = None
         ret.player_id = msg.get("player_id")
         ret.player = None
@@ -40,7 +59,6 @@ class BuyPrivateCompanyMove(Move):
 
 
 class BiddingForPrivateCompany(Minigame):
-
     def validateBid(self, move: BuyPrivateCompanyMove):
         # User needs to be one of the users who bid already.
         # User needs to not have passed on this company yet.
@@ -49,20 +67,34 @@ class BiddingForPrivateCompany(Minigame):
                           [pb.bid_amount for pb in move.private_company.player_bids]) + 5
 
         return self.validate([
-            ("You can't bid on this now, bitterboi.",
-             move.player in valid_bidders),
+            err(
+                move.player in valid_bidders,
+                "You can't bid on this now, bitterboi."
+            ),
 
-            ("You can't only keep bidding until you've passed once.)",
-             move.player not in [pc.passed_by for pc in move.private_company.passed_by]),
+            err(
+                move.player not in [pc.passed_by for pc in move.private_company.passed_by],
+                "You can only keep bidding until you've passed once.",
+             ),
 
-            ("Someone already owns this cheatingboi. {0}".format(move.private_company.belongs_to.name),
-             move.private_company.hasOwner()),
+            err(
+                move.private_company.hasOwner(),
+                "Someone already owns this cheatingboi. {0}",
+                move.private_company.belongs_to.name
+            ),
 
-            ("You cannot afford poorboi. {} (You have: {})".format(move.bid_amount, move.player.cash),
-             move.player.hasEnoughMoney(move.bid_amount)),
+            err(
+                move.player.hasEnoughMoney(move.bid_amount),
+                "You cannot afford poorboi. {} (You have: {})",
+                move.bid_amount, move.player.cash
+            ),
 
-            ("Your bid is too small weenieboi. {} (Minimum Bid: {})".format(move.bid_amount, minimum_bid),
-             move.bid_amount >=  minimum_bid),
+            err(
+                move.bid_amount >= minimum_bid,
+                "Your bid is too small weenieboi. {} (Minimum Bid: {})",
+                move.bid_amount, minimum_bid
+            ),
+
         ])
 
     def validatePass(self, move: BuyPrivateCompanyMove):
@@ -72,15 +104,20 @@ class BiddingForPrivateCompany(Minigame):
         other_bidder_remain = len(set(valid_bidders) - set(move.private_company.passed_by)) > 1
 
         return self.validate([
-            ("You can't pass on this - heck you can't bid on this.  "
-             "There probably is something wrong with your UI implementation that is letting you make a move.",
-             is_valid_bidder),
+            err(
+                is_valid_bidder,
+                "You can't pass on this - heck you can't bid on this.  "
+                          "There probably is something wrong with your UI implementation that "
+                          "is letting you make a move."),
 
-            ("You already passed.",
-             hasnt_passed),
+            err(
+                hasnt_passed,
+                "You already passed on this company."),
 
-            ("You are the only bidder left; you can't pass.  You should have received the stock already",
-             other_bidder_remain),
+            err(
+                other_bidder_remain,
+                "You are the only bidder left; you can't pass.  You should have received the stock already."
+            ),
         ])
 
     def validateSold(self, move: BuyPrivateCompanyMove):
@@ -95,15 +132,15 @@ class BiddingForPrivateCompany(Minigame):
         if len(all_bidders - all_passers) == 1:
             purchaser = list(all_bidders - all_passers)[0]
             actual_cost_of_company = max([player_bid.bid_amount for player_bid in move.private_company.player_bids
-                 if player_bid.player == purchaser]) # Player buys for max amount he bid.
+                                          if player_bid.player == purchaser])  # Player buys for max amount he bid.
 
             move.private_company.setActualCost(actual_cost_of_company)
             move.private_company.setBelongs(move.player)
             return True
         return False
 
-    def run(self, move: BuyPrivateCompanyMove, **kwargs) -> bool:
-        move.backfill(**kwargs)
+    def run(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState) -> bool:
+        move.backfill(kwargs)
 
         if BidType.BID == move.move_type:
             if self.validateBid(move):
@@ -138,54 +175,74 @@ class BuyPrivateCompany(Minigame):
     Move:
     """
 
-    def validateBuy(self, move: BuyPrivateCompanyMove, **kwargs):
+    def validateBuy(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState):
         """Ensures you can buy the Private company;
         Player order validations are out of scope"""
-        private_companies: List[PrivateCompany] = kwargs.get("private_companies")
+        private_companies: List[PrivateCompany] = kwargs.private_companies
         cost_of_private_company = move.private_company.actual_cost
-
         wrong_order = [pc.name for pc in private_companies
-            if pc.order < move.private_company_order and not pc.hasOwner()]
+                       if pc.order < move.private_company_order and not pc.hasOwner()]
 
         return self.validate([
-            ("Someone already owns this cheatingboi. {0}".format(move.private_company.belongs_to.name),
-             move.private_company.hasOwner()),
+            err(
+                move.private_company.hasNoOwner(),
+                "Someone already owns this cheatingboi {} / {}",
+                move.private_company.name, move.player.id
+            ),
 
-            ("You can't buy this yet. {0}".format(",".join(wrong_order)),
-             len(wrong_order) > 0),
+            err(
+                len(wrong_order) == 0,
+                "You can't buy this yet. {0} needs to be sold first.",
+                ",".join(wrong_order)
+            ),
 
-            ("You cannot afford poorboi. {} (You have: {})".format(cost_of_private_company, move.player.cash),
-             move.player.hasEnoughMoney(cost_of_private_company)),
+            err(
+                move.player.hasEnoughMoney(cost_of_private_company),
+                "You cannot afford poorboi. {} (You have: {})",
+                cost_of_private_company, move.player.cash
+            ),
+
+            err(
+                not move.private_company.hasBids(),
+                "You cannot buy something that has a bid on it."
+            ),
+
         ])
 
-    def validateBid(self, move: BuyPrivateCompanyMove, **kwargs):
+    def validateBid(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState):
         minimum_bid = max([move.private_company.actual_cost] +
                           [pb.bid_amount for pb in move.private_company.player_bids]) + 5
 
         return self.validate([
-            ("Someone already owns this cheatingboi. {0}".format(move.private_company.belongs_to.name),
-             move.private_company.hasOwner()),
+            err(move.private_company.hasNoOwner(),
+                "Someone already owns this cheatingboi {}",
+                json.dumps(move.private_company.__dict__)
+            ),
 
-            ("You cannot afford poorboi. {} (You have: {})".format(move.bid_amount, move.player.cash),
-             move.player.hasEnoughMoney(move.bid_amount)),
+            err(move.player.hasEnoughMoney(move.bid_amount),
+                "You cannot afford poorboi. {} (You have: {})",
+                move.bid_amount, move.player.cash
+            ),
 
-            ("Your bid is too small weenieboi. {} (Minimum Bid: {})".format(move.bid_amount, minimum_bid),
-             move.bid_amount >=  minimum_bid),
+            err(move.bid_amount >= minimum_bid,
+                "Your bid is too small weenieboi. {} (Minimum Bid: {})",
+                move.bid_amount, minimum_bid
+            ),
         ])
 
     def validatePass(self, move: BuyPrivateCompanyMove):
         actual_cost = move.private_company.actual_cost
         return self.validate([
-            ("You must purchase the private company if its price has been reduced to zero. ({})".format(actual_cost),
-             move.private_company.actual_cost > 0),
+            err(move.private_company.actual_cost > 0,
+                "You must purchase the private company if its price has been reduced to zero. ({})",
+                actual_cost),
         ])
 
-    def run(self, move: BuyPrivateCompanyMove, **kwargs) -> bool:
-        """kwargs passes along additional read-only variables that provide context, such as
-        the number of players (so you know if you need to reduce the price on a private company)"""
+    def run(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState) -> bool:
+        move.backfill(kwargs)
 
         if BidType.BUY == move.move_type:
-            if self.validateBuy(move):
+            if self.validateBuy(move, kwargs):
                 move.private_company.setBelongs(move.player)
                 return True
 
@@ -197,13 +254,13 @@ class BuyPrivateCompany(Minigame):
         if BidType.PASS == move.move_type:
             if self.validatePass(move):
                 move.private_company.passed(move.player)
-                move.private_company.reduce_price(len(kwargs.get('players')))
+                move.private_company.reduce_price(len(kwargs.players))
                 return True
 
         return False
 
-    def next(self,  **kwargs) -> str:
-        private_companies: List[PrivateCompany] = kwargs.get('private_companies')
+    def next(self, kwargs: MutableGameState) -> str:
+        private_companies: List[PrivateCompany] = kwargs.private_companies
 
         for pc in private_companies:
             if not pc.hasOwner() and not pc.hasBids():
