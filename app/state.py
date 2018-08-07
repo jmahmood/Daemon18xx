@@ -2,6 +2,7 @@ from typing import List
 
 from app.base import Player, Move, PrivateCompany, PublicCompany
 from app.minigames.base import Minigame
+from app.minigames.operating_round import OperatingRound
 from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
 from app.minigames.stock_round import StockRound
 
@@ -106,9 +107,10 @@ class Game:
         return player == self.current_player
 
     def getState(self) -> dict:
+        #TODO: What is the state that we are passing in?
         return {}
 
-    def setPlayerOrderFn(self):
+    def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
         self.player_order_fn_list.pop()
 
@@ -146,7 +148,9 @@ class Game:
             "BuyPrivateCompany": BuyPrivateCompany,
             "StockRound": StockRound,
             "StockRoundSellPrivateCompany": None, #TODO
-            "OperatingRound": None  # TODO
+            "OperatingRound1": OperatingRound,  # TODO
+            "OperatingRound2": OperatingRound,  # TODO
+            "OperatingRound3": OperatingRound,  # TODO
         }
 
         cls: type(Minigame) = classes.get(self.minigame_class)
@@ -159,18 +163,18 @@ class Game:
         :return:
         """
         minigame = self.getMinigame()
-        self.getMinigame().onTurnStart(**{})
+        minigame.onTurnStart(**self.getState())
         success = minigame.run(move, **self.getState())
 
         if success:
             if self.minigame_class != minigame.next():
                 """When the minigame changes, you need to switch the player order usually."""
-                minigame.onComplete(**{})
+                minigame.onComplete(**self.getState())
                 self.setMinigame(minigame.next())
-                self.setPlayerOrderFn()
-                self.getMinigame().onStart(**{})
+                self.setPlayerOrder()
+                self.getMinigame().onStart(**self.getState())
             else:
-                minigame.onTurnComplete(**{})
+                minigame.onTurnComplete(**self.getState())
 
             self.setCurrentPlayer()
 

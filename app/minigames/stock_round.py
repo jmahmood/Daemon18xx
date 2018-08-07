@@ -129,7 +129,7 @@ class StockRound(Minigame):
         if kwargs['stock_round_play'] % len(players) == 0 \
                 and kwargs['stock_round_play'] > 0 \
                 and kwargs['stock_round_passed'] == len(players):
-                return "OperatingRound"
+                return "OperatingRound1"
         return "StockRound"
 
     @staticmethod

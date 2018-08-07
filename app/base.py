@@ -8,6 +8,8 @@ class Color(Enum):
     BROWN = 3
     RED = 4
 
+class Train:
+    pass
 
 class Route(NamedTuple):
     pass
@@ -84,7 +86,7 @@ class GameBoard:
     def __init__(self):
         self.board = {}
 
-    def set(self, track: Track):
+    def setTrack(self, track: Track):
         self.board[track.location] = track
         pass
 
@@ -98,6 +100,7 @@ class GameBoard:
 
 class PublicCompany:
     def __init__(self):
+        self.trains: List[Train] = None
         self._income: int = None
         self.cash: int = None
         self._floated = None
@@ -195,6 +198,16 @@ class PublicCompany:
 
     def addIncome(self, amount: int) -> None:
         self._income += amount
+
+    def removeRustedTrains(self, rusted_train_type: str):
+        self.trains = [train for train in self.trains if train.type != rusted_train_type]
+
+    def hasNoTrains(self) -> bool:
+        return len(self.trains) > 0
+
+    def hasValidRoute(self) -> bool:
+        # TODO You need to have a train if you have a valid route
+        raise NotImplementedError
 
 
 class PrivateCompany:

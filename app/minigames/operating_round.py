@@ -1,5 +1,4 @@
-# TODO: Create structure of how the Operating Round works
-from typing import List, NamedTuple
+from typing import List
 
 from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany
 from app.minigames.base import Minigame
@@ -8,8 +7,16 @@ from app.minigames.base import Minigame
 class OperatingRoundMove(Move):
     def __init__(self):
         super().__init__()
-        self.buyTrain:bool = None
-        self.payDividend: bool = None
+        self.purchase_token: bool \
+            = None  # Will you purchase a token?
+        self.construct_track: bool \
+            = None  # Will you set a track?
+        self.run_route: bool \
+            = None  # Will you run a route?
+        self.buy_train: bool \
+            = None  # Will you buy a train?
+        self.pay_dividend: bool \
+            = None  # Will you pay a dividend?
         self.routes: List[Route] = None
         self.public_company: PublicCompany = None
         self.token: Token = None
@@ -18,73 +25,79 @@ class OperatingRoundMove(Move):
     pass
 
 
+class RustedTrainMove(Move):
+    pass
+
+
 class OperatingRound(Minigame):
 
-    def next(self, **kwargs) -> str:
-        pass
+    def __init__(self):
+        self.rusted_train_type: str = None
+        self.trains_rusted: str = None
 
     def run(self, move: OperatingRoundMove, **kwargs) -> bool:
-        """We need to be able to roll back changes as we could do something invalid later on.
-        Need to not change state until the end."""
         move.backfill(**kwargs)
 
-        return False
+        if move.construct_track and not self.isValidTrackPlacement(move) or \
+            move.purchase_token and not self.isValidTokenPlacement(move) or \
+            move.run_route and not self.isValidRoute(move) or \
+            not self.isValidPaymentOption(move) or \
+            move.buy_train and not self.isValidTrainPurchase(move):
+            return False
+
+        self.constructTrack(move, **kwargs)
+        self.purchaseToken(move, **kwargs)
+        self.runRoutes(move, **kwargs)
+        self.payDividends(move, **kwargs)
+
+        return True
 
     def constructTrack(self, move: OperatingRoundMove, **kwargs):
         track: Track = move.track
         board: GameBoard = kwargs.get("board")
-        if self.isValidTrackPlacement(track):
-            board.set(track)
-            # TODO: Auto-add token if it is the company's home territory.
+        if move.construct_track and self.isValidTrackPlacement(move):
+            board.setTrack(track)
 
     def purchaseToken(self, move: OperatingRoundMove, **kwargs):
         token: Token = move.token
         board: GameBoard = kwargs.get("board")
-        if self.isValidTokenPlacement(token):
+        if move.purchase_token and self.isValidTokenPlacement(move):
             board.setToken(token)
-        pass
 
-    def runTrains(self, move: OperatingRoundMove, **kwargs):
+    def runRoutes(self, move: OperatingRoundMove, **kwargs):
         routes: List[Route] = move.routes
         board: GameBoard = kwargs.get("board")
         public_company = move.public_company
 
-        has_invalid_route =  False in [self.isValidRoute(route) for route in routes]
-
-        if not has_invalid_route:
+        if move.run_route and self.isValidRoute(move):
             for route in routes:
                 public_company.addIncome(board.calculateRoute(route))
 
-
-    def payDividends(self, move: OperatingRoundMove):
-        if move.payDividend:
+    def payDividends(self, move: OperatingRoundMove, **kwargs):
+        if move.pay_dividend:
             raise NotImplementedError()  # TODO: Need to spread cash between owners and whatever.
         else:
             move.public_company.incomeToCash()
 
     def purchaseTrain(self, move: OperatingRoundMove):
-        if move.buyTrain:
-            # This is an optional move to begin with.
-            # Need a smart way to handle train rusting here.
-            self.isValidTrainPurchase()
+        if move.buy_train and self.isValidTrainPurchase(move):
+            pass
 
-    @staticmethod
-    def onStart(**kwargs) -> None:
-        # Can non-floated companies own private companies??
-        private_companies: List[PrivateCompany] = kwargs.get("private_companies")
-        for pc in private_companies:
-            pc.distributeRevenue()
+    def isValidPaymentOption(self, move: OperatingRoundMove):
+        # TODO: Validate the payment (to players or to company)
+        return self.validate([])
 
-        # Create a list of floated companies (?)
 
-    def isValidTrainPurchase(self):
+    def isValidTrainPurchase(self, move: OperatingRoundMove):
         return self.validate([
             ("You don't have enough money", False),
             ("That train is not for sale", False),
         ])
 
 
-    def isValidRoute(self, route):
+    def isValidRoute(self, move: OperatingRoundMove):
+        """When determining valid routes, you also need to take into account the state of the board after the currently queued tile placement is made."""
+        # TODO: You also need to take into account any rail placements
         return self.validate([
             ("You must join at least two cities", False),
             ("You cannot reverse across a junction", False),
@@ -96,7 +109,8 @@ class OperatingRound(Minigame):
             ("You need to have a train in order to run a route", False),
         ])
 
-    def isValidTokenPlacement(self, token):
+    def isValidTokenPlacement(self, move: OperatingRoundMove):
+        token = move.token
         return self.validate([
             ("There is no track there", False),
             ("There are no free spots to place a token", False),
@@ -107,10 +121,12 @@ class OperatingRound(Minigame):
             ("You cannot place a token in Erie's home town before Erie", False)
         ])
 
-    def isValidTrackPlacement(self, track):
+    def isValidTrackPlacement(self, move: OperatingRoundMove):
         # TODO
         # Probably will have to implement a path finding algorithm for each company.
         # Dykstra's algo for tracks :o
+
+        track = move.track
         return self.validate([
             ("Your track needs to be on a location that exists", False),
             ("Someone has already set a tile there", False),
@@ -133,4 +149,59 @@ class OperatingRound(Minigame):
             ("You cannot access that tile from your company", False)
         ])
 
+    def next(self, **kwargs) -> str:
+        """Need to pass it to Operating Round or to handle a situation where trains have rusted"""
 
+        public_companies: List[PublicCompany] = kwargs.get("public_companies")
+        if self.rusted_train_type:
+            for pc in public_companies:
+                pc.removeRustedTrains(self.rusted_train_type)
+                if pc.hasNoTrains() and not pc.hasValidRoute():
+                    return "TrainsRusted"
+
+        # Do we have another operating round?
+        if kwargs.get("playerTurn").anotherCompanyWaiting():
+            return "OperatingRound{}".format(kwargs.get("currentOperatingRound"))  # Continue the same Operating Round
+
+        # Do we have another operating round?
+        if not kwargs.get("playerTurn").anotherCompanyWaiting() and \
+                        kwargs.get("currentOperatingRound") < kwargs.get("totalOperatingRounds"):
+            # TODO increment current operating round
+            kwargs.get("playerTurn").restart() # Should re-calculate the turn order and run a new operating round from the start.
+            return "OperatingRound{}".format(kwargs.get("currentOperatingRound") + 1)
+
+        return "StockRound"
+
+
+    @staticmethod
+    def onStart(**kwargs) -> None:
+        # Can non-floated companies own private companies??
+        private_companies: List[PrivateCompany] = kwargs.get("private_companies")
+        for pc in private_companies:
+            pc.distributeRevenue()
+
+        # Create a list of floated companies (?)
+
+    @staticmethod
+    def onTurnStart(**kwargs) -> None:
+        super().onTurnStart(**kwargs)
+
+    @staticmethod
+    def onTurnComplete(**kwargs) -> None:
+        # Check all the other companies for rusted trains
+        super().onTurnComplete(**kwargs)
+
+    @staticmethod
+    def onComplete(**kwargs) -> None:
+        super().onComplete(**kwargs)
+
+
+class TrainsRusted(Minigame):
+    """Your trains rusted and you have nothing left.  Absolutely not kosher."""
+    # TODO: Works like an auction.  How are we modelling auctions elsewhere?
+
+    def next(self, **kwargs) -> str:
+        pass
+
+    def run(self, move: Move, **kwargs) -> bool:
+        pass
