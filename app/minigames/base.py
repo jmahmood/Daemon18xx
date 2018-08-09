@@ -7,19 +7,19 @@ from app.base import Move, MutableGameState
 
 class LifeCycle:
     @staticmethod
-    def onStart(**kwargs) -> None:
+    def onStart(kwargs: MutableGameState) -> None:
         logging.info("Minigame started")
 
     @staticmethod
-    def onTurnStart(**kwargs) -> None:
+    def onTurnStart(kwargs: MutableGameState) -> None:
         logging.info("Minigame started")
 
     @staticmethod
-    def onComplete(**kwargs) -> None:
+    def onComplete(kwargs: MutableGameState) -> None:
         logging.info("Minigame complete")
 
     @staticmethod
-    def onTurnComplete(**kwargs) -> None:
+    def onTurnComplete(kwargs: MutableGameState) -> None:
         logging.info("Minigame turn complete")
 
 

@@ -73,14 +73,14 @@ class BiddingForPrivateCompany(Minigame):
             ),
 
             err(
-                move.player not in [pc.passed_by for pc in move.private_company.passed_by],
+                move.player not in move.private_company.passed_by,
                 "You can only keep bidding until you've passed once.",
              ),
 
             err(
-                move.private_company.hasOwner(),
+                move.private_company.hasNoOwner(),
                 "Someone already owns this cheatingboi. {0}",
-                move.private_company.belongs_to.name
+                move.private_company.belongs_to
             ),
 
             err(
@@ -126,8 +126,8 @@ class BiddingForPrivateCompany(Minigame):
         :param move:
         :return:
         """
-        all_bidders = set([player_bid.player for player_bid in move.private_company.player_bids])
-        all_passers = set([pc.passed_by for pc in move.private_company.passed_by])
+        all_bidders = set([bidder for bidder, bid_amount in move.private_company.player_bids])
+        all_passers = set([pc for pc in move.private_company.passed_by])
 
         if len(all_bidders - all_passers) == 1:
             purchaser = list(all_bidders - all_passers)[0]
@@ -135,7 +135,9 @@ class BiddingForPrivateCompany(Minigame):
                                           if player_bid.player == purchaser])  # Player buys for max amount he bid.
 
             move.private_company.setActualCost(actual_cost_of_company)
-            move.private_company.setBelongs(move.player)
+            move.private_company.setBelongs(next(player_bid.player for player_bid
+                                                 in move.private_company.player_bids
+                                                 if player_bid.bid_amount == actual_cost_of_company))
             return True
         return False
 
@@ -151,6 +153,7 @@ class BiddingForPrivateCompany(Minigame):
         if BidType.PASS == move.move_type:
             if self.validatePass(move):
                 move.private_company.passed(move.player)
+                move.private_company.passed_by.append(move.player)
                 self.validateSold(move)
                 return True
 
@@ -172,7 +175,6 @@ class BiddingForPrivateCompany(Minigame):
 class BuyPrivateCompany(Minigame):
     """
     Used for the initial auction round of Private Companies
-    Move:
     """
 
     def validateBuy(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState):
@@ -213,10 +215,18 @@ class BuyPrivateCompany(Minigame):
         minimum_bid = max([move.private_company.actual_cost] +
                           [pb.bid_amount for pb in move.private_company.player_bids]) + 5
 
+        earlier_unsold_private_companies = [pc.name for pc in kwargs.private_companies
+                       if pc.order < move.private_company_order and not pc.hasOwner()]
+
         return self.validate([
             err(move.private_company.hasNoOwner(),
-                "Someone already owns this cheatingboi {}",
-                json.dumps(move.private_company.__dict__)
+                "Someone already owns this cheatingboi {} {}",
+                move.private_company.order,
+                move.private_company.belongs_to,
+                ),
+
+            err(len(earlier_unsold_private_companies) > 0,
+                "You can't bid on this, it's currently for sale"
             ),
 
             err(move.player.hasEnoughMoney(move.bid_amount),
@@ -230,7 +240,7 @@ class BuyPrivateCompany(Minigame):
             ),
         ])
 
-    def validatePass(self, move: BuyPrivateCompanyMove):
+    def validatePass(self, move: BuyPrivateCompanyMove, kwargs: MutableGameState):
         actual_cost = move.private_company.actual_cost
         return self.validate([
             err(move.private_company.actual_cost > 0,
@@ -247,14 +257,21 @@ class BuyPrivateCompany(Minigame):
                 return True
 
         if BidType.BID == move.move_type:
-            if self.validateBid(move):
+            if self.validateBid(move, kwargs):
                 move.private_company.bid(move.player, move.bid_amount)
+
+                # From the perspective of costs going down, this counts as a pass.
+                # Find the earliest unsold company and pass on it.
+                earliest_unsold_private_companies = next(pc for pc in kwargs.private_companies
+                                                    if pc.order < move.private_company_order and not pc.hasOwner())
+                earliest_unsold_private_companies.passed(move.player)
+                earliest_unsold_private_companies.reduce_price(kwargs.players)
                 return True
 
         if BidType.PASS == move.move_type:
-            if self.validatePass(move):
+            if self.validatePass(move, kwargs):
                 move.private_company.passed(move.player)
-                move.private_company.reduce_price(len(kwargs.players))
+                move.private_company.reduce_price(kwargs.players)
                 return True
 
         return False

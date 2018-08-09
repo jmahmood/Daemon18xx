@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import NamedTuple, List, Set
 
+import logging
+
 
 def err(validate: bool, error_msg: str, *format_error_msg_params):
     if not validate:
@@ -15,6 +17,10 @@ class MutableGameState:
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
+        self.public_companies: List[PublicCompany] = []
+        self.stock_round_passed: int = 0                 # If every player passes during the stock round, the round is over.
+        self.stock_round_play:int = 0
+        self.stock_round_count: int = 0
         self.private_companies: List[PrivateCompany] = None
         self.players: List[Player] = None
 
@@ -56,6 +62,9 @@ class StockMarket:
 class Player:
     """This is the individual player.
     Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
+
+    def __hash__(self) -> int:
+        return ord(self.id)
 
     def __eq__(self, o: "Player") -> bool:
         return isinstance(o, Player) and self.id == o.id
@@ -303,13 +312,14 @@ class PrivateCompany:
     def passed(self, player: Player):
         self.pass_count += 1
 
-    def reduce_price(self, player_count):
-        if self.pass_count % player_count == 0 and self.pass_count > 0:
+    def reduce_price(self, players: List[Player]):
+        if self.pass_count % len(players) == 0 and self.pass_count > 0:
             self.actual_cost -= 5
 
     def bid(self, player: Player, amount: int):
         """No security at this level.  If you run this, any bid will be accepted."""
         self.player_bids.append(PlayerBid(player, amount))
+        player.cash -= amount  # Cash will be returned if they lose the auction.
 
     def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
