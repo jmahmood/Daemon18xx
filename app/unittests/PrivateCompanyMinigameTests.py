@@ -6,7 +6,7 @@ from app.minigames.private_companies import BidType, BuyPrivateCompanyMove, Bidd
 from app.state import MutableGameState
 
 
-def fake_company(order=1, cost=250):
+def fake_private_company(order=1, cost=250):
     pc = PrivateCompany.initiate(
         order,
         "Fake company {}".format(order),
@@ -53,7 +53,7 @@ class BasicInitializationTests(unittest.TestCase):
 
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
-        game_context.private_companies = [fake_company(0), fake_company(1)]
+        game_context.private_companies = [fake_private_company(0), fake_private_company(1)]
 
         private_company_purchase_move.backfill(game_context)
 
@@ -61,7 +61,7 @@ class BasicInitializationTests(unittest.TestCase):
         self.assertEqual(private_company_purchase_move.private_company, game_context.private_companies[1])
 
         duck_type_checking_player = fake_player("A")
-        duck_type_checking_company = fake_company(1)
+        duck_type_checking_company = fake_private_company(1)
         self.assertEqual(private_company_purchase_move.player, duck_type_checking_player)
         self.assertEqual(private_company_purchase_move.private_company, duck_type_checking_company)
 
@@ -70,7 +70,7 @@ class BuyPrivateCompanyMinigameBuyTests(unittest.TestCase):
     def _getContext(self):
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
-        game_context.private_companies = [fake_company(0), fake_company(1)]
+        game_context.private_companies = [fake_private_company(0), fake_private_company(1)]
         return game_context
 
     def _getMove(self):
@@ -163,7 +163,7 @@ class BuyPrivateCompanyMinigameBidTests(unittest.TestCase):
     def _getContext(self):
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
-        game_context.private_companies = [fake_company(0), fake_company(1)]
+        game_context.private_companies = [fake_private_company(0), fake_private_company(1)]
         return game_context
 
     def _getMove(self):
@@ -261,7 +261,7 @@ class BuyPrivateCompanyMinigamePassTests(unittest.TestCase):
     def _getContext(self):
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
-        game_context.private_companies = [fake_company(0), fake_company(1)]
+        game_context.private_companies = [fake_private_company(0), fake_private_company(1)]
         return game_context
 
     def _getMove(self):

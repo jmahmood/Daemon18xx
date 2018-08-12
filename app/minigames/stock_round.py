@@ -2,12 +2,11 @@ import json
 from enum import Enum
 from typing import List
 
-from app.base import Move, PublicCompany, StockPurchaseSource, Player, err, MutableGameState
+from app.base import Move, PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
+    STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.base import Minigame
 
 ALL_AVAILABLE_STOCK = 100
-STOCK_PRESIDENT_CERTIFICATE = 20
-STOCK_CERTIFICATE = 10
 
 VALID_IPO_PRICES = [
     100,
@@ -27,12 +26,12 @@ VALID_CERTIFICATE_COUNT = {
     6: 11
 }
 
-
 class StockRoundType(Enum):
     BUY = 1
     SELL = 2
     PASS = 3
     SELL_PRIVATE_COMPANY = 4
+    BUYSELL = 4
 
 
 class StockRoundMove(Move):
@@ -42,7 +41,6 @@ class StockRoundMove(Move):
         self.public_company: PublicCompany = None
         self.ipo_price: int = None
         self.source: StockPurchaseSource = None
-        self.private_company_order: int = None
         self.amount: int = None  # Only used for sale.
         self.move_type: StockRoundType = None
 
@@ -51,16 +49,16 @@ class StockRoundMove(Move):
         self.public_company = next(pc for pc in kwargs.public_companies if pc.id == self.public_company_id)
 
     @staticmethod
-    def fromMove(move: "Move") -> "Move":
+    def fromMove(move: "Move") -> "StockRoundMove":
         ret = StockRoundMove()
 
         msg: dict = json.loads(move.msg)
-        ret.private_company_order = msg.get('private_company')
+        ret.public_company_id = msg.get('public_company_id')
         ret.player_id = msg.get("player_id")
 
-        ret.move_type = StockRoundType(msg.get('move_type'))
+        ret.move_type = StockRoundType[msg.get('move_type')]
         ret.ipo_price = int(msg.get("ipo_price", 0))
-        ret.source = StockPurchaseSource(msg.get("stock_source"))
+        ret.source = StockPurchaseSource[msg.get("source")]
         ret.amount = int(msg.get("amount", 0))
 
         return ret
@@ -72,7 +70,18 @@ class StockRound(Minigame):
     def run(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
         move.backfill(kwargs)
 
-        if StockRoundType.BUY == StockRoundType(move.move_type):
+
+        if StockRoundType.BUYSELL == StockRoundType(move.move_type):
+            # Create a Buy move and a Sell move from the BUYSELL move.
+            # Need to add the validatefirstpurchase if it is a first purchase
+            # This requires us to update validatefirstpurchase
+            if self.validateSales(move, kwargs) and self.validateBuy(move, kwargs):
+                for company, amount in move.for_sale:
+                    company.sell(move.player, amount)
+                    company.priceDown(amount)
+                    company.checkPresident()
+
+        if StockRoundType(move.move_type) in (StockRoundType.BUY, StockRoundType.BUYSELL):
             if self.validateBuy(move, kwargs):
                 purchase_amount = STOCK_CERTIFICATE
 
@@ -98,6 +107,8 @@ class StockRound(Minigame):
                 move.public_company.priceDown(move.amount)
                 move.public_company.checkPresident()
                 return True
+
+
 
         if StockRoundType.PASS == StockRoundType(move.move_type):
             if self.validatePass(move):
@@ -194,7 +205,7 @@ class StockRound(Minigame):
                 "You can only sell after the first stock round.")
         ])
 
-    def validatePass(self, move: StockRoundMove):
+    def validatePass(self, move: StockRoundMove, kwargs: MutableGameState):
         # As long as you are a player, you can pass
         return True
 

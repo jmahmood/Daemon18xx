@@ -3,6 +3,8 @@ from typing import NamedTuple, List, Set
 
 import logging
 
+STOCK_PRESIDENT_CERTIFICATE = 20
+STOCK_CERTIFICATE = 10
 
 def err(validate: bool, error_msg: str, *format_error_msg_params):
     if not validate:
@@ -12,16 +14,15 @@ def err(validate: bool, error_msg: str, *format_error_msg_params):
 class MutableGameState:
     """This is state that needs to be modified by the minigames or other sections.  We are trapping it in its own
     class so that fields that can be changed are clearly marked"""
-
     def __init__(self):
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
-        self.public_companies: List[PublicCompany] = []
+        self.public_companies: List["PublicCompany"] = None
+        self.private_companies: List["PrivateCompany"] = None
         self.stock_round_passed: int = 0                 # If every player passes during the stock round, the round is over.
         self.stock_round_play:int = 0
         self.stock_round_count: int = 0
-        self.private_companies: List[PrivateCompany] = None
         self.players: List[Player] = None
 
     pass
@@ -64,7 +65,7 @@ class Player:
     Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
 
     def __hash__(self) -> int:
-        return ord(self.id)
+        return int("".join(str(ord(char)) for char in self.id))
 
     def __eq__(self, o: "Player") -> bool:
         return isinstance(o, Player) and self.id == o.id
@@ -80,7 +81,7 @@ class Player:
         """TODO: Is there a way to avoid cross-linking between Player and Public Company?
         Wouldn't that cause problems when trying to calculate a player's total wealth?"""
         self.portfolio.add(company)
-        self.cash = self.cash - amount * price
+        self.cash = self.cash - amount  / STOCK_CERTIFICATE * price
 
     def getCertificateCount(self):
         total_stock_certificates = 0
@@ -133,20 +134,34 @@ class GameBoard:
 
 
 class PublicCompany:
+
+    def __hash__(self) -> int:
+        return int("".join(str(ord(char)) for char in self.id))
+
     def __eq__(self, o: "PublicCompany") -> bool:
         return isinstance(o, PublicCompany) and self.id == o.id
 
     def __init__(self):
         self.trains: List[Train] = None
         self._income: int = None
+        # self._income: Used to store income until we determine whether or not it is given as dividends or retained.
         self.cash: int = None
         self._floated = None
         self.id: str = None
+        self.name: str = None
+        self.short_name: str = None
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
-        self.stocks = {StockPurchaseSource.IPO: 10, StockPurchaseSource.BANK: 0}
+        self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
         self.stock_status = StockStatus.NORMAL
+
+    @staticmethod
+    def initiate(**kwargs):
+        x = PublicCompany()
+        for k, v in kwargs.items():
+            x.__dict__[k] = v
+        return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
         self.stocks[source] -= amount
@@ -216,6 +231,7 @@ class PublicCompany:
         return self.stocks[sps] >= amount
 
     def checkPrice(self, source: StockPurchaseSource, amount: int, ipo_price: int):
+        amount = amount % STOCK_CERTIFICATE
         if source == StockPurchaseSource.IPO and self.stockPrice[StockPurchaseSource.IPO] == 0:
             return amount * ipo_price
 
