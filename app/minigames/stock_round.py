@@ -1,6 +1,9 @@
 import json
 from enum import Enum
-from typing import List
+from functools import reduce
+from typing import List, Tuple
+
+import logging
 
 from app.base import Move, PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
@@ -26,27 +29,41 @@ VALID_CERTIFICATE_COUNT = {
     6: 11
 }
 
+
 class StockRoundType(Enum):
     BUY = 1
     SELL = 2
     PASS = 3
     SELL_PRIVATE_COMPANY = 4
-    BUYSELL = 4
-
+    BUYSELL = 5
 
 class StockRoundMove(Move):
     def __init__(self) -> None:
         super().__init__()
-        self.public_company_id: str = None
-        self.public_company: PublicCompany = None
-        self.ipo_price: int = None
-        self.source: StockPurchaseSource = None
-        self.amount: int = None  # Only used for sale.
+
+        # Sale  Fields
+        self.for_sale_raw: List[List] = None
+        self.for_sale: List[Tuple[PublicCompany, int]] = None  # A list of stocks you are selling this round.
+
+        # Purchase fields
+        self.public_company_id: str = None  # Used for purchase action only.
+        self.public_company: PublicCompany = None  # Used for purchase actions only.
+        self.source: StockPurchaseSource = None  # Used for purchase actions only
+        self.ipo_price: int = None  # Used to set initial price for a stock. (First purchase only)
         self.move_type: StockRoundType = None
+
+    def find_public_company(self, public_company_id: str,  kwargs: MutableGameState):
+        return next(pc for pc in kwargs.public_companies if pc.id == public_company_id)
 
     def backfill(self, kwargs: MutableGameState) -> None:
         super().backfill(kwargs)
-        self.public_company = next(pc for pc in kwargs.public_companies if pc.id == self.public_company_id)
+        self.public_company = self.find_public_company(self.public_company_id, kwargs)
+
+        self.for_sale = []
+        if self.for_sale_raw is not None:
+            for company_id, amount in self.for_sale_raw:
+                self.for_sale.append((self.find_public_company(company_id, kwargs), amount))
+
 
     @staticmethod
     def fromMove(move: "Move") -> "StockRoundMove":
@@ -59,7 +76,8 @@ class StockRoundMove(Move):
         ret.move_type = StockRoundType[msg.get('move_type')]
         ret.ipo_price = int(msg.get("ipo_price", 0))
         ret.source = StockPurchaseSource[msg.get("source")]
-        ret.amount = int(msg.get("amount", 0))
+        ret.for_sale_raw = msg.get("for_sale_raw")
+
 
         return ret
 
@@ -69,17 +87,7 @@ class StockRound(Minigame):
 
     def run(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
         move.backfill(kwargs)
-
-
-        if StockRoundType.BUYSELL == StockRoundType(move.move_type):
-            # Create a Buy move and a Sell move from the BUYSELL move.
-            # Need to add the validatefirstpurchase if it is a first purchase
-            # This requires us to update validatefirstpurchase
-            if self.validateSales(move, kwargs) and self.validateBuy(move, kwargs):
-                for company, amount in move.for_sale:
-                    company.sell(move.player, amount)
-                    company.priceDown(amount)
-                    company.checkPresident()
+        buy_sell_validation = True
 
         if StockRoundType(move.move_type) in (StockRoundType.BUY, StockRoundType.BUYSELL):
             if self.validateBuy(move, kwargs):
@@ -87,7 +95,10 @@ class StockRound(Minigame):
 
                 if self.isFirstPurchase(move):
                     if not self.validateFirstPurchase(move):
-                        return False
+                        buy_sell_validation = False
+                        logging.warning("Fail first purchase attempt")
+                        if StockRoundType(move.move_type) == StockRoundType.BUY:
+                            return False
 
                     purchase_amount = STOCK_PRESIDENT_CERTIFICATE
                     move.public_company.setPresident(move.player)
@@ -98,20 +109,28 @@ class StockRound(Minigame):
                 move.public_company.buy(move.player, move.source, purchase_amount)
                 move.public_company.checkPresident()
                 move.public_company.checkFloated()
-                return True
 
-        if StockRoundType.SELL == StockRoundType(move.move_type):
-            if self.validateSell(move, kwargs):
+                if StockRoundType(move.move_type) == StockRoundType.BUY:
+                    return True
+
+        if StockRoundType(move.move_type) in (StockRoundType.SELL, StockRoundType.BUYSELL):
+            if self.validateSales(move, kwargs) and self.validateBuy(move, kwargs):
                 kwargs.stock_round_play += 1
-                move.public_company.sell(move.player, move.amount)
-                move.public_company.priceDown(move.amount)
-                move.public_company.checkPresident()
-                return True
+                for company, amount in move.for_sale:
+                    company.sell(move.player, amount)
+                    company.priceDown(amount)
+                    company.checkPresident()
 
+                if StockRoundType(move.move_type) == StockRoundType.SELL:
+                    return True
+            else:
+                buy_sell_validation = False
 
+        if StockRoundType(move.move_type) == StockRoundType.BUYSELL:
+            return buy_sell_validation
 
         if StockRoundType.PASS == StockRoundType(move.move_type):
-            if self.validatePass(move):
+            if self.validatePass(move, kwargs):
                 kwargs.stock_round_play += 1
                 kwargs.stock_round_passed += 1
                 return True
@@ -162,7 +181,13 @@ class StockRound(Minigame):
         player_certificates = move.player.getCertificateCount()
         cost_of_stock = move.public_company.checkPrice(move.source, STOCK_CERTIFICATE, move.ipo_price)
 
+        my_sales = kwargs.sales[kwargs.stock_round_count].get(move.player, [])
+
         return self.validate([
+            err(
+                move.public_company not in my_sales,
+                "You can't buy from a company you sold this round {} {}",
+                move.public_company.id, move.public_company.name),
             err(
                 player_certificates + 1 <= VALID_CERTIFICATE_COUNT[number_of_total_players],
                 "You have too many certificates. There are {} players, and you are allowed a "
@@ -177,33 +202,63 @@ class StockRound(Minigame):
             err(
                 move.player.hasEnoughMoney(cost_of_stock),
                 "You cannot afford poorboi. {} (You have: {})",
-                cost_of_stock, move.player.cash
-            ),
-        ]
-        )
+                cost_of_stock, move.player.cash),
+        ])
 
-    def validateSell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
-        return self.validate([
+    def _validateSale(self, player: Player, company: PublicCompany, amount: int, kwargs: MutableGameState):
+        """You can't sell stocks you bought in previous rounds."""
+        my_purchases = kwargs.purchases[kwargs.stock_round_count].get(player, [])
+
+        my_stock = player.hasStock(company)
+        potential_owners = company.potentialPresidents()
+
+        validations = [
+            err(company not in my_purchases,
+                "You can't sell something you already bought: {} {}",
+                company.id, company.short_name),
+
             err(
-                move.player.hasStock(move.public_company) > move.amount,
-                "You must have more stock than you are trying to sell {}",
-                move.amount
+                my_stock >= amount,
+                "You must have as much stock than you are trying to sell {}",
+                amount
             ),
+
             err(
-                move.public_company.availableStock(StockPurchaseSource.BANK) + move.amount <= 60,
+                company.availableStock(StockPurchaseSource.BANK) + amount <= 60,
                 "You can't sell that much ({}); the bank can only have 50 shares max.",
-                move.amount
+                amount
             ),
+
             err(
-                len(move.public_company.potentialPresidents() - {move.player}) > 0,
-                "There are no other potential presidents, so you can't sell your shares.",
+                len(company.potentialPresidents() - {player}) > 0 or my_stock - amount >= 20,
+                "There are no other potential presidents, so you can't sell your shares. {} / {} (original stock: {})",
+                ",".join([p.id for p in company.potentialPresidents()]),
+                company.name,
+                str(company.owners.get(player))
+
             ),
-            err(move.amount % STOCK_CERTIFICATE == 0,
-                "You can only sell in units of 10 stocks ({})".format(move.amount),
+
+            err(amount % STOCK_CERTIFICATE == 0,
+                "You can only sell in units of 10 stocks ({})".format(amount),
                 ),
+
             err(kwargs.stock_round_count > 1,
                 "You can only sell after the first stock round.")
-        ])
+        ]
+
+        return self.validate(validations)
+
+    def validateSales(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+        """Used in situations where there are multiple companies that are performing a sale."""
+
+        everything = [self._validateSale(move.player, company, amount, kwargs)
+             for company, amount in move.for_sale]
+
+        return reduce(
+            lambda x, y: x and y,
+            [self._validateSale(move.player, company, amount, kwargs)
+             for company, amount in move.for_sale]
+        )
 
     def validatePass(self, move: StockRoundMove, kwargs: MutableGameState):
         # As long as you are a player, you can pass
@@ -217,12 +272,12 @@ class StockRound(Minigame):
             err(move.ipo_price in VALID_IPO_PRICES,
                 "Invalid IPO Price ({}).  Valid prices are {}.",
                 move.ipo_price, valid_ipo_prices
-             ),
+                ),
             err(move.source == StockPurchaseSource.IPO,
-                "You need to purchase stock from the IPO as this is an initial purchase",),
+                "You need to purchase stock from the IPO as this is an initial purchase", ),
             err(move.player.hasEnoughMoney(cost_of_stock),
                 "You cannot afford to be president poorboi. {} (You have: {})",
-                cost_of_stock, move.player.cash,)]
+                cost_of_stock, move.player.cash, )]
         )
 
     def isFirstPurchase(self, move: StockRoundMove) -> bool:

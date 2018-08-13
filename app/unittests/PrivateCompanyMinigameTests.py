@@ -19,10 +19,11 @@ def fake_private_company(order=1, cost=250):
     return pc
 
 
-def fake_player(id="A", cash=500):
+def fake_player(id="A", cash=500, order=1):
     player = Player()
     player.id = id
     player.cash = cash
+    player.order = order
     return player
 
 

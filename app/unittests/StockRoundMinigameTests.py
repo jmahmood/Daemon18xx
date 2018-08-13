@@ -20,7 +20,7 @@
     -> Should not be made the president.
 
 4. Test for non-president buying additional stock (reaching 30%)
-    -> President should be transfered over.
+    -> President should be transferred over.
 
 5. Test for floating stock
     -> Once the IPO shares hits 40%, the company should be floated
@@ -36,7 +36,8 @@
 import json
 import unittest
 
-from app.base import Move, PublicCompany, MutableGameState
+from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
+    STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.stock_round import StockRoundMove, StockRound
 from app.unittests.PrivateCompanyMinigameTests import fake_player
 
@@ -51,7 +52,7 @@ def fake_public_company(name="1") -> PublicCompany:
     return pc
 
 
-class StockRoundMinigameInitTests(unittest.TestCase):
+class StockRoundMinigameBuyTests(unittest.TestCase):
     def move(self) -> StockRoundMove:
         msg = json.dumps({
             "player_id": "A",
@@ -67,6 +68,9 @@ class StockRoundMinigameInitTests(unittest.TestCase):
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
+        game_context.stock_round_count = 1
+        game_context.sales = [{},{}]
+        game_context.purchases = [{},{}]
         return game_context
 
     def testPlayerPurchasesInitialStock(self):
@@ -81,6 +85,54 @@ class StockRoundMinigameInitTests(unittest.TestCase):
         )
         self.assertEqual(
             move.public_company.owners[move.player], 20
+        )
+
+class StockRoundMinigameSellTests(unittest.TestCase):
+    pass
+
+
+class StockRoundMinigameBuySellTests(unittest.TestCase):
+    """Realistically, this is the most important one."""
+    def move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "BUYSELL",
+            "player_id": "A",
+            "public_company_id": "GHI",
+            "source": "IPO",
+            "ipo_price": 76,
+            "for_sale_raw": [["ABC", 10], ["DEF", 10]]
+
+        })
+        move = Move.fromMessage(msg)
+        return StockRoundMove.fromMove(move)
+
+    def state(self):
+        game_context = MutableGameState()
+        game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
+        game_context.stock_round_count = 2
+        game_context.sales = [{},{},{}]
+        game_context.purchases = [{},{},{}]
+
+        return game_context
+
+    def testPlayerValidBuySellRound(self):
+
+        move = self.move()
+        state = self.state()
+
+        state.public_companies[0].buy(state.players[0], StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        state.public_companies[0].buy(state.players[1], StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+
+
+        state.public_companies[1].buy(state.players[0], StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        state.public_companies[1].buy(state.players[0], StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+
+        minigame = StockRound()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+
+        self.assertEqual(
+            state.public_companies[0].owners[move.player], 0
         )
 
 

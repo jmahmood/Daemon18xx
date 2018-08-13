@@ -1,10 +1,12 @@
 from enum import Enum
-from typing import NamedTuple, List, Set
+from functools import reduce
+from typing import NamedTuple, List, Set, Dict
 
 import logging
 
 STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
+
 
 def err(validate: bool, error_msg: str, *format_error_msg_params):
     if not validate:
@@ -18,6 +20,8 @@ class MutableGameState:
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
+        self.sales:List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you sell in each stock round.
+        self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
         self.public_companies: List["PublicCompany"] = None
         self.private_companies: List["PrivateCompany"] = None
         self.stock_round_passed: int = 0                 # If every player passes during the stock round, the round is over.
@@ -69,6 +73,9 @@ class Player:
 
     def __eq__(self, o: "Player") -> bool:
         return isinstance(o, Player) and self.id == o.id
+
+    def __str__(self):
+        return "{}:{}({})".format(self.id, self.name, self.cash)
 
     def __init__(self):
         self.id: str = "1"
@@ -135,6 +142,9 @@ class GameBoard:
 
 class PublicCompany:
 
+    def __str__(self) -> str:
+        return "{}: {} ({})".format(self.id, self.name, self.short_name)
+
     def __hash__(self) -> int:
         return int("".join(str(ord(char)) for char in self.id))
 
@@ -199,8 +209,8 @@ class PublicCompany:
         # Ownership can technically change in an operating round (Train rusting = no money = sell stock = less money)
         max_ownership = max(self.owners.values())
         top_owners = [k for k, v in self.owners.items() if v == max_ownership]
-        if self.president not in top_owners:
-            play_order = self.president.order
+        if self.president is None or self.president not in top_owners:
+            play_order = -1 if self.president is None else self.president.order
 
             """
             Go through each potential owner and calculate the distance from the previous president based on play order.
@@ -208,7 +218,8 @@ class PublicCompany:
             get this by subtracting the president's turn order from the potential president's order and finding
             the person with minimal distance.
            """
-            new_president = min([(owner, owner.order - play_order) for owner in top_owners], lambda v: v[1])[0]
+            ordered_list = [(owner, owner.order - play_order) for owner in top_owners]
+            new_president = reduce(lambda x, y: x if x[1] < y[1] else y, ordered_list)
             self.president = new_president
 
     def checkFloated(self):
@@ -239,7 +250,7 @@ class PublicCompany:
 
     def potentialPresidents(self) -> Set[Player]:
         """People with more than 20% stock are potential presidents"""
-        return set([owner for owner, amount in self.owners.items() if amount > 20])
+        return set([owner for owner, amount in self.owners.items() if amount >= 20])
 
     def payDividends(self):
         for owner in self.owners.keys():
