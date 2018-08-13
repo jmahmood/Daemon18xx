@@ -220,7 +220,7 @@ class PublicCompany:
            """
             ordered_list = [(owner, owner.order - play_order) for owner in top_owners]
             new_president = reduce(lambda x, y: x if x[1] < y[1] else y, ordered_list)
-            self.president = new_president
+            self.president = new_president[0]
 
     def checkFloated(self):
         if not self._floated and self.stocks[StockPurchaseSource.IPO] < 5:

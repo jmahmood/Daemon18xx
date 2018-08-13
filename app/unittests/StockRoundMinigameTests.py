@@ -121,10 +121,12 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
 
+        state.public_companies[0].setInitialPrice(72)
         state.public_companies[0].buy(state.players[0], StockPurchaseSource.IPO, STOCK_CERTIFICATE)
         state.public_companies[0].buy(state.players[1], StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
 
 
+        state.public_companies[0].setInitialPrice(72)
         state.public_companies[1].buy(state.players[0], StockPurchaseSource.IPO, STOCK_CERTIFICATE)
         state.public_companies[1].buy(state.players[0], StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
 
@@ -135,7 +137,21 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
             state.public_companies[0].owners[move.player], 0
         )
 
+        self.assertEqual(
+            state.public_companies[0].president, state.players[1]
+        )
 
+        self.assertEqual(
+            state.public_companies[1].president, state.players[0]
+        )
+
+        self.assertEqual(
+            state.public_companies[2].president, state.players[0]
+        )
+
+        self.assertEqual(
+            state.public_companies[2].stockPrice[StockPurchaseSource.IPO], move.ipo_price
+        )
 
 
 if __name__ == "__main__":
