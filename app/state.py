@@ -164,18 +164,18 @@ class Game:
         :return:
         """
         minigame = self.getMinigame()
-        minigame.onTurnStart(**self.getState())
-        success = minigame.run(move, **self.getState())
+        minigame.onTurnStart(self.getState())
+        success = minigame.run(move, self.getState())
 
         if success:
             if self.minigame_class != minigame.next():
                 """When the minigame changes, you need to switch the player order usually."""
-                minigame.onComplete(**self.getState())
+                minigame.onComplete(self.getState())
                 self.setMinigame(minigame.next())
                 self.setPlayerOrder()
-                self.getMinigame().onStart(**self.getState())
+                self.getMinigame().onStart(self.getState())
             else:
-                minigame.onTurnComplete(**self.getState())
+                minigame.onTurnComplete(self.getState())
 
             self.setCurrentPlayer()
 
