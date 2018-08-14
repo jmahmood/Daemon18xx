@@ -3,18 +3,19 @@ import unittest
 
 import logging
 
+from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
+
 logging.basicConfig(level=logging.DEBUG)
 
 from app.base import Move, MutableGameState
 from app.minigames.private_companies import BuyPrivateCompanyMove, BiddingForPrivateCompany, BidType
-from app.tests.PrivateCompanyMinigameTests import fake_player, fake_company
 
 
 class BasicInitializationTests(unittest.TestCase):
     def _context(self):
         game_context = MutableGameState()
         game_context.players = [fake_player("A", 2000), fake_player("B", 2000), fake_player("C", 3000)]
-        game_context.private_companies = [fake_company(0), fake_company(1)]
+        game_context.private_companies = [fake_private_company(0), fake_private_company(1)]
         game_context.private_companies[1].bid(game_context.players[0], 255)
         game_context.private_companies[1].bid(game_context.players[1], 260)
         return game_context
