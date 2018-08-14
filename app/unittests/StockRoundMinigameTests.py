@@ -220,6 +220,31 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         for owner, amount in owners:
             company.buy(owner, StockPurchaseSource.IPO, amount)
 
+    def testPlayerInvalidBuyWeirdQuantityRound(self):
+        """You can't buy what doesn't exist"""
+        move = self.move()
+        state = self.state()
+        self.initial_setup_company(state.public_companies[0], [(state.players[0], 20),
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+
+        self.initial_setup_company(state.public_companies[1],
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+        move.for_sale_raw[0][1] = 15
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn("You can only sell in units of 10 stocks (15)", minigame.errors())
+
+    def testPlayerInvalidBuyNoStockLeftRound(self):
+        """You can't buy what doesn't exist"""
+        move = self.move()
+        state = self.state()
+        self.initial_setup_company(
+            state.public_companies[2], [(state.players[1], 100)], 72
+        )
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn("The company does not have enough stock in category StockPurchaseSource.IPO", minigame.errors())
+
     def testPlayerInvalidBuySellRound(self):
         # You've already bought this company this round.
 
