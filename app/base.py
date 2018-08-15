@@ -1,6 +1,6 @@
 from enum import Enum
 from functools import reduce
-from typing import NamedTuple, List, Set, Dict
+from typing import NamedTuple, List, Set, Dict, Tuple
 
 import logging
 
@@ -20,6 +20,8 @@ class MutableGameState:
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
+        self.auction: List[Tuple[str, int]] = None
+        self.auctioned_private_company: PrivateCompany = None
         self.sales:List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you sell in each stock round.
         self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
         self.public_companies: List["PublicCompany"] = None
@@ -242,7 +244,7 @@ class PublicCompany:
         return self.stocks[sps] >= amount
 
     def checkPrice(self, source: StockPurchaseSource, amount: int, ipo_price: int):
-        amount = amount % STOCK_CERTIFICATE
+        amount = amount / STOCK_CERTIFICATE
         if source == StockPurchaseSource.IPO and self.stockPrice[StockPurchaseSource.IPO] == 0:
             return amount * ipo_price
 

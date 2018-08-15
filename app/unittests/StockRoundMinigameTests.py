@@ -64,7 +64,7 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         move = Move.fromMessage(msg)
         return StockRoundMove.fromMove(move)
 
-    def state(self):
+    def state(self) -> MutableGameState:
         game_context = MutableGameState()
         game_context.players = [fake_player("A"), fake_player("B")]
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
@@ -72,6 +72,26 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         game_context.sales = [{},{}]
         game_context.purchases = [{},{}]
         return game_context
+
+    def testPlayerPurchasesInitialStockInvalidPrice(self):
+        move = self.move()
+        state = self.state()
+
+        move.ipo_price = 3  # Invalid Price
+
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn('Invalid IPO Price (3).  Valid prices are 100,90,82,76,71,67.', minigame.errors())
+
+
+    def testPlayerPurchasesInitialStockNoCash(self):
+        move = self.move()
+        state = self.state()
+        state.players[0].cash = 1
+
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn('You cannot afford poorboi. 90.0 (You have: 1)', minigame.errors())
 
     def testPlayerPurchasesInitialStock(self):
         move = self.move()
@@ -107,7 +127,7 @@ class StockRoundMinigameSellTests(unittest.TestCase):
         move = Move.fromMessage(msg)
         return StockRoundMove.fromMove(move)
 
-    def state(self):
+    def state(self) -> MutableGameState:
         game_context = MutableGameState()
         game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
@@ -205,7 +225,7 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = Move.fromMessage(msg)
         return StockRoundMove.fromMove(move)
 
-    def state(self):
+    def state(self) -> MutableGameState:
         game_context = MutableGameState()
         game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
@@ -342,7 +362,7 @@ class StockRoundMinigamePassTests(unittest.TestCase):
         move = Move.fromMessage(msg)
         return StockRoundMove.fromMove(move)
 
-    def state(self):
+    def state(self) -> MutableGameState:
         game_context = MutableGameState()
         game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]

@@ -40,5 +40,5 @@ class Minigame(LifeCycle):
     def errors(self) -> List[str]:
         return self.error_list
 
-    def next(self, **kwargs) -> str:
+    def next(self, state: MutableGameState) -> str:
         raise NotImplementedError()

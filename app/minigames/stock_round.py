@@ -130,7 +130,6 @@ class StockRound(Minigame):
         if not self.validateBuy(move, kwargs):
             return False
         elif self.isFirstPurchase(move) and not self.validateFirstPurchase(move):
-            logging.warning("Fail first purchase attempt")
             return False
         self._buyround(move, kwargs)
         kwargs.stock_round_play += 1
@@ -163,21 +162,23 @@ class StockRound(Minigame):
 
         if StockRoundType.SELL_PRIVATE_COMPANY == StockRoundType(move.move_type):
             # TODO - may choose to move it to a different minigame, since it involves player interaction
-            # Two implementation possibilities
-            # Interrupt the current player order, ask all players to submit a price they are willing to pay,
-            # Player can then select from between them.  He does not have to select the highest price.
-            # This kind of bidding dynamic would be cool if it was not turn-based but could happen in real time,
-            # like it would happen in the game itself..
+            """
+            User passes in information about the private company he wants to sell.
+            
+            We set a flag that is used to determine the next round?
+            """
+            if self.validateSellPrivateCompany(move, kwargs):
+                self.sell_private_company_auction = True
 
-            # Alternative easy and non-entertaining method would be to allow the player to submit the other player id
-            # and the amount they have agreed on selling for.  There would be no validation involved, and it would
-            # be an obvious cheating vector.
             raise NotImplementedError
 
         return False
 
     def next(self, kwargs: MutableGameState) -> str:
         players: List[Player] = kwargs.players
+        if self.sell_private_company_auction:
+            kwargs.auction = []
+            return "Auction"
         if kwargs.stock_round_play % len(players) == 0 \
                 and kwargs.stock_round_play > 0 \
                 and kwargs.stock_round_passed == len(players):
@@ -205,7 +206,10 @@ class StockRound(Minigame):
     def validateBuy(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
         number_of_total_players = len(kwargs.players)
         player_certificates = move.player.getCertificateCount()
-        cost_of_stock = move.public_company.checkPrice(move.source, STOCK_CERTIFICATE, move.ipo_price)
+        cost_of_stock = move.public_company.checkPrice(
+            move.source,
+            STOCK_CERTIFICATE,
+            move.ipo_price)
 
         my_sales = kwargs.sales[kwargs.stock_round_count].get(move.player, [])
 
