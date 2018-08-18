@@ -23,23 +23,23 @@ class AuctionBidMove(Move):
         self.move_type: PrivateCompanyBidType = None
         self.amount: int = None
 
-    def find_private_company(self, private_company_id: str, kwargs: MutableGameState):
-        return next(pc for pc in kwargs.private_companies if pc.id == private_company_id)
+    def find_private_company(self, private_company_id: str, state: MutableGameState):
+        return next(pc for pc in state.private_companies if pc.order == private_company_id)
 
-    def backfill(self, kwargs: MutableGameState) -> None:
-        super().backfill(kwargs)
-        self.private_company = self.find_private_company(self.private_company_id, kwargs)
+    def backfill(self, state: MutableGameState) -> None:
+        super().backfill(state)
+        self.private_company = self.find_private_company(self.private_company_id, state)
 
     @staticmethod
     def fromMove(move: "Move") -> "AuctionBidMove":
         ret = AuctionBidMove()
 
         msg: dict = json.loads(move.msg)
-        ret.private_company_id = msg.get('public_company_id')
+        ret.private_company_id = int(msg.get('private_company_id'))
         ret.player_id = msg.get("player_id")
 
         ret.move_type = PrivateCompanyBidType[msg.get('move_type')]
-        ret.amount = msg.get("amount")
+        ret.amount = int(msg.get("amount"))
 
         return ret
 
@@ -54,6 +54,7 @@ class Auction(Minigame):
             return "Auction"
 
     def run(self, move: AuctionBidMove, state: MutableGameState) -> bool:
+        move.backfill(state)
 
         if move.move_type == PrivateCompanyBidType.PASS:
             if not self.validatePass(move, state):
@@ -64,16 +65,13 @@ class Auction(Minigame):
         if move.move_type == PrivateCompanyBidType.BID:
             if not self.validateBid(move, state):
                 return False
-            state.auction.add((move.player_id, move.amount))
+            state.auction.append((move.player_id, move.amount))
             return True
 
     def validatePass(self, move: AuctionBidMove, state: MutableGameState):
         return True
 
     def validateBid(self, move: AuctionBidMove, state: MutableGameState):
-        # 1. You need enough money.
-        # 2. You need to be bidding on the private company that is up for sale.
-
         return self.validate([
             err(
                 move.player.hasEnoughMoney(move.amount),
@@ -85,7 +83,24 @@ class Auction(Minigame):
                 " Probably something wrong with your UI system.",
                 move.private_company.name,
                 state.auctioned_private_company.name
-            )]
+            ), err(
+                move.player != state.auctioned_private_company.belongs_to,
+                "You can't bid on your own company.",
+                move.private_company.name,
+                state.auctioned_private_company.name
+            ), err(
+                move.amount >= int(state.auctioned_private_company.cost / 2),
+                "You are paying too little.  Your bid must be 1/2 to 2 times the price of the company ({} to {}).",
+                int(move.private_company.cost / 2),
+                move.private_company.cost * 2
+            ), err(
+                move.amount <= int(state.auctioned_private_company.cost * 2),
+                "You are paying too much.  Your bid must be 1/2 to 2 times the price of the company ({} to {}).",
+                int(move.private_company.cost / 2),
+                move.private_company.cost * 2
+            ),
+
+        ]
         )
 
 class AuctionResponseType(Enum):
@@ -93,7 +108,7 @@ class AuctionResponseType(Enum):
     REJECT = 2
 
 
-class AuctionResponseMove(Move):
+class AuctionDecisionMove(Move):
     def __init__(self) -> None:
         super().__init__()
 
@@ -116,8 +131,8 @@ class AuctionResponseMove(Move):
                 self.accepted_player = player
 
     @staticmethod
-    def fromMove(move: "Move") -> "AuctionResponseMove":
-        ret = AuctionResponseMove()
+    def fromMove(move: "Move") -> "AuctionDecisionMove":
+        ret = AuctionDecisionMove()
 
         msg: dict = json.loads(move.msg)
         ret.private_company_id = msg.get('public_company_id')
@@ -130,14 +145,14 @@ class AuctionResponseMove(Move):
         return ret
 
 
-
 class AuctionDecision(Minigame):
     """Auction Private Company"""
 
     def next(self, state: MutableGameState) -> str:
         return "StockRound"
 
-    def run(self, move: AuctionResponseMove, state: MutableGameState) -> bool:
+    def run(self, move: AuctionDecisionMove, state: MutableGameState) -> bool:
+        move.backfill(state)
 
         if move.move_type == AuctionResponseType.ACCEPT:
             if not self.validateAccept(move, state):
@@ -146,17 +161,19 @@ class AuctionDecision(Minigame):
             move.private_company.belongs_to = move.accepted_player
             move.accepted_player.cash -= move.accepted_amount
             move.player.cash += move.accepted_amount
+            state.stock_round_play += 1
 
             return True
 
         if move.move_type == AuctionResponseType.REJECT:
-            # OK this means it's your turn again.
             if not self.validateReject(move, state):
                 return False
+            return True
 
+        return False
 
-    def validateAccept(self, move: AuctionResponseMove, state: MutableGameState):
+    def validateAccept(self, move: AuctionDecisionMove, state: MutableGameState):
         return True
 
-    def validateReject(self, move: AuctionResponseMove, state: MutableGameState):
+    def validateReject(self, move: AuctionDecisionMove, state: MutableGameState):
         return True

@@ -14,13 +14,14 @@ def err(validate: bool, error_msg: str, *format_error_msg_params):
 
 
 class MutableGameState:
-    """This is state that needs to be modified by the minigames or other sections.  We are trapping it in its own
-    class so that fields that can be changed are clearly marked"""
+    """This is state that needs to be accessed or modified by the minigames.
+    We are initially putting all of that into this one object, but this will be refactored once the
+    minigames are ready (and we can distinguish between mutable & non-mutable game state)"""
     def __init__(self):
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
-        self.auction: List[Tuple[str, int]] = None
+        self.auction: List[Tuple[str, int]] = None # All bids on current auction
         self.auctioned_private_company: PrivateCompany = None
         self.sales:List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you sell in each stock round.
         self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
@@ -176,6 +177,10 @@ class PublicCompany:
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
+        price = self.stockPrice[source]
+        if price <= 0:
+            raise ValueError("Price of the stock has not yet been set")
+
         self.stocks[source] -= amount
         self.grantStock(player, amount)
         price = self.stockPrice[source]
@@ -225,9 +230,9 @@ class PublicCompany:
             self.president = new_president[0]
 
     def checkFloated(self):
-        if not self._floated and self.stocks[StockPurchaseSource.IPO] < 5:
+        if not self._floated and self.stocks[StockPurchaseSource.IPO] < STOCK_CERTIFICATE * 5:
             self._floated = True
-            self.cash = self.stockPrice[StockPurchaseSource.IPO] * 10
+            self.cash = self.stockPrice[StockPurchaseSource.IPO] * 100 / STOCK_CERTIFICATE
             return True
         return False
 
@@ -267,6 +272,9 @@ class PublicCompany:
 
     def removeRustedTrains(self, rusted_train_type: str):
         self.trains = [train for train in self.trains if train.type != rusted_train_type]
+
+    def isFloated(self) -> bool:
+        return self._floated
 
     def hasNoTrains(self) -> bool:
         return len(self.trains) > 0
