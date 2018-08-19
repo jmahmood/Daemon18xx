@@ -2,7 +2,9 @@ import json
 import unittest
 
 from app.base import PrivateCompany, Move, Player
-from app.minigames.private_companies import BidType, BuyPrivateCompanyMove, BiddingForPrivateCompany, BuyPrivateCompany
+from app.minigames.PrivateCompanyInitialAuction.enums import BidType
+from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
+from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.state import MutableGameState
 
 

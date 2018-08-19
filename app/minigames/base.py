@@ -6,6 +6,10 @@ from app.base import Move, MutableGameState
 
 
 class LifeCycle:
+    """
+    This is necessary to have minigames perform final changes / deletions / whatever when interacting with the
+    state object.
+    """
     @staticmethod
     def onStart(kwargs: MutableGameState) -> None:
         logging.info("Minigame started")

@@ -1,10 +1,11 @@
 from typing import List
 
 from app.base import Player, Move, PrivateCompany, PublicCompany, MutableGameState
+from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
+from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
+from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.base import Minigame
 from app.minigames.operating_round import OperatingRound
-from app.minigames.private_companies import BiddingForPrivateCompany, BuyPrivateCompany
-from app.minigames.stock_round import StockRound
 
 """
 # These are static function versions, but I probably want to use something else?
@@ -168,10 +169,10 @@ class Game:
         success = minigame.run(move, self.getState())
 
         if success:
-            if self.minigame_class != minigame.next():
+            if self.minigame_class != minigame.next(self.getState()):
                 """When the minigame changes, you need to switch the player order usually."""
                 minigame.onComplete(self.getState())
-                self.setMinigame(minigame.next())
+                self.setMinigame(minigame.next(self.getState()))
                 self.setPlayerOrder()
                 self.getMinigame().onStart(self.getState())
             else:

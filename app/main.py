@@ -38,7 +38,7 @@ def main(players: List[Player], saved_game=None):
     :return:
     """
     game = Game.initialize(players, saved_game)
-    game.setPlayerOrder() # Rah.
+    game.setPlayerOrder()  # Rah.
     for move in ongoing_game("/tmp/mypipe"):
 
         if game.isValidMove(move) and game.isValidPlayer(move.player) and game.performedMove(move):
