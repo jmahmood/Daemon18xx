@@ -109,44 +109,48 @@ class AuctionResponseType(Enum):
 
 
 class AuctionDecisionMove(Move):
+
     def __init__(self) -> None:
         super().__init__()
 
         # Purchase fields
         self.accepted_player: Player = None
-        self.private_company_id: str = None  # Used for purchase action only.
-        self.private_company: PrivateCompany = None  # Used for purchase actions only.
         self.move_type: AuctionResponseType = None
         self.accepted_player_id: str = None
         self.accepted_amount: int = None
+        self.private_company: PrivateCompany = None
 
-    def find_private_company(self, private_company_id: str, kwargs: MutableGameState):
-        return next(pc for pc in kwargs.private_companies if pc.id == private_company_id)
+    def find_private_company(self, private_company_id: str, state: MutableGameState):
+        return next(pc for pc in state.private_companies if pc.order == int(private_company_id))
 
-    def backfill(self, kwargs: MutableGameState) -> None:
-        super().backfill(kwargs)
-        self.private_company = self.find_private_company(self.private_company_id, kwargs)
-        for player in kwargs.players:
+    def backfill(self, state: MutableGameState) -> None:
+        super().backfill(state)
+        self.private_company = state.auctioned_private_company
+        for player in state.players:
             if player.id == self.accepted_player_id:
                 self.accepted_player = player
+        for player_id, amount in state.auction:
+            if player_id == self.accepted_player_id:
+                self.accepted_amount = amount
 
     @staticmethod
     def fromMove(move: "Move") -> "AuctionDecisionMove":
         ret = AuctionDecisionMove()
 
         msg: dict = json.loads(move.msg)
-        ret.private_company_id = msg.get('public_company_id')
+        ret.private_company_id = msg.get('private_company_id')
         ret.player_id = msg.get("player_id")
-        ret.accepted_player_id = msg.get("player_id")
+        ret.accepted_player_id = msg.get("accepted_player_id")
 
-        ret.move_type = PrivateCompanyBidType[msg.get('move_type')]
+        ret.move_type = AuctionResponseType[msg.get('move_type')]
         ret.amount = msg.get("amount")
 
         return ret
 
 
 class AuctionDecision(Minigame):
-    """Auction Private Company"""
+    """We don't do all the checks to make sure a player CAN make the move in the auction state array; that should have been
+    done in the Auction itself."""
 
     def next(self, state: MutableGameState) -> str:
         return "StockRound"
@@ -173,7 +177,30 @@ class AuctionDecision(Minigame):
         return False
 
     def validateAccept(self, move: AuctionDecisionMove, state: MutableGameState):
-        return True
+        """
+        1. Are you accepting a bid from someone who actually made a bid?
+        :param move:
+        :param state:
+        :return:
+        """
+        return self.validate([
+            err(
+                move.accepted_player_id in [player_id for player_id, amount in state.auction],
+                """You are accepting a bid from a player who didn't make a bid. (ID: "{}")""",
+                move.accepted_player_id
+            ),
+            err(
+                move.player == move.private_company.belongs_to,
+                """You can't accept an auction if you do not own the company.""",
+                move.accepted_player_id
+            ),
+        ])
 
     def validateReject(self, move: AuctionDecisionMove, state: MutableGameState):
-        return True
+        return self.validate([
+            err(
+                move.player == move.private_company.belongs_to,
+                """You can't reject an auction if you do not own the company.""",
+                move.accepted_player_id
+            ),
+        ])

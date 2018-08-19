@@ -21,7 +21,7 @@ class MutableGameState:
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
-        self.auction: List[Tuple[str, int]] = None # All bids on current auction
+        self.auction: List[Tuple[str, int]] = None # All bids on current auction; (player_id, amount)
         self.auctioned_private_company: PrivateCompany = None
         self.sales:List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you sell in each stock round.
         self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
@@ -290,7 +290,7 @@ class PrivateCompany:
         return isinstance(o, PrivateCompany) and self.order == o.order
 
     def __init__(self):
-        self.belongs_to_company: PublicCompany = None
+        self.belongs_to_company: "PublicCompany" = None
         self.player_bids: List[PlayerBid] = None
         self.order: int = None
         self.name: str = None
