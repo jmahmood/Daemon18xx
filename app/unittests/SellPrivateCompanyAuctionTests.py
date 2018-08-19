@@ -1,3 +1,9 @@
+"""Tests for situation where a user is auctioning a private company during the stock round.
+
+
+"""
+
+
 import json
 import unittest
 
@@ -59,6 +65,9 @@ class AuctionRejectDecisionTests(unittest.TestCase):
 
 
 class AuctionAcceptDecisionTests(unittest.TestCase):
+    """
+    Tests related to accepting a specific bid in an auction.
+    """
     def move(self) -> AuctionDecisionMove:
         msg = json.dumps({
             "player_id": "F",
@@ -119,7 +128,6 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         self.assertEqual(move.accepted_player.cash, starting_cash_buyer)
         self.assertEqual(state.stock_round_play, self.state().stock_round_play)
 
-
     def testPlayerInvalidDecider(self):
         """You are a cheatingboi who is trying to accept the auction for someone else."""
         move = self.move()
@@ -139,8 +147,76 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         self.assertEqual(move.accepted_player.cash, starting_cash_buyer)
         self.assertEqual(state.stock_round_play, self.state().stock_round_play)
 
+    def testPlayerNoFreebies(self):
+        """0$ bids are supposed to indicate a player has passed.  You can't accept those kinds of bids.
+        Other kinds of bids (less than 1/2, greater than 2x) cannot be added so we don't have to test those"""
+        move = self.move()
+        state = self.state()
+        state.auction.append(("B", 0))
+
+        starting_cash_owner = state.players[5].cash
+        starting_cash_buyer = state.players[1].cash
+
+        minigame = AuctionDecision()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn("""You cannot accept invalid bids.""",
+                      minigame.errors())
+
+
+class AuctionPassTests(unittest.TestCase):
+    def bid(self) -> AuctionBidMove:
+        msg = json.dumps({
+            "player_id": "A",
+            "private_company_id": "1",
+            "move_type": "PASS",
+        })
+        move = Move.fromMessage(msg)
+        return AuctionBidMove.fromMove(move)
+
+
+    def state(self) -> MutableGameState:
+        game_context = MutableGameState()
+        game_context.players = [fake_player("A"), fake_player("B"), fake_player("C"), fake_player("D"), fake_player("E"), fake_player("F")]
+        game_context.public_companies = [fake_public_company(x) for x in ["PublicABC", "PublicDEF", "PublicGHI"]]
+        game_context.private_companies = [fake_private_company(int(x)) for x in [1, 2]]
+        game_context.auctioned_private_company = game_context.private_companies[0]
+        game_context.auctioned_private_company.belongs_to = game_context.players[5]
+        game_context.auction = []
+
+        game_context.stock_round_count = 1
+        game_context.sales = [{},{}]
+        game_context.purchases = [{},{}]
+        return game_context
+
+
+    def testPlayerValidPass(self):
+        """Player tries passing"""
+        move = self.bid()
+        state = self.state()
+
+        minigame = Auction()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+        self.assertEqual(len(state.auction), 1)
+        self.assertEqual(state.auction[0], ("A", 0))
+
+
+    def testPlayerInvalidPass(self):
+        """Owner tries passing"""
+        move = self.bid()
+        state = self.state()
+        move.player_id = state.players[5].id
+
+        minigame = Auction()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertEqual(len(state.auction), 0)
+        self.assertIn("You can't pass (or bid) on your own company.", minigame.errors())
+
 
 class AuctionBidTests(unittest.TestCase):
+    """
+    Tests related to making a bid in an auction.
+    """
+
     def bid(self, amount) -> AuctionBidMove:
         msg = json.dumps({
             "player_id": "A",
@@ -166,6 +242,7 @@ class AuctionBidTests(unittest.TestCase):
         return game_context
 
     def testPlayerValidBid(self):
+        """Valid bid within the min / max bid values"""
         move = self.bid(250)
         state = self.state()
 
@@ -173,11 +250,11 @@ class AuctionBidTests(unittest.TestCase):
         self.assertTrue(minigame.run(move, state), minigame.errors())
 
     def testPlayerInsufficientCashBid(self):
+        """Player don't have enough cash to bid this much."""
         move = self.bid(650)
         state = self.state()
 
         minigame = Auction()
-        # You should have insufficient cash to make this bid.
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You cannot afford poorboi. 650 (You have: 500)",
@@ -185,13 +262,13 @@ class AuctionBidTests(unittest.TestCase):
         )
 
     def testPlayerWrongCompanyBid(self):
+        """Player bid on a company that is not up for bidding."""
         move = self.bid(500)
         state = self.state()
         move.private_company_id = 2
         move.private_company = state.private_companies[1]
 
         minigame = Auction()
-        # You can't bid on a company that is not up for auction
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You are bidding on the wrong company numbnuts. Fake company 2 vs. Fake company 1 Probably something wrong with your UI system.",
@@ -199,13 +276,13 @@ class AuctionBidTests(unittest.TestCase):
         )
 
     def testPlayerSelfBid(self):
+        """You cannot bid on your own company"""
         move = self.bid(500)
         state = self.state()
 
         move.player_id = state.auctioned_private_company.belongs_to.id
 
         minigame = Auction()
-        # You can't bid on a company that is not up for auction
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You can't bid on your own company.",
@@ -223,7 +300,6 @@ class AuctionBidTests(unittest.TestCase):
             "You are paying too little.  Your bid must be 1/2 to 2 times the price of the company (125 to 500).",
             minigame.errors()
         )
-
 
     def testPlayerBidTooLarge(self):
         move = self.bid(1000)

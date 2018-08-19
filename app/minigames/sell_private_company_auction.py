@@ -14,6 +14,14 @@ class PrivateCompanyBidType(Enum):
 
 
 class AuctionBidMove(Move):
+    # TODO: Do we really want the move itself to include the private company id of the company being auctioned?
+    # I left it in because we may want to ease the life of the UI developer by letting him know when he does
+    # something stupid like showing the wrong private company as up for auction.  However, that seems to just
+    # complicate the code.  Moving it completely to being a state variable may make more sense.
+
+    # I personally like the idea of including all of the variables, just to make sure internal state and external
+    # state are the same.  Maybe that is not a good idea.
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -39,7 +47,8 @@ class AuctionBidMove(Move):
         ret.player_id = msg.get("player_id")
 
         ret.move_type = PrivateCompanyBidType[msg.get('move_type')]
-        ret.amount = int(msg.get("amount"))
+        if ret.move_type != PrivateCompanyBidType.PASS:
+            ret.amount = int(msg.get("amount"))
 
         return ret
 
@@ -59,7 +68,7 @@ class Auction(Minigame):
         if move.move_type == PrivateCompanyBidType.PASS:
             if not self.validatePass(move, state):
                 return False
-            state.auction.add((move.player_id, 0))
+            state.auction.append((move.player_id, 0))
             return True
 
         if move.move_type == PrivateCompanyBidType.BID:
@@ -69,7 +78,14 @@ class Auction(Minigame):
             return True
 
     def validatePass(self, move: AuctionBidMove, state: MutableGameState):
-        return True
+        return self.validate([
+            err(
+                move.player != state.auctioned_private_company.belongs_to,
+                "You can't pass (or bid) on your own company.",
+                move.private_company.name,
+                state.auctioned_private_company.name
+            ),
+        ])
 
     def validateBid(self, move: AuctionBidMove, state: MutableGameState):
         return self.validate([
@@ -117,7 +133,7 @@ class AuctionDecisionMove(Move):
         self.accepted_player: Player = None
         self.move_type: AuctionResponseType = None
         self.accepted_player_id: str = None
-        self.accepted_amount: int = None
+        self.accepted_amount: int = 0
         self.private_company: PrivateCompany = None
 
     def find_private_company(self, private_company_id: str, state: MutableGameState):
@@ -192,7 +208,10 @@ class AuctionDecision(Minigame):
             err(
                 move.player == move.private_company.belongs_to,
                 """You can't accept an auction if you do not own the company.""",
-                move.accepted_player_id
+            ),
+            err(
+                move.accepted_amount > 0,
+                """You cannot accept invalid bids.""",
             ),
         ])
 
