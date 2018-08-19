@@ -1,4 +1,4 @@
-Private Company Auction during Stock Round
+Private Company Auction During Stock Round
 ------------------------------------------
 
 Technical Explanation

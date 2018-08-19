@@ -78,6 +78,18 @@ class Game:
     
     """
     @staticmethod
+    def start(players: List[str]) -> "Game":
+        total_players = len(players)
+        cash = int(2400 / total_players)
+        player_objects = []
+        for order, player_name in enumerate(players):
+            player_objects.append(
+                Player.create(player_name, cash, order)
+            )
+        return Game.initialize(player_objects)
+
+
+    @staticmethod
     def initialize(players: List[Player], saved_game: dict = None) -> "Game":
         """
 
@@ -86,11 +98,14 @@ class Game:
         :return:
         """
         game = Game()
-        game.players = players
-        game.private_companies = PrivateCompany.allPrivateCompanies()
+        game.state.players = players
+        game.state.private_companies = PrivateCompany.allPrivateCompanies()
+        game.state.public_companies = []
+
         return game
 
     def __init__(self):
+        self.state: MutableGameState = None
         self.current_player = None
         self.player_order_fn_list = []
 
@@ -109,8 +124,7 @@ class Game:
         return player == self.current_player
 
     def getState(self) -> MutableGameState:
-        #TODO: What is the state that we are passing in?
-        return MutableGameState()
+        return self.state
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""

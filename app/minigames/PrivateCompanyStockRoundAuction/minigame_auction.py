@@ -3,7 +3,6 @@ from app.minigames.PrivateCompanyStockRoundAuction.enums import PrivateCompanyBi
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionBidMove
 from app.minigames.base import Minigame
 
-
 class Auction(Minigame):
     """Auction Private Company"""
 

@@ -8,6 +8,8 @@ from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.base import Minigame
 
+# TODO: Need tests to determine how auctions move between different companies being auctioned.
+# Quick browse through the code indicates to me that it would not transition
 
 class BiddingForPrivateCompany(Minigame):
     def validateBid(self, move: BuyPrivateCompanyMove):

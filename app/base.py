@@ -1,3 +1,4 @@
+import uuid
 from enum import Enum
 from functools import reduce
 from typing import NamedTuple, List, Set, Dict, Tuple
@@ -27,7 +28,7 @@ class MutableGameState:
         self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
         self.public_companies: List["PublicCompany"] = None
         self.private_companies: List["PrivateCompany"] = None
-        self.stock_round_passed: int = 0                 # If every player passes during the stock round, the round is over.
+        self.stock_round_passed: int = 0  # If every player passes during the stock round, the round is over.
         self.stock_round_play:int = 0
         self.stock_round_count: int = 0
         self.players: List[Player] = None
@@ -86,6 +87,15 @@ class Player:
         self.cash: int = 0
         self.order: int = 0
         self.portfolio: Set['PublicCompany'] = set()
+
+    @staticmethod
+    def create(name, cash, order) -> "Player":
+        ret = Player()
+        ret.id = str(uuid.uuid4())
+        ret.name = name
+        ret.cash = cash
+        ret.order = order
+        return ret
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
         """TODO: Is there a way to avoid cross-linking between Player and Public Company?

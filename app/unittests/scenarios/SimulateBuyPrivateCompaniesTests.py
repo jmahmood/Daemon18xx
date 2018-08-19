@@ -1,7 +1,16 @@
 """
 Do a full simulation of Private Company rounds and make sure that everything runs according to plan.
 """
-# TODO: Find some game reports with round-by-round action and transcribe them here, along with expected results.
-# This should ideally include passes, bids and purchases.
-#
-# raise NotImplementedError()
+from app.base import MutableGameState
+
+initial_state = MutableGameState()
+players_details = [
+    "Jawaad",
+    "Rafael",
+    "Alex",
+    "Baba",
+    "Sho",
+    "Yuki"
+]
+
+game.initialize(player_details)
