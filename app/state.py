@@ -80,7 +80,6 @@ class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
         self.initial_player: Player = self.players[0]
 
 
-
 class Game:
     """Holds state for the full ongoing game
 
