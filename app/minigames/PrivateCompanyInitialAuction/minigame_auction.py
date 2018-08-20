@@ -112,8 +112,8 @@ class BiddingForPrivateCompany(Minigame):
 
         return False
 
-    def next(self, **kwargs) -> str:
-        private_companies: List[PrivateCompany] = kwargs.get('private_companies')
+    def next(self, state: MutableGameState) -> str:
+        private_companies: List[PrivateCompany] = state.private_companies
 
         for pc in private_companies:
             if not pc.hasOwner() and not pc.hasBids():

@@ -316,7 +316,7 @@ class PrivateCompany:
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
-        with open('app/data/private_companies') as f:
+        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/private_companies') as f:
             content = f.readlines()
         return [PrivateCompany.initiate(*c.strip().split("|")) for c in content]
 
@@ -336,8 +336,8 @@ class PrivateCompany:
         pc.order = order
         pc.name = name
         pc.short_name = short_name
-        pc.cost = cost
-        pc.actual_cost = actual_cost if actual_cost is not None else cost
+        pc.cost = int(cost)
+        pc.actual_cost = int(actual_cost) if actual_cost is not None else int(cost)
         pc.revenue = revenue
         pc.base = base
         pc.belongs_to = belongs_to

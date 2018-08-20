@@ -1,6 +1,8 @@
 from typing import List
 
-from app.base import Player, Move, PrivateCompany, PublicCompany, MutableGameState
+import logging
+
+from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
@@ -42,11 +44,12 @@ def StockRoundPlayers(company: PrivateCompany, stock_round_iteration):
 
 
 class PlayerTurnOrder:
-    def __init__(self):
+    def __init__(self, state: MutableGameState):
+        self.state = state
         self.stacking_type = False
-        self.overwrite_type = False
-        self.players: List[Player] = []
-        self.initial_player: Player = None
+        self.overwrite_type = True
+        self.players: List[Player] = state.players
+        self.initial_player: Player = self.players[0]
         self.iteration = 0
 
     def __iter__(self):
@@ -69,6 +72,14 @@ class PlayerTurnOrder:
     def removeCompany(self, company:PublicCompany):
         raise NotImplementedError
 
+class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
+    def __init__(self, state: MutableGameState):
+        super().__init__(state)
+        current_private_company = next(c for c in self.state.private_companies if c.belongs_to is None)
+        self.players = [x.player for x in current_private_company.player_bids]
+        self.initial_player: Player = self.players[0]
+
+
 
 class Game:
     """Holds state for the full ongoing game
@@ -86,7 +97,9 @@ class Game:
             player_objects.append(
                 Player.create(player_name, cash, order)
             )
-        return Game.initialize(player_objects)
+        game = Game.initialize(player_objects)
+        game.setMinigame("BuyPrivateCompany")
+        return game
 
 
     @staticmethod
@@ -98,6 +111,7 @@ class Game:
         :return:
         """
         game = Game()
+        game.state = MutableGameState()
         game.state.players = players
         game.state.private_companies = PrivateCompany.allPrivateCompanies()
         game.state.public_companies = []
@@ -106,8 +120,9 @@ class Game:
 
     def __init__(self):
         self.state: MutableGameState = None
-        self.current_player = None
+        self.current_player: Player = None
         self.player_order_fn_list = []
+        self.errors_list = []
 
     def isOngoing(self) -> bool:
         return True
@@ -117,45 +132,66 @@ class Game:
         IE: You normally can't sell stock during an Operating Round"""
         # TODO: How do we determine the move type?
         # Some form of duck typing?
-        raise NotImplementedError
+        minigame_move_classes = {
+            "BuyPrivateCompany": "BuyPrivateCompanyMove",
+            "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
+        }
+        return minigame_move_classes.get(self.minigame_class) == move.__class__.__name__
 
-    def isValidPlayer(self, player: Player) -> bool:
-        """The person who submitted the move must be the current player."""
-        return player == self.current_player
+    def isValidPlayer(self, move: Move) -> bool:
+        """The person who submitted the move must be the current player.
+
+        Warning: The player object is only set in the move once the "Backfill" function is executed (to load info from state)
+        To avoid that, we are only comparing the player ids, which it always has."""
+        errors = err(
+            move.player_id == self.current_player.id,
+            "Wrong player; {} is not {}",
+            move.player_id, self.current_player.id
+        )
+        if errors == None:
+            return True
+        self.errors_list = [errors]
+        return False
 
     def getState(self) -> MutableGameState:
         return self.state
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
-        self.player_order_fn_list.pop()
+        try:
+            self.player_order_fn_list.pop()
+        except IndexError:
+            logging.warning("No old player order function available")
 
         player_order_functions = {
             "BuyPrivateCompany": PlayerTurnOrder,
-            "BiddingForPrivateCompany": None,
+            "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
             "StockRound": None,
             "StockRoundSellPrivateCompany": None,
             "OperatingRound": None
         }
 
-        player_order_generator = player_order_functions.get(self.minigame_class)()
+        player_order_generator = player_order_functions.get(self.minigame_class)(self.getState())
 
         if player_order_generator.stacking_type:
             self.player_order_fn_list.append(player_order_generator)
 
         if player_order_generator.overwrite_type:
             # Same class as the previous, keep the player order the same.
-            if self.player_order_fn_list[-1].__class__.__name__ == player_order_generator.__class__.__name__:
+            if len(self.player_order_fn_list) > 0 and \
+                            self.player_order_fn_list[-1].__class__.__name__ == player_order_generator.__class__.__name__:
                 pass
             else:
                 self.player_order_fn_list = [player_order_generator]
 
+    def get_player_order_fn(self):
+        return self.player_order_fn_list[len(self.player_order_fn_list) - 1]
 
     def setCurrentPlayer(self):
         """
         Sets the player by incrementing the newest player_order_fn
         """
-        self.current_player = next(self.player_order_fn_list[-1])
+        self.current_player = next(self.get_player_order_fn())
 
     def getMinigame(self) -> Minigame:
         """Creates a NEW INSTANCE of a mini game and passes it"""
@@ -201,7 +237,10 @@ class Game:
 
     def setError(self, error_list: List[str]) -> None:
         # TODO: Sets the error that will be returned
-        pass
+        self.errors_list = error_list
+
+    def errors(self):
+        return self.errors_list
 
     def setMinigame(self, minigame_class: str) -> None:
         """A Minigame is a specific game state that evaluates more complex game rules.
