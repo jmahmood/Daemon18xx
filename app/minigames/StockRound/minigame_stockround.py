@@ -44,121 +44,126 @@ class StockRound(Minigame):
         except KeyError:
             purchase_history[move.player] = [move.public_company]
 
-    def _sellround(self, move: StockRoundMove, kwargs: MutableGameState) -> None:
-        sale_history = kwargs.sales[kwargs.stock_round_count]
+    def _sellround(self, move: StockRoundMove, state: MutableGameState) -> None:
+        sale_history = state.sales[state.stock_round_count]
         for company, amount in move.for_sale:
-            company.sell(move.player, amount)
-            company.priceDown(amount)
-            company.checkPresident()
+            if amount > 0:
+                company.sell(move.player, amount)
+                company.priceDown(amount / STOCK_CERTIFICATE)
+                company.checkPresident()
 
-            try:
-                sale_history[move.player].append(company)
-            except KeyError:
-                sale_history[move.player] = [company]
+                try:
+                    sale_history[move.player].append(company)
+                except KeyError:
+                    sale_history[move.player] = [company]
 
-    def _buysell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
-        if not self.validateBuy(move, kwargs) or not self.validateSales(move, kwargs):
+    def _buysell(self, move: StockRoundMove, state: MutableGameState) -> bool:
+        if not self.validateBuy(move, state) or not self.validateSales(move, state):
             return False
         elif move.public_company_id != None and \
                 self.isFirstPurchase(move) and \
                 not self.validateFirstPurchase(move):
             return False
-        self._buyround(move, kwargs)
-        self._sellround(move, kwargs)
-        kwargs.stock_round_play += 1
+        self._buyround(move, state)
+        self._sellround(move, state)
+        state.stock_round_play += 1
         return True
 
-    def _buy(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
-        if not self.validateBuy(move, kwargs):
+    def _buy(self, move: StockRoundMove, state: MutableGameState) -> bool:
+        if not self.validateBuy(move, state):
             return False
         elif self.isFirstPurchase(move) and not self.validateFirstPurchase(move):
             return False
-        self._buyround(move, kwargs)
-        kwargs.stock_round_play += 1
+        self._buyround(move, state)
+        state.stock_round_play += 1
         return True
 
-    def _sell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
-        if not self.validateSales(move, kwargs):
+    def _sell(self, move: StockRoundMove, state: MutableGameState) -> bool:
+        if not self.validateSales(move, state):
             return False
-        self._sellround(move, kwargs)
-        kwargs.stock_round_play += 1
+        self._sellround(move, state)
+        state.stock_round_play += 1
         return True
 
-    def run(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
-        move.backfill(kwargs)
+    def run(self, move: StockRoundMove, state: MutableGameState) -> bool:
+        move.backfill(state)
 
         if StockRoundType(move.move_type) == StockRoundType.BUYSELL:
-            kwargs.stock_round_passed_in_a_row = 0
-            kwargs.stock_round_last_buyer_seller_id = move.player_id
-            return self._buysell(move, kwargs)
+            state.stock_round_passed_in_a_row = 0
+            state.stock_round_last_buyer_seller_id = move.player_id
+            return self._buysell(move, state)
 
         elif StockRoundType(move.move_type) == StockRoundType.BUY:
-            kwargs.stock_round_passed_in_a_row = 0
-            return self._buy(move, kwargs)
+            state.stock_round_passed_in_a_row = 0
+            return self._buy(move, state)
 
         elif StockRoundType(move.move_type) == StockRoundType.SELL:
-            kwargs.stock_round_passed_in_a_row = 0
-            return self._sell(move, kwargs)
+            state.stock_round_passed_in_a_row = 0
+            return self._sell(move, state)
 
         if StockRoundType.PASS == StockRoundType(move.move_type):
-            if self.validatePass(move, kwargs):
-                kwargs.stock_round_play += 1
-                kwargs.stock_round_passed_in_a_row += 1
+            if self.validatePass(move, state):
+                state.stock_round_play += 1
+                state.stock_round_passed_in_a_row += 1
                 return True
 
         if StockRoundType.SELL_PRIVATE_COMPANY == StockRoundType(move.move_type):
-            # TODO - may choose to move it to a different minigame, since it involves player interaction
             """
             User passes in information about the private company he wants to sell.
 
-            We set a flag that is used to determine the next round?
+            We set a flag that is used to determine a shift to "Auction" mode.
             """
-            if self.validateSellPrivateCompany(move, kwargs):
+            if self.validateSellPrivateCompany(move, state):
                 self.sell_private_company_auction = True
-
-            raise NotImplementedError
+                state.auction = []
+                state.auctioned_private_company = move.private_company
+            return True
 
         return False
 
-    def next(self, kwargs: MutableGameState) -> MinigameFlow:
-        players: List[Player] = kwargs.players
+    def next(self, state: MutableGameState) -> MinigameFlow:
+        players: List[Player] = state.players
         if self.sell_private_company_auction:
-            kwargs.auction = []
-            return MinigameFlow("Auction", False)
-        if kwargs.stock_round_passed_in_a_row == len(players):
+            return MinigameFlow("StockRoundSellPrivateCompany", False)
+        if state.stock_round_passed_in_a_row == len(players):
             # If there are any floated companies, we go into the Operating Round.
             # Otherwise, we start a new Stock Round.
             # Clear these values too btw.
-            kwargs.stock_round_count += 1
-            kwargs.stock_round_passed_in_a_row = kwargs.stock_round_play = 0
+            state.stock_round_count += 1
+            state.stock_round_passed_in_a_row = state.stock_round_play = 0
 
-            for company in kwargs.public_companies:
+            for company in state.public_companies:
                 if company.isFloated():
                     return MinigameFlow("OperatingRound", False)
 
             logging.warning("No companies floated, so we are going into a new stock round.  "
                             "The player order needs to be reset")
+            # We need to pay off the income from the private companies.
+
+            for pc in state.private_companies:
+                pc.distributeRevenue()
+
             return MinigameFlow("StockRound", True)
 
         return MinigameFlow("StockRound", False)
 
     @staticmethod
-    def onStart(kwargs: MutableGameState) -> None:
-        super(StockRound, StockRound).onStart(kwargs)
+    def onStart(state: MutableGameState) -> None:
+        super(StockRound, StockRound).onStart(state)
 
     @staticmethod
-    def onComplete(kwargs: MutableGameState) -> None:
+    def onComplete(state: MutableGameState) -> None:
         """Transitioning out of the stock round: increment stock values."""
-        super(StockRound, StockRound).onComplete(kwargs)
+        super(StockRound, StockRound).onComplete(state)
 
-        public_companies: List[PublicCompany] = kwargs.public_companies
+        public_companies: List[PublicCompany] = state.public_companies
         for pc in public_companies:
             pc.checkPriceIncrease()
 
     @staticmethod
-    def onTurnComplete(kwargs: MutableGameState):
+    def onTurnComplete(state: MutableGameState):
         """Transitioning out of the stock round: increment stock values."""
-        super(StockRound, StockRound).onTurnComplete(kwargs)
+        super(StockRound, StockRound).onTurnComplete(state)
 
     def validateBuy(self, move: StockRoundMove, state: MutableGameState) -> bool:
         if move.public_company_id == None:
@@ -201,9 +206,9 @@ class StockRound(Minigame):
                 cost_of_stock, move.player.cash),
         ])
 
-    def _validateSale(self, player: Player, company: PublicCompany, amount: int, kwargs: MutableGameState):
+    def _validateSale(self, player: Player, company: PublicCompany, amount: int, state: MutableGameState):
         """You can't sell stocks you bought in previous rounds."""
-        my_purchases = kwargs.purchases[kwargs.stock_round_count].get(player, [])
+        my_purchases = state.purchases[state.stock_round_count].get(player, [])
 
         my_stock = player.hasStock(company)
         potential_owners = company.potentialPresidents()
@@ -238,16 +243,16 @@ class StockRound(Minigame):
                 "You can only sell in units of 10 stocks ({})".format(amount),
                 ),
 
-            err(kwargs.stock_round_count >= 1,
+            err(state.stock_round_count >= 1,
                 "You can only sell after the first stock round.")
         ]
 
         return self.validate(validations)
 
-    def validateSales(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+    def validateSales(self, move: StockRoundMove, state: MutableGameState) -> bool:
         """Used in situations where there are multiple companies that are performing a sale."""
 
-        data = [self._validateSale(move.player, company, amount, kwargs)
+        data = [self._validateSale(move.player, company, amount, state)
                 for company, amount in move.for_sale]
 
         return reduce(
@@ -256,7 +261,7 @@ class StockRound(Minigame):
             True # If there are no sales, the sale has been validated.
         )
 
-    def validatePass(self, move: StockRoundMove, kwargs: MutableGameState):
+    def validatePass(self, move: StockRoundMove, state: MutableGameState):
         # As long as you are a player, you can pass
         return True
 
@@ -279,3 +284,6 @@ class StockRound(Minigame):
     def isFirstPurchase(self, move: StockRoundMove) -> bool:
         # When a company is first purchased, all 100% of the stock is owned by the IPO pile.
         return move.public_company.availableStock(StockPurchaseSource.IPO) == ALL_AVAILABLE_STOCK
+
+    def validateSellPrivateCompany(self, move, state):
+        return True

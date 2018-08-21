@@ -4,14 +4,14 @@ from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionBidMove
 from app.minigames.base import Minigame, MinigameFlow
 
 
-class Auction(Minigame):
+class StockRoundSellPrivateCompany(Minigame):
     """Auction Private Company"""
 
     def next(self, state: MutableGameState) -> MinigameFlow:
         if len(state.auction) == len(state.players) - 1:
-            return MinigameFlow("AuctionDecision", False)
+            return MinigameFlow("StockRoundSellPrivateCompanyDecision", False)
         else:
-            return MinigameFlow("Auction", False)
+            return MinigameFlow("StockRoundSellPrivateCompany", False)
 
     def run(self, move: AuctionBidMove, state: MutableGameState) -> bool:
         move.backfill(state)

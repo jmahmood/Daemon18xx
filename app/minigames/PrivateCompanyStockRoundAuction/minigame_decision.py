@@ -4,7 +4,7 @@ from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMo
 from app.minigames.base import Minigame, MinigameFlow
 
 
-class AuctionDecision(Minigame):
+class StockRoundSellPrivateCompanyDecision(Minigame):
     """We don't do all the checks to make sure a player CAN make the move in the auction state array; that should have been
     done in the Auction itself."""
 

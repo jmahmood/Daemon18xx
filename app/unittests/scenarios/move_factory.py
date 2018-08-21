@@ -3,7 +3,24 @@ from typing import List, Tuple
 
 from app.base import MutableGameState, Move, PublicCompany
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
+from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove, AuctionBidMove
 from app.minigames.StockRound.move import StockRoundMove
+
+class StockRoundPrivateCompanyAuctionMoves:
+    @staticmethod
+    def pass_on_bid(player_name, state: MutableGameState):
+        player = next(
+            player for player in state.players if player_name == player.name
+        )
+
+        msg = json.dumps({
+            "player_id": player.id,
+            "private_company_id": state.auctioned_private_company.order,
+            "move_type": "PASS",
+        })
+        move = Move.fromMessage(msg)
+        return AuctionBidMove.fromMove(move)
+
 
 
 class StockRoundMoves:
@@ -80,8 +97,19 @@ class StockRoundMoves:
         return StockRoundMove.fromMove(move)
 
     @staticmethod
-    def sell_private_company():
-        pass
+    def sell_private_company(player_name, private_company_shortname, state: MutableGameState):
+        player = next(
+            player for player in state.players if player_name == player.name
+        )
+
+        msg = {
+            "move_type": "SELL_PRIVATE_COMPANY",
+            "player_id": player.id,
+            "private_company_shortname": private_company_shortname
+        }
+
+        move = Move.fromMessage(json.dumps(msg))
+        return StockRoundMove.fromMove(move)
 
 class PrivateCompanyInitialAuctionMoves:
     @staticmethod

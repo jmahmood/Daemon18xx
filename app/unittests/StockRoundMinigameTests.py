@@ -96,12 +96,12 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
     def testPlayerPurchasesNonInitialStock(self):
         move = self.move()
         state = self.state()
-        state.public_companies[0].setInitialPrice(72)
+        state.public_companies[0].setInitialPrice(71)
         state.public_companies[0].buy(state.players[1], StockPurchaseSource.IPO, 50)
 
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
-        self.assertEqual(state.players[0].cash, 500 - 72 * 1)
+        self.assertEqual(state.players[0].cash, 500 - 71 * 1)
         self.assertIn(
             move.player, move.public_company.owners.keys()
         )
@@ -114,7 +114,7 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         )
 
         self.assertEqual(move.public_company.president, state.players[1])
-        self.assertEqual(move.public_company.cash, 72 * 10)
+        self.assertEqual(move.public_company.cash, 71 * 10)
 
         try:
             self.assertIn(
@@ -157,10 +157,10 @@ class StockRoundMinigameSellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], STOCK_CERTIFICATE),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
 
         state.purchases[state.stock_round_count][state.players[0]] = [state.public_companies[0]]
 
@@ -180,10 +180,10 @@ class StockRoundMinigameSellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], STOCK_CERTIFICATE),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
 
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
@@ -254,10 +254,10 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], 20),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
         move.for_sale_raw[0][1] = 15
         minigame = StockRound()
         self.assertFalse(minigame.run(move, state), minigame.errors())
@@ -268,7 +268,7 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(
-            state.public_companies[2], [(state.players[1], 100)], 72
+            state.public_companies[2], [(state.players[1], 100)], 71
         )
         minigame = StockRound()
         self.assertFalse(minigame.run(move, state), minigame.errors())
@@ -280,10 +280,10 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], STOCK_CERTIFICATE),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
 
         state.purchases[state.stock_round_count][state.players[0]] = [state.public_companies[0]]
 
@@ -305,10 +305,10 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], STOCK_CERTIFICATE),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
 
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
@@ -399,10 +399,10 @@ class StockRoundMinigamePassTests(unittest.TestCase):
         move = self.move()
         state = self.state()
         self.initial_setup_company(state.public_companies[0], [(state.players[0], STOCK_CERTIFICATE),
-                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 72)
+                                    (state.players[1], STOCK_PRESIDENT_CERTIFICATE)], 71)
 
         self.initial_setup_company(state.public_companies[1],
-                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
+                                   [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 71)
 
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())

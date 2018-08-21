@@ -23,7 +23,7 @@ class AuctionBidMove(Move):
         self.amount: int = None
 
     def find_private_company(self, private_company_id: str, state: MutableGameState):
-        return next(pc for pc in state.private_companies if pc.order == private_company_id)
+        return next(pc for pc in state.private_companies if int(pc.order) == private_company_id)
 
     def backfill(self, state: MutableGameState) -> None:
         super().backfill(state)

@@ -6,6 +6,8 @@ import logging
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
+from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import StockRoundSellPrivateCompany
+from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import StockRoundSellPrivateCompanyDecision
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.base import Minigame, MinigameFlow
 from app.minigames.operating_round import OperatingRound
@@ -47,8 +49,9 @@ def StockRoundPlayers(company: PrivateCompany, stock_round_iteration):
 class PlayerTurnOrder:
     def __init__(self, state: MutableGameState):
         self.state = state
-        self.stacking_type = False
-        self.overwrite_type = True
+        self.stacking_type = False  # Keeps the full palyer order stack and adds htis one on top
+        self.replacement_type = False  # Replaces the topmost player turn order generator with this one.
+        self.overwrite_type = True  # Replace all player turn order generators.
         self.players: List[Player] = state.players
         self.initial_player: Player = self.players[0]
         self.iteration = 0
@@ -84,7 +87,6 @@ class StockRoundTurnOrder(PlayerTurnOrder):
             self.iteration = 0
 
 
-
 class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
     def __init__(self, state: MutableGameState):
         super().__init__(state)
@@ -94,6 +96,30 @@ class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
         self.stacking_type = True
         self.overwrite_type = False
 
+
+class StockRoundSellPrivateCompanyTurnOrder(PlayerTurnOrder):
+    def __init__(self, state: MutableGameState):
+        """Create a pivot (is that what we call it?) around the owner so that players are asked in order from his left
+        whether or not they want to buy his private company"""
+        super().__init__(state)
+        owner = state.auctioned_private_company.belongs_to
+        idx = state.players.index(owner)
+
+        self.players = state.players[idx + 1:len(state.players)] + state.players[0:idx]
+        self.initial_player: Player = self.players[0]
+        self.stacking_type = True
+        self.overwrite_type = False
+
+
+class StockRoundPrivateCompanyDecisionTurnOrder(PlayerTurnOrder):
+    def __init__(self, state: MutableGameState):
+        """Create a pivot (is that what we call it?) around the owner so that players are asked in order from his left
+        whether or not they want to buy his private company"""
+        super().__init__(state)
+        self.players = [state.auctioned_private_company.belongs_to]
+        self.stacking_type = False
+        self.overwrite_type = False
+        self.replacement_type = True
 
 class Game:
     """Holds state for the full ongoing game
@@ -149,7 +175,9 @@ class Game:
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
             "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
-            "StockRound": "StockRoundMove"
+            "StockRound": "StockRoundMove",
+            "StockRoundSellPrivateCompany": "AuctionBidMove",
+            "StockRoundSellPrivateCompanyDecision": "AuctionDecisionMove",
         }
         return minigame_move_classes.get(self.minigame_class) == move.__class__.__name__
 
@@ -178,13 +206,21 @@ class Game:
             "BuyPrivateCompany": PlayerTurnOrder,
             "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
             "StockRound": StockRoundTurnOrder,
-            "StockRoundSellPrivateCompany": None,
+            "StockRoundSellPrivateCompany": StockRoundSellPrivateCompanyTurnOrder,
+            "StockRoundSellPrivateCompanyDecision": StockRoundPrivateCompanyDecisionTurnOrder,
             "OperatingRound": None
         }
 
-        player_order_generator = player_order_generator_from_minigame.get(self.minigame_class)(self.getState())
+        try:
+            player_order_generator = player_order_generator_from_minigame.get(self.minigame_class)(self.getState())
+        except TypeError:
+            raise TypeError("Cannot find turn generator for {}".format(self.minigame_class))
 
         if player_order_generator.stacking_type:
+            self.player_order_generators.append(player_order_generator)
+
+        if player_order_generator.replacement_type:
+            self.player_order_generators.pop()
             self.player_order_generators.append(player_order_generator)
 
         if player_order_generator.overwrite_type:
@@ -196,19 +232,19 @@ class Game:
                 logging.warning("No old player order function available")
 
             if len(self.player_order_generators) > 0 and \
-                            self.get_player_order_fn().__class__.__name__ == player_order_generator.__class__.__name__:
+                            self.getPlayerOrderClass().__class__.__name__ == player_order_generator.__class__.__name__:
                 logging.warning("keeping old player order generator")
             else:
                 self.player_order_generators = [player_order_generator]
 
-    def get_player_order_fn(self):
+    def getPlayerOrderClass(self) -> PlayerTurnOrder:
         return self.player_order_generators[len(self.player_order_generators) - 1]
 
     def setCurrentPlayer(self):
         """
         Sets the player by incrementing the newest player_order_fn
         """
-        self.current_player = next(self.get_player_order_fn())
+        self.current_player = next(self.getPlayerOrderClass())
 
     def getMinigame(self) -> Minigame:
         """Creates a NEW INSTANCE of a mini game and passes it"""
@@ -216,13 +252,14 @@ class Game:
             "BiddingForPrivateCompany": BiddingForPrivateCompany,
             "BuyPrivateCompany": BuyPrivateCompany,
             "StockRound": StockRound,
-            "StockRoundSellPrivateCompany": None, #TODO
+            "StockRoundSellPrivateCompany": StockRoundSellPrivateCompany, #TODO
+            "StockRoundSellPrivateCompanyDecision": StockRoundSellPrivateCompanyDecision,
             "OperatingRound1": OperatingRound,  # TODO
             "OperatingRound2": OperatingRound,  # TODO
             "OperatingRound3": OperatingRound,  # TODO
         }
 
-        cls: type(Minigame) = classes.get(self.minigame_class)
+        cls: type(Minigame) = classes[self.minigame_class]
         return cls()
 
     def performedMove(self, move: Move) -> bool:

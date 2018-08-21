@@ -6,6 +6,8 @@ from typing import NamedTuple, List, Set, Dict, Tuple
 
 import logging
 
+from app.minigames.StockRound.const import STOCK_MARKET
+
 STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
 
@@ -67,6 +69,28 @@ class Track(NamedTuple):
 
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""
+    market = (
+        ["60A", "53B", "46C", "39D", "32E", "25F", "18G", "10H"],
+        ["67A", "60B", "55C", "48D", "41E", "34F", "27G", "20H"],
+        ["71A", "66B", "60C", "54D", "48E", "42F", "36G", "30H", "10I"],
+        ["76A", "70B", "65C", "60D", "55E", "50F", "45G", "40H", "20I", "10J"],
+        ["82A", "76B", "70C", "66D", "62E", "58F", "54G", "50H", "30I", "20J", "10K"],
+        ["90A", "82B", "76C", "71D", "67E", "65F", "63G", "60H", "40I", "30J", "20K"],
+        ["100A", "90B", "82C", "76D", "71E", "67F", "67G", "67H", "50I", "40J", "30K"],
+        ["112A", "100B", "90C", "82D", "76E", "71F", "69G", "68H", "60I", "50J", "40K"],
+        ["126A", "112B", "100C", "90D", "82E", "75F", "70G"],
+        ["142A", "126B", "111C", "100D", "90E", "80F"],
+        ["160A", "142B", "125C", "110D", "100E"],
+        ["180A", "160B", "140C", "120D"],
+        ["200A", "180B", "155C", "130D"],
+        ["225A", "200B", "170C"],
+        ["250A", "220B", "185C"],
+        ["275A", "240B", "200C"],
+        ["300A", "260B"],
+        ["325A", "280B"],
+        ["350A", "300B"]
+    )
+
     pass
 
 
@@ -179,6 +203,7 @@ class PublicCompany:
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
         self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
+        self.stock_column = 6 # Used to determine 2d action on the stock market.
         self.stock_status = StockStatus.NORMAL
 
     @staticmethod
@@ -218,9 +243,18 @@ class PublicCompany:
         # TODO: Market goes up if there are no stocks left over..
         pass
 
-    def priceDown(self, spaces):
+    def priceDown(self, spaces: int):
+        """
+        Need to change how we keep this information as the same price may repeat more than once on the way down.
+        :param spaces:
+        :return:
+        """
         # TODO: Market price tanks on news.
-        pass
+        price = self.stockPrice[StockPurchaseSource.BANK]
+        stock_column = STOCK_MARKET[self.stock_column]
+        self.stock_row = min([int(self.stock_row + spaces), len(stock_column)])
+
+        self.stockPrice[StockPurchaseSource.BANK] = int(stock_column[self.stock_row][0:-1])
 
     def checkPresident(self):
         """Goes through owners and determines who the president is.
@@ -258,6 +292,11 @@ class PublicCompany:
 
     def setInitialPrice(self, ipo_price: int):
         self.stockPrice[StockPurchaseSource.IPO] = self.stockPrice[StockPurchaseSource.BANK] = ipo_price
+        self.stock_column = 6  # IPO is all in the 7th stock column
+        try:
+            self.stock_row = next(i for i, v in enumerate(STOCK_MARKET[self.stock_column]) if int(v[0:-1]) == ipo_price)
+        except StopIteration:
+            raise IndexError("Can't find an IPO price of {}".format(ipo_price))
 
     def hasStock(self, sps: StockPurchaseSource, amount: int) -> bool:
         return self.stocks[sps] >= amount
@@ -324,6 +363,7 @@ class PrivateCompany:
         self.passed_by: List[Player] = None
         # ^-- This is a list of people who have passed on a private company in a bidding round.
         self.pass_count = None
+        self.active:bool = True
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
@@ -349,7 +389,7 @@ class PrivateCompany:
         pc.short_name = short_name
         pc.cost = int(cost)
         pc.actual_cost = int(actual_cost) if actual_cost is not None else int(cost)
-        pc.revenue = revenue
+        pc.revenue = int(revenue)
         pc.base = base
         pc.belongs_to = belongs_to
         pc.player_bids = [] if player_bids is None else player_bids
@@ -402,10 +442,11 @@ class PrivateCompany:
         self.actual_cost = actual_cost
 
     def distributeRevenue(self):
-        if self.belongs_to:
-            self.belongs_to.cash += self.revenue
-        if self.belongs_to_company:
-            self.belongs_to_company.addIncome(self.revenue)
+        if self.active:
+            if self.belongs_to:
+                self.belongs_to.cash += self.revenue
+            if self.belongs_to_company:
+                self.belongs_to_company.addIncome(self.revenue)
 
 
 class Move:

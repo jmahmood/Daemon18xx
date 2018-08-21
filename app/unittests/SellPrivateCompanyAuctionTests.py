@@ -8,8 +8,8 @@ import json
 import unittest
 
 from app.base import Move, MutableGameState
-from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import Auction
-from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import AuctionDecision
+from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import StockRoundSellPrivateCompany
+from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import StockRoundSellPrivateCompanyDecision
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove, AuctionBidMove
 from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
 from app.unittests.StockRoundMinigameTests import fake_public_company
@@ -45,7 +45,7 @@ class AuctionRejectDecisionTests(unittest.TestCase):
         """You are accepting a bid from someone who legitimately made that bid."""
         move = self.move()
         state = self.state()
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         cash = state.players[5].cash
         self.assertTrue(minigame.run(move, state), minigame.errors())
 
@@ -60,7 +60,7 @@ class AuctionRejectDecisionTests(unittest.TestCase):
         state = self.state()
         move.player_id = "E"
 
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn("""You can't reject an auction if you do not own the company.""",
                       minigame.errors())
@@ -103,7 +103,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         starting_cash_owner = state.players[5].cash
         starting_cash_buyer = state.players[1].cash
 
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         self.assertTrue(minigame.run(move, state), minigame.errors())
 
         self.assertEqual(move.private_company.belongs_to.id, move.accepted_player_id)
@@ -121,7 +121,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         starting_cash_owner = state.players[5].cash
         starting_cash_buyer = state.players[1].cash
 
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn("""You are accepting a bid from a player who didn't make a bid. (ID: "B")""",
                       minigame.errors())
@@ -140,7 +140,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         starting_cash_owner = state.players[5].cash
         starting_cash_buyer = state.players[1].cash
 
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn("""You can't accept an auction if you do not own the company.""",
                       minigame.errors())
@@ -159,7 +159,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         starting_cash_owner = state.players[5].cash
         starting_cash_buyer = state.players[1].cash
 
-        minigame = AuctionDecision()
+        minigame = StockRoundSellPrivateCompanyDecision()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn("""You cannot accept invalid bids.""",
                       minigame.errors())
@@ -196,7 +196,7 @@ class AuctionPassTests(unittest.TestCase):
         move = self.bid()
         state = self.state()
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertTrue(minigame.run(move, state), minigame.errors())
         self.assertEqual(len(state.auction), 1)
         self.assertEqual(state.auction[0], ("A", 0))
@@ -208,7 +208,7 @@ class AuctionPassTests(unittest.TestCase):
         state = self.state()
         move.player_id = state.players[5].id
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertEqual(len(state.auction), 0)
         self.assertIn("You can't pass (or bid) on your own company.", minigame.errors())
@@ -248,7 +248,7 @@ class AuctionBidTests(unittest.TestCase):
         move = self.bid(250)
         state = self.state()
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertTrue(minigame.run(move, state), minigame.errors())
 
     def testPlayerInsufficientCashBid(self):
@@ -256,7 +256,7 @@ class AuctionBidTests(unittest.TestCase):
         move = self.bid(650)
         state = self.state()
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You cannot afford poorboi. 650 (You have: 500)",
@@ -270,7 +270,7 @@ class AuctionBidTests(unittest.TestCase):
         move.private_company_id = 2
         move.private_company = state.private_companies[1]
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You are bidding on the wrong company numbnuts. Fake company 2 vs. Fake company 1 Probably something wrong with your UI system.",
@@ -284,7 +284,7 @@ class AuctionBidTests(unittest.TestCase):
 
         move.player_id = state.auctioned_private_company.belongs_to.id
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You can't bid on your own company.",
@@ -295,7 +295,7 @@ class AuctionBidTests(unittest.TestCase):
         move = self.bid(1)
         state = self.state()
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         # You can't bid on a company that is not up for auction
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
@@ -307,7 +307,7 @@ class AuctionBidTests(unittest.TestCase):
         move = self.bid(1000)
         state = self.state()
 
-        minigame = Auction()
+        minigame = StockRoundSellPrivateCompany()
         # You can't bid on a company that is not up for auction
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(

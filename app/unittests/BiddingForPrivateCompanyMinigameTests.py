@@ -8,7 +8,7 @@ from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingF
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 from app.base import Move, MutableGameState
 

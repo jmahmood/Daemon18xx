@@ -207,7 +207,7 @@ class SimulateFullPrivateCompanyRound(unittest.TestCase):
                     self.assertEqual(state.players[5].cash, player_cash - 0)  # Costs nothing now.
 
         self.assertEqual(game.minigame_class, "BiddingForPrivateCompany")
-        player_order_obj: PrivateCompanyInitialAuctionTurnOrder = game.get_player_order_fn()
+        player_order_obj: PrivateCompanyInitialAuctionTurnOrder = game.getPlayerOrderClass()
         self.assertEqual(
             len(player_order_obj.players), 3
         )

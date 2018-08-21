@@ -4,7 +4,7 @@ from app.base import StockPurchaseSource
 from app.state import Game
 from app.unittests.scenarios.SimulateBuyPrivateCompaniesTests import skip_private_companies_round
 from app.unittests.scenarios.common import TestBase
-from app.unittests.scenarios.move_factory import StockRoundMoves
+from app.unittests.scenarios.move_factory import StockRoundMoves, StockRoundPrivateCompanyAuctionMoves
 
 
 class SimulateFirstStockRoundTest(TestBase):
@@ -14,12 +14,23 @@ class SimulateFirstStockRoundTest(TestBase):
         super().setUp()
         skip_private_companies_round(self.game)
 
+    def skip_private_company_bid(self):
+        skip_move = StockRoundPrivateCompanyAuctionMoves.pass_on_bid(
+            self.game.current_player.name, self.game.getState())
+        self.execute_valid_move(skip_move)
+        self.assertEqual(len(self.game.errors()), 0)
+
     def skip_round(self):
+        game_round = self.game.getState().stock_round_count
         player = self.game.current_player
         player_cash_before_move = player.cash
         skip_moves = StockRoundMoves.pass_round(self.game.current_player.name, self.game.state)
         self.execute_valid_move(skip_moves)
-        self.assertEqual(player_cash_before_move, player.cash)  # Since there are skipping, their cash stays the same.
+        game_round_after_move = self.game.getState().stock_round_count
+        if game_round == game_round_after_move:
+            # If you skip a round and you enter a new Stock round, you will get money from
+            # your private companies.  Otherwise, your cash should remain the same
+            self.assertEqual(player_cash_before_move, player.cash)
         self.assertEqual(len(self.game.errors()), 0)
 
     def testPublicCompaniesAdded(self):
@@ -87,9 +98,13 @@ class SimulateFirstStockRoundTest(TestBase):
         self.assertEqual(self.game.state.stock_round_count, 1, "When all the players pass in a row, the round is over."
                                                                "In this case, there is a new stock round that starts,"
                                                                "but the stock_round_count needs to be incremented")
-
         self.assertEqual(self.game.state.stock_round_passed_in_a_row, 0, "Reset stats at end of round.")
         self.assertEqual(self.game.current_player, self.game.getState().players[1])
+        self.assertEqual(self.game.getState().private_companies[0].belongs_to,
+                         self.game.getState().players[0])
+
+        self.assertEqual(int(jawaad_cash - 2 * 76  - 2 * 71 + self.game.getState().private_companies[0].revenue),
+                         int(self.game.state.players[0].cash))  # TODO: Make sure everyone got money from their private companies.
 
         move = StockRoundMoves.buy_sell(
             "Alex",
@@ -134,9 +149,35 @@ class SimulateFirstStockRoundTest(TestBase):
             self.game.getState()
         )
         self.execute_valid_move(move)
+
         # Price has to go down.
         self.assertEqual(pc.stockPrice[StockPurchaseSource.BANK], 67,
                          "The price of the stock is not being reduced after a valid sale")
+
+        move = StockRoundMoves.sell_private_company(
+            "Alex",
+            "C&StL",
+            self.game.state
+        )
+
+        self.execute_valid_move(move)
+        self.assertEqual(self.game.minigame_class, "StockRoundSellPrivateCompany")
+        self.assertEqual(self.game.current_player, self.game.getState().players[2])
+        self.assertEqual(self.game.getPlayerOrderClass().players, self.game.getState().players[2:] + self.game.getState().players[0:1])
+
+        # Let's say no one is interested.
+
+        for _ in range(5):
+            self.skip_private_company_bid()
+
+        self.assertEqual(self.game.minigame_class, "StockRoundSellPrivateCompanyDecision")
+
+        # You can't accept a bid when none exists.
+
+
+
+
+
 
 
 if __name__ == "__main__":
