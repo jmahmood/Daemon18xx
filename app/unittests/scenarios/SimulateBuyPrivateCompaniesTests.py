@@ -3,14 +3,12 @@ Do a full simulation of Private Company rounds and make sure that everything run
 """
 import unittest
 
-import logging
-
-from app.base import MutableGameState, Move
-from app.state import Game
+from app.base import Move
+from app.state import Game, PrivateCompanyInitialAuctionTurnOrder
 from app.unittests.scenarios.move_factory import PrivateCompanyInitialAuctionMoves
 
 
-class InitialGameTests(unittest.TestCase):
+class SimulateFullPrivateCompanyRound(unittest.TestCase):
 
     def execute_invalid_player(self, game, move: Move):
         self.assertTrue(
@@ -32,7 +30,7 @@ class InitialGameTests(unittest.TestCase):
 
         self.assertFalse(
             game.performedMove(move),
-            game.errors()
+            "This move should have failed but it actually succeeded"
         )
 
     def execute_valid_move(self, game, move: Move):
@@ -50,7 +48,7 @@ class InitialGameTests(unittest.TestCase):
             game.errors()
         )
 
-    def testStartGame(self):
+    def testInitialBuyPrivateCompanyRound(self):
         player_details = [
             "Jawaad",
             "Alex",
@@ -138,11 +136,82 @@ class InitialGameTests(unittest.TestCase):
         self.assertEqual(game.state.players[0].cash, 2400 / 6, "You need to return the money")
         self.assertEqual(game.state.players[1].cash, 2400 / 6 - 60)
 
-        # move_7 = PrivateCompanyInitialAuctionMoves.bid("Sho", "M&H", 115, state)
-        # self.execute_valid_move(game, move_7)
+        self.assertEqual(game.current_player, state.players[3], [str(state.players[3]), "is not", str(game.current_player)])
+        move_7 = PrivateCompanyInitialAuctionMoves.bid("Sho", "M&H", 115, state)
+        self.execute_valid_move(game, move_7)
 
-        # self.assertEqual(game.current_player, state.players[1], game.current_player)
+        move_8 = PrivateCompanyInitialAuctionMoves.buy("Yuki", "D&H", state)
+        self.execute_valid_move(game, move_8)
+        self.assertEqual(state.private_companies[2].belongs_to, state.players[4])
 
+        self.assertEqual(state.private_companies[3].belongs_to, state.players[3],
+                         "The lone bid by Sho should be auto-accepted and he should be made the owner")
+
+        move_9_invalid = PrivateCompanyInitialAuctionMoves.bid("Rafael", "M&H", 115, state)
+        self.execute_invalid_move(game, move_9_invalid)
+
+        move_9_invalid_bid = PrivateCompanyInitialAuctionMoves.bid("Rafael", "C&A", 165, state)
+        self.execute_invalid_move(game, move_9_invalid_bid)
+
+        move_9 = PrivateCompanyInitialAuctionMoves.bid("Rafael", "B&O", 230, state)
+        self.execute_valid_move(game, move_9)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_10 = PrivateCompanyInitialAuctionMoves.bid("Jawaad", "B&O", 235, state)
+        self.execute_valid_move(game, move_10)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_11 = PrivateCompanyInitialAuctionMoves.pass_on_bid("Alex", "C&A", state)
+        self.execute_valid_move(game, move_11)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_12 = PrivateCompanyInitialAuctionMoves.pass_on_bid("Baba", "C&A", state)
+        self.execute_valid_move(game, move_12)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_13 = PrivateCompanyInitialAuctionMoves.pass_on_bid("Sho", "C&A", state)
+        self.execute_valid_move(game, move_13)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_14 = PrivateCompanyInitialAuctionMoves.bid("Yuki", "B&O", 240, state)
+        self.execute_valid_move(game, move_14)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        move_15 = PrivateCompanyInitialAuctionMoves.pass_on_bid("Rafael", "C&A", state)
+        self.execute_valid_move(game, move_15)
+        self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+
+        self.assertEqual(state.private_companies[4].cost, state.private_companies[4].actual_cost + 5,
+                         "Price needs to come down after 6 players pass or bid on something else.")
+
+        while state.private_companies[4].actual_cost > 0:
+            for p in player_details:
+                if state.private_companies[4].actual_cost > 0:
+                    move_ongoing = PrivateCompanyInitialAuctionMoves.pass_on_bid(p, "C&A", state)
+                    self.execute_valid_move(game, move_ongoing)
+                    self.assertEqual(game.minigame_class, "BuyPrivateCompany")
+                else:
+                    player_cash = state.players[5].cash
+                    move_purchase = PrivateCompanyInitialAuctionMoves.buy(p, "C&A", state)
+                    self.execute_valid_move(game, move_purchase)
+                    self.assertEqual(state.players[5].cash, player_cash - 0)  # Costs nothing now.
+
+        self.assertEqual(game.minigame_class, "BiddingForPrivateCompany")
+        player_order_obj: PrivateCompanyInitialAuctionTurnOrder = game.get_player_order_fn()
+        self.assertEqual(
+            len(player_order_obj.players), 3
+        )
+
+        self.assertEqual(
+            player_order_obj.players, [state.players[5], state.players[0], state.players[4]]
+        )
+
+        for p in ["Rafael", "Jawaad", "Yuki"][0:2]:
+            move_pass = PrivateCompanyInitialAuctionMoves.pass_on_bid(p, "B&O", state)
+            self.execute_valid_move(game, move_pass)
+
+        self.assertEqual(state.private_companies[-1].belongs_to, state.players[4])
+        self.assertEqual(game.minigame_class, "StockRound")
 
 
 if __name__ == "__main__":

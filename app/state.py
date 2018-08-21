@@ -78,6 +78,8 @@ class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
         current_private_company = next(c for c in self.state.private_companies if c.belongs_to is None)
         self.players = [x.player for x in current_private_company.player_bids]
         self.initial_player: Player = self.players[0]
+        self.stacking_type = True
+        self.overwrite_type = False
 
 
 class Game:
@@ -157,15 +159,11 @@ class Game:
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
-        try:
-            self.player_order_fn_list.pop()
-        except IndexError:
-            logging.warning("No old player order function available")
 
         player_order_functions = {
             "BuyPrivateCompany": PlayerTurnOrder,
             "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
-            "StockRound": None,
+            "StockRound": PlayerTurnOrder,
             "StockRoundSellPrivateCompany": None,
             "OperatingRound": None
         }
@@ -176,10 +174,16 @@ class Game:
             self.player_order_fn_list.append(player_order_generator)
 
         if player_order_generator.overwrite_type:
-            # Same class as the previous, keep the player order the same.
+            # An overwrite type function usually clears the full stack of player order functions.
+            # The only case in which we don't is if we are "resuming" a player stack.
+            try:
+                self.player_order_fn_list.pop()
+            except IndexError:
+                logging.warning("No old player order function available")
+
             if len(self.player_order_fn_list) > 0 and \
-                            self.player_order_fn_list[-1].__class__.__name__ == player_order_generator.__class__.__name__:
-                pass
+                            self.get_player_order_fn().__class__.__name__ == player_order_generator.__class__.__name__:
+                logging.warning("keeping old player order generator")
             else:
                 self.player_order_fn_list = [player_order_generator]
 

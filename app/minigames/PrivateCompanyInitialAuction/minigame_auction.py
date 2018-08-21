@@ -83,17 +83,7 @@ class BiddingForPrivateCompany(Minigame):
         all_passers = set([pc for pc in move.private_company.passed_by])
 
         if len(all_bidders - all_passers) == 1:
-            purchaser = list(all_bidders - all_passers)[0]
-            actual_cost_of_company = max([player_bid.bid_amount for player_bid in move.private_company.player_bids
-                                          if player_bid.player == purchaser])  # Player buys for max amount he bid.
-
-            for bid in move.private_company.player_bids:
-                bid.player.cash += bid.bid_amount  # Return cash before taking the top bid.
-
-            move.private_company.setActualCost(actual_cost_of_company)
-            move.private_company.setBelongs(next(player_bid.player for player_bid
-                                                 in move.private_company.player_bids
-                                                 if player_bid.bid_amount == actual_cost_of_company))
+            move.private_company.acceptHighestBid()
             return True
         return False
 

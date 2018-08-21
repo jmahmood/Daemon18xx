@@ -368,6 +368,20 @@ class PrivateCompany:
         self.player_bids.append(PlayerBid(player, amount))
         player.cash -= amount  # Cash will be returned if they lose the auction.
 
+    def acceptHighestBid(self):
+        selected_bid: PlayerBid = reduce(
+            lambda x, y: x if x.bid_amount > y.bid_amount else y,
+            self.player_bids
+        )
+
+        for bid in self.player_bids:
+            bid.player.cash += bid.bid_amount  # Return cash before taking the top bid.
+
+        self.setActualCost(selected_bid.bid_amount)
+        self.setBelongs(selected_bid.player)
+        return True
+
+
     def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
         self.belongs_to = player
