@@ -1,3 +1,4 @@
+import json
 import uuid
 from enum import Enum
 from functools import reduce
@@ -28,9 +29,10 @@ class MutableGameState:
         self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
         self.public_companies: List["PublicCompany"] = None
         self.private_companies: List["PrivateCompany"] = None
-        self.stock_round_passed: int = 0  # If every player passes during the stock round, the round is over.
+        self.stock_round_passed_in_a_row: int = 0  # If every player passes during the stock round, the round is over.
         self.stock_round_play:int = 0
         self.stock_round_count: int = 0
+        self.stock_round_last_buyer_seller_id: str = None
         self.players: List[Player] = None
 
     pass
@@ -184,6 +186,8 @@ class PublicCompany:
         x = PublicCompany()
         for k, v in kwargs.items():
             x.__dict__[k] = v
+        if x.id == None:
+            x.id = x.short_name
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
@@ -292,6 +296,13 @@ class PublicCompany:
     def hasValidRoute(self) -> bool:
         # TODO You need to have a train if you have a valid route
         raise NotImplementedError
+
+    @staticmethod
+    def allPublicCompanies() -> List["PublicCompany"]:
+        content = []
+        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/public_companies') as f:
+            content = json.load(f)
+        return [PublicCompany.initiate(**private_company_dict) for private_company_dict in content]
 
 
 class PrivateCompany:

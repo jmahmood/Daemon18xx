@@ -8,6 +8,14 @@ from app.state import Game, PrivateCompanyInitialAuctionTurnOrder
 from app.unittests.scenarios.move_factory import PrivateCompanyInitialAuctionMoves
 
 
+def skip_private_companies_round(game: Game):
+    """Skips the private round by having each player in the initial 6 buy whatever company there is in their order"""
+    state = game.getState()
+    for i, player in enumerate(state.players):
+        move = PrivateCompanyInitialAuctionMoves.buy(player.name, state.private_companies[i].short_name, state)
+        game.performedMove(move)
+
+
 class SimulateFullPrivateCompanyRound(unittest.TestCase):
 
     def execute_invalid_player(self, game, move: Move):
@@ -191,6 +199,8 @@ class SimulateFullPrivateCompanyRound(unittest.TestCase):
                     self.execute_valid_move(game, move_ongoing)
                     self.assertEqual(game.minigame_class, "BuyPrivateCompany")
                 else:
+                    # Last player (Rafael in this case) doesn't have a choice; he needs to buy, but he needs to select
+                    # that action as he may not realize it.
                     player_cash = state.players[5].cash
                     move_purchase = PrivateCompanyInitialAuctionMoves.buy(p, "C&A", state)
                     self.execute_valid_move(game, move_purchase)

@@ -6,7 +6,7 @@ from app.base import Move, PrivateCompany, err
 from app.base import MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
 
 
 class BuyPrivateCompany(Minigame):
@@ -113,17 +113,17 @@ class BuyPrivateCompany(Minigame):
 
         return False
 
-    def next(self, kwargs: MutableGameState) -> str:
-        private_companies: List[PrivateCompany] = kwargs.private_companies
+    def next(self, state: MutableGameState) -> MinigameFlow:
+        private_companies: List[PrivateCompany] = state.private_companies
 
         for pc in private_companies:
             if not pc.hasOwner() and not pc.hasBids():
-                return "BuyPrivateCompany"
+                return MinigameFlow("BuyPrivateCompany", False)
 
             if not pc.hasOwner() and pc.hasBids():
                 if len(pc.player_bids) > 1:
-                    return "BiddingForPrivateCompany"
+                    return MinigameFlow("BiddingForPrivateCompany", False)
                 else:
                     pc.acceptHighestBid()
 
-        return "StockRound"
+        return MinigameFlow("StockRound", False)

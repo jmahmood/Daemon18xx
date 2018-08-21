@@ -8,3 +8,6 @@ the actual physical actions (computing best paths, keeping tabs on other players
 This is a quiet experiment with implementing the rules as a daemon in Python. 
 With some effort, I assume different front-ends will be able to hook into the Daemon, giving us much more flexibility
 when creating front ends for the game.
+
+Version History:
+0.1: Private Company auctions enabled

@@ -377,7 +377,7 @@ class StockRoundMinigamePassTests(unittest.TestCase):
         game_context.public_companies = [fake_public_company(str(x)) for x in ["ABC", "DEF", "GHI"]]
         game_context.stock_round_count = 2
         game_context.stock_round_play = 0
-        game_context.stock_round_passed = 0
+        game_context.stock_round_passed_in_a_row = 0
         game_context.sales = [{},{},{}]
         game_context.purchases = [{},{},{}]
 
@@ -406,7 +406,7 @@ class StockRoundMinigamePassTests(unittest.TestCase):
 
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
-        self.assertEqual(state.stock_round_passed, self.state().stock_round_passed + 1)
+        self.assertEqual(state.stock_round_passed_in_a_row, self.state().stock_round_passed_in_a_row + 1)
 
 
 if __name__ == "__main__":

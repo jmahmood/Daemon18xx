@@ -1,16 +1,17 @@
 from app.base import MutableGameState, err
 from app.minigames.PrivateCompanyStockRoundAuction.enums import PrivateCompanyBidType
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionBidMove
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
+
 
 class Auction(Minigame):
     """Auction Private Company"""
 
-    def next(self, state: MutableGameState) -> str:
+    def next(self, state: MutableGameState) -> MinigameFlow:
         if len(state.auction) == len(state.players) - 1:
-            return "AuctionDecision"
+            return MinigameFlow("AuctionDecision", False)
         else:
-            return "Auction"
+            return MinigameFlow("Auction", False)
 
     def run(self, move: AuctionBidMove, state: MutableGameState) -> bool:
         move.backfill(state)

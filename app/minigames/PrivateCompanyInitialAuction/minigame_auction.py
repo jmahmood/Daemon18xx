@@ -6,7 +6,8 @@ from app.base import Move, PrivateCompany, err
 from app.base import MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
+
 
 # TODO: Need tests to determine how auctions move between different companies being auctioned.
 # Quick browse through the code indicates to me that it would not transition
@@ -105,14 +106,14 @@ class BiddingForPrivateCompany(Minigame):
 
         return False
 
-    def next(self, state: MutableGameState) -> str:
+    def next(self, state: MutableGameState) -> MinigameFlow:
         private_companies: List[PrivateCompany] = state.private_companies
 
         for pc in private_companies:
             if not pc.hasOwner() and not pc.hasBids():
-                return "BuyPrivateCompany"
+                return MinigameFlow("BuyPrivateCompany", False)
 
             if not pc.hasOwner() and pc.hasBids():
-                return "BiddingForPrivateCompany"
+                return MinigameFlow("BiddingForPrivateCompany", False)
 
-        return "StockRound"
+        return MinigameFlow("StockRound", False)

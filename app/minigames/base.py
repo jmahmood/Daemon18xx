@@ -5,6 +5,15 @@ import logging
 from app.base import Move, MutableGameState
 
 
+class MinigameFlow(NamedTuple):
+    """Used to determine what the next turn's Minigame class is - and whether we should force a re-order of things
+    like player order.
+
+    This is useful when we have the same name of a class (IE Stock round following stock round) and need to
+    force a refresh."""
+    minigame_class: str
+    force_player_reorder: bool
+
 class LifeCycle:
     """
     This is necessary to have minigames perform final changes / deletions / whatever when interacting with the
@@ -44,5 +53,5 @@ class Minigame(LifeCycle):
     def errors(self) -> List[str]:
         return self.error_list
 
-    def next(self, state: MutableGameState) -> str:
+    def next(self, state: MutableGameState) -> MinigameFlow:
         raise NotImplementedError()

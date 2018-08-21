@@ -52,7 +52,7 @@ class AuctionRejectDecisionTests(unittest.TestCase):
         self.assertEqual(move.private_company.belongs_to.id, move.player_id)
         self.assertEqual(move.player.cash, cash)
         self.assertEqual(state.stock_round_play, self.state().stock_round_play) # You don't increment the stock round
-        self.assertEqual(minigame.next(state), "StockRound")
+        self.assertEqual(minigame.next(state).minigame_class, "StockRound")
 
     def testPlayerInvalidDecider(self):
         """You are a cheatingboi who is trying to reject the auction for someone else."""

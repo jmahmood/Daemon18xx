@@ -1,4 +1,5 @@
-from typing import List
+from enum import Enum
+from typing import List, NamedTuple
 
 import logging
 
@@ -6,7 +7,7 @@ from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGa
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
 from app.minigames.operating_round import OperatingRound
 
 """
@@ -72,6 +73,18 @@ class PlayerTurnOrder:
     def removeCompany(self, company:PublicCompany):
         raise NotImplementedError
 
+
+class StockRoundTurnOrder(PlayerTurnOrder):
+    def __init__(self, state: MutableGameState):
+        super().__init__(state)
+        try:
+            self.iteration = next(i for i, p in enumerate(self.players)
+                 if p.id == self.state.stock_round_last_buyer_seller_id) + 1 % len(self.players)
+        except StopIteration:
+            self.iteration = 0
+
+
+
 class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
     def __init__(self, state: MutableGameState):
         super().__init__(state)
@@ -99,7 +112,7 @@ class Game:
                 Player.create(player_name, cash, order)
             )
         game = Game.initialize(player_objects)
-        game.setMinigame("BuyPrivateCompany")
+        game.setMinigame(MinigameFlow("BuyPrivateCompany", False))
         return game
 
 
@@ -115,14 +128,14 @@ class Game:
         game.state = MutableGameState()
         game.state.players = players
         game.state.private_companies = PrivateCompany.allPrivateCompanies()
-        game.state.public_companies = []
+        game.state.public_companies = PublicCompany.allPublicCompanies()
 
         return game
 
     def __init__(self):
         self.state: MutableGameState = None
         self.current_player: Player = None
-        self.player_order_fn_list = []
+        self.player_order_generators = []
         self.errors_list = []
 
     def isOngoing(self) -> bool:
@@ -136,6 +149,7 @@ class Game:
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
             "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
+            "StockRound": "StockRoundMove"
         }
         return minigame_move_classes.get(self.minigame_class) == move.__class__.__name__
 
@@ -160,35 +174,35 @@ class Game:
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
 
-        player_order_functions = {
+        player_order_generator_from_minigame = {
             "BuyPrivateCompany": PlayerTurnOrder,
             "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
-            "StockRound": PlayerTurnOrder,
+            "StockRound": StockRoundTurnOrder,
             "StockRoundSellPrivateCompany": None,
             "OperatingRound": None
         }
 
-        player_order_generator = player_order_functions.get(self.minigame_class)(self.getState())
+        player_order_generator = player_order_generator_from_minigame.get(self.minigame_class)(self.getState())
 
         if player_order_generator.stacking_type:
-            self.player_order_fn_list.append(player_order_generator)
+            self.player_order_generators.append(player_order_generator)
 
         if player_order_generator.overwrite_type:
             # An overwrite type function usually clears the full stack of player order functions.
             # The only case in which we don't is if we are "resuming" a player stack.
             try:
-                self.player_order_fn_list.pop()
+                self.player_order_generators.pop()
             except IndexError:
                 logging.warning("No old player order function available")
 
-            if len(self.player_order_fn_list) > 0 and \
+            if len(self.player_order_generators) > 0 and \
                             self.get_player_order_fn().__class__.__name__ == player_order_generator.__class__.__name__:
                 logging.warning("keeping old player order generator")
             else:
-                self.player_order_fn_list = [player_order_generator]
+                self.player_order_generators = [player_order_generator]
 
     def get_player_order_fn(self):
-        return self.player_order_fn_list[len(self.player_order_fn_list) - 1]
+        return self.player_order_generators[len(self.player_order_generators) - 1]
 
     def setCurrentPlayer(self):
         """
@@ -217,15 +231,19 @@ class Game:
         :param move:
         :return:
         """
+        self.errors_list = [] # game errors only last from when a move is made until a new move is performed.
+
         minigame = self.getMinigame()
         minigame.onTurnStart(self.getState())
         success = minigame.run(move, self.getState())
 
         if success:
-            if self.minigame_class != minigame.next(self.getState()):
+            next_minigame = minigame.next(self.getState())
+
+            if self.minigame_class != next_minigame.minigame_class or next_minigame.force_player_reorder:
                 """When the minigame changes, you need to switch the player order usually."""
                 minigame.onComplete(self.getState())
-                self.setMinigame(minigame.next(self.getState()))
+                self.setMinigame(next_minigame)
                 self.setPlayerOrder()
                 self.getMinigame().onStart(self.getState())
             else:
@@ -245,10 +263,10 @@ class Game:
     def errors(self):
         return self.errors_list
 
-    def setMinigame(self, minigame_class: str) -> None:
+    def setMinigame(self, next_minigame: MinigameFlow) -> None:
         """A Minigame is a specific game state that evaluates more complex game rules.
         Bidding during private bidding, etc..."""
-        self.minigame_class = minigame_class
+        self.minigame_class = next_minigame.minigame_class
 
     def saveState(self) -> None:
         # TODO: Saves State

@@ -1,15 +1,15 @@
 from app.base import MutableGameState, err
 from app.minigames.PrivateCompanyStockRoundAuction.enums import AuctionResponseType
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
 
 
 class AuctionDecision(Minigame):
     """We don't do all the checks to make sure a player CAN make the move in the auction state array; that should have been
     done in the Auction itself."""
 
-    def next(self, state: MutableGameState) -> str:
-        return "StockRound"
+    def next(self, state: MutableGameState) -> MinigameFlow:
+        return MinigameFlow("StockRound", False)
 
     def run(self, move: AuctionDecisionMove, state: MutableGameState) -> bool:
         move.backfill(state)

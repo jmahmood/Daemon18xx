@@ -1,6 +1,8 @@
 import json
 from typing import List, Tuple
 
+import logging
+
 from app.base import Move, PublicCompany, StockPurchaseSource, MutableGameState
 from app.minigames.StockRound.enums import StockRoundType
 
@@ -21,16 +23,17 @@ class StockRoundMove(Move):
         self.move_type: StockRoundType = None
 
     def find_public_company(self, public_company_id: str, kwargs: MutableGameState):
+        logging.warning(public_company_id)
         return next(pc for pc in kwargs.public_companies if pc.id == public_company_id)
 
     def backfill(self, kwargs: MutableGameState) -> None:
         super().backfill(kwargs)
-        if self.move_type not in [StockRoundType.PASS, StockRoundType.SELL]:
+        if self.move_type not in [StockRoundType.PASS, StockRoundType.SELL] and self.public_company_id != None:
             self.public_company = self.find_public_company(self.public_company_id, kwargs)
 
         if self.move_type not in [StockRoundType.PASS, StockRoundType.BUY]:
             self.for_sale = []
-            if self.for_sale_raw is not None:
+            if self.for_sale_raw is not None and len(self.for_sale_raw) > 0:
                 for company_id, amount in self.for_sale_raw:
                     self.for_sale.append((self.find_public_company(company_id, kwargs), amount))
 

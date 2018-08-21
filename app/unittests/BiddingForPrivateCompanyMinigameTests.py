@@ -24,7 +24,7 @@ class BasicInitializationTests(unittest.TestCase):
 
     def _move(self):
         move_json = {
-            "private_company_order": 1, # Doesn't really matter at this point.
+            "private_company_order": 1,  # Doesn't really matter at this point.
             "move_type": "BID",
             "player_id": "A",
             "bid_amount": 265
@@ -34,7 +34,7 @@ class BasicInitializationTests(unittest.TestCase):
 
     def _pass_move(self):
         move_json = {
-            "private_company_order": 1, # Doesn't really matter at this point.
+            "private_company_order": 1,  # Doesn't really matter at this point.
             "move_type": "PASS",
             "player_id": "A",
             "bid_amount": 265
@@ -62,7 +62,6 @@ class BasicInitializationTests(unittest.TestCase):
 
         self.assertFalse(bfpc.run(bid_move, context), bfpc.errors())
 
-
     def testPassedAlready(self):
         """Make sure they have enough money."""
         _pass_move = self._pass_move()
@@ -76,7 +75,6 @@ class BasicInitializationTests(unittest.TestCase):
 
         self.assertFalse(bfpc.run(bid_move, context), bfpc.errors())
         self.assertIn("You can only keep bidding until you've passed once.", bfpc.errors())
-
 
     def testAutopurchaseOnLastPass(self):
         """If the last person passes, you should assign the new owner asap."""

@@ -54,4 +54,7 @@ Transition to First Stock Round
  
 If no Private Companies are available for sale or bid, the `StockRound` begins.
   
-  
+Unit Tests
+----------
+`/unittests/PrivateCompanyMinigameTests.py` and `BiddingForPrivateCompanyMinigameTests.py` go through basic functionality tests
+`/unittests/scenarios/SimulateFullPrivateCompanyRound` goes through a full round using the game object and covers tests related to player order.  
