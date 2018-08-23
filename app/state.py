@@ -12,44 +12,11 @@ from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.base import Minigame, MinigameFlow
 from app.minigames.operating_round import OperatingRound
 
-"""
-# These are static function versions, but I probably want to use something else?
-
-def OfferPrivateCompanyForSale(players: List[Player], company: PrivateCompany):
-    # Happens when a player offers his private company for sale during his turn.
-    # In the interests of fairness, everyone gets a chance to bid on it.
-    starting_player = company.belongs_to.order
-    player_order_doubled = players.append(players)
-    pto = PlayerTurnOrder()
-    pto.stacking_type = True
-    pto.players = player_order_doubled[starting_player + 1:starting_player + len(players)]
-    return iter(pto)
-
-
-def PrivateCompanyBidPlayerOrder(company: PrivateCompany):
-    players = [pb.player for pb in company.player_bids]
-    pto = PlayerTurnOrder()
-    pto.stacking_type = True
-    pto.players = players
-    return iter(pto)
-
-
-def StockRoundPlayers(company: PrivateCompany, stock_round_iteration):
-    players = [pb.player for pb in company.player_bids]
-    starting_player = stock_round_iteration % len(players)
-    player_order_doubled = players.append(players)
-
-    pto = PlayerTurnOrder()
-    pto.overwrite_type = True
-    pto.players = player_order_doubled[starting_player:starting_player + len(players)]
-    return iter(pto)
-"""
-
 
 class PlayerTurnOrder:
     def __init__(self, state: MutableGameState):
         self.state = state
-        self.stacking_type = False  # Keeps the full palyer order stack and adds htis one on top
+        self.stacking_type = False  # Keeps the full player order stack and adds current generator on top of stack
         self.replacement_type = False  # Replaces the topmost player turn order generator with this one.
         self.overwrite_type = True  # Replace all player turn order generators.
         self.players: List[Player] = state.players
@@ -78,6 +45,7 @@ class PlayerTurnOrder:
 
 
 class StockRoundTurnOrder(PlayerTurnOrder):
+    """In the stock round, we start the round with the player after the last buyer."""
     def __init__(self, state: MutableGameState):
         super().__init__(state)
         try:
@@ -88,6 +56,7 @@ class StockRoundTurnOrder(PlayerTurnOrder):
 
 
 class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
+    """Only people who bid on an auction can participate durinng the actual auction; players can be removed as well."""
     def __init__(self, state: MutableGameState):
         super().__init__(state)
         current_private_company = next(c for c in self.state.private_companies if c.belongs_to is None)
@@ -121,13 +90,9 @@ class StockRoundPrivateCompanyDecisionTurnOrder(PlayerTurnOrder):
         self.overwrite_type = False
         self.replacement_type = True
 
-class Game:
-    """Holds state for the full ongoing game
 
-    TODO: Need to clarify what state needs to be in the Game class,
-    This probably needs to wait for all the minigames to be implemented and cleaned up.
-    
-    """
+class Game:
+    """Primary purpose is to hold the player order and the minigame being played"""
     @staticmethod
     def start(players: List[str]) -> "Game":
         total_players = len(players)
@@ -140,7 +105,6 @@ class Game:
         game = Game.initialize(player_objects)
         game.setMinigame(MinigameFlow("BuyPrivateCompany", False))
         return game
-
 
     @staticmethod
     def initialize(players: List[Player], saved_game: dict = None) -> "Game":
@@ -165,13 +129,12 @@ class Game:
         self.errors_list = []
 
     def isOngoing(self) -> bool:
+        """Is the game still ongoing or has it ended?"""
         return True
 
     def isValidMove(self, move: Move) -> bool:
         """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
         IE: You normally can't sell stock during an Operating Round"""
-        # TODO: How do we determine the move type?
-        # Some form of duck typing?
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
             "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
@@ -185,7 +148,7 @@ class Game:
         """The person who submitted the move must be the current player.
 
         Warning: The player object is only set in the move once the "Backfill" function is executed (to load info from state)
-        To avoid that, we are only comparing the player ids, which it always has."""
+        To avoid that, we are only comparing the player ids, which are always present in moves."""
         errors = err(
             move.player_id == self.current_player.id,
             "Wrong player; {} is not {}",
@@ -286,7 +249,11 @@ class Game:
             else:
                 minigame.onTurnComplete(self.getState())
 
-            self.setCurrentPlayer()
+            if next_minigame.do_not_increment_player:
+                logging.warning("Do not increment the player for whatever reason.")
+                pass
+            else:
+                self.setCurrentPlayer()
 
         else:
             self.setError(minigame.errors())

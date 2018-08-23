@@ -9,12 +9,14 @@ class StockRoundSellPrivateCompanyDecision(Minigame):
     done in the Auction itself."""
 
     def next(self, state: MutableGameState) -> MinigameFlow:
-        return MinigameFlow("StockRound", False)
+        # If the player rejects the bids, they can take their turn again.
+        return MinigameFlow("StockRound", False, self.rejected)
 
     def run(self, move: AuctionDecisionMove, state: MutableGameState) -> bool:
         move.backfill(state)
 
         if move.move_type == AuctionResponseType.ACCEPT:
+            self.rejected = False
             if not self.validateAccept(move, state):
                 return False
 
@@ -26,6 +28,7 @@ class StockRoundSellPrivateCompanyDecision(Minigame):
             return True
 
         if move.move_type == AuctionResponseType.REJECT:
+            self.rejected = True
             if not self.validateReject(move, state):
                 return False
             return True

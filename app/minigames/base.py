@@ -10,9 +10,24 @@ class MinigameFlow(NamedTuple):
     like player order.
 
     This is useful when we have the same name of a class (IE Stock round following stock round) and need to
-    force a refresh."""
+    force a refresh.
+
+    Developers Note
+    ---------------
+
+    Note: I am not very comfortable with this class.  It lets the Minigame influence stuff like player order; if possible,
+    I want that handled through the Game class exclusively.  This feels like a possible refactoring target.
+
+    Currently we have one class that handles all of the below:
+        -> Is the action successful?  Yes or No
+        -> Should we increment the player counter? Yes or No
+        -> Execute the state changes
+
+    This may make more sense if we have it all split up.
+    """
     minigame_class: str
     force_player_reorder: bool
+    do_not_increment_player: bool = False  # Player order should not be incremented; like if you reject an auction but still have a move waiting.
 
 class LifeCycle:
     """

@@ -4,7 +4,8 @@ from app.base import StockPurchaseSource
 from app.state import Game
 from app.unittests.scenarios.SimulateBuyPrivateCompaniesTests import skip_private_companies_round
 from app.unittests.scenarios.common import TestBase
-from app.unittests.scenarios.move_factory import StockRoundMoves, StockRoundPrivateCompanyAuctionMoves
+from app.unittests.scenarios.move_factory import StockRoundMoves, StockRoundPrivateCompanyAuctionMoves, \
+    StockRoundPrivateCompanyAuctionDecisionMoves
 
 
 class SimulateFirstStockRoundTest(TestBase):
@@ -114,29 +115,29 @@ class SimulateFirstStockRoundTest(TestBase):
         )
         self.execute_valid_move(move)
 
-        pc = next(
+        c_and_o = next(
             pc for pc in self.game.getState().public_companies
             if pc.short_name == "C&O"
         )
-        self.assertIn(self.game.getState().players[1], pc.owners.keys())
-        self.assertEqual(pc.owners[self.game.getState().players[1]], 10)
+        self.assertIn(self.game.getState().players[1], c_and_o.owners.keys())
+        self.assertEqual(c_and_o.owners[self.game.getState().players[1]], 10)
 
         for _ in range(5):
             """Skipped 5 times"""
             self.skip_round()
 
         self.execute_valid_move(move)
-        self.assertIn(self.game.getState().players[1], pc.owners.keys())
-        self.assertEqual(pc.owners[self.game.getState().players[1]], 20)
+        self.assertIn(self.game.getState().players[1], c_and_o.owners.keys())
+        self.assertEqual(c_and_o.owners[self.game.getState().players[1]], 20)
 
         for _ in range(5):
             """Skipped 5 times"""
             self.skip_round()
 
         self.execute_valid_move(move)
-        self.assertIn(self.game.getState().players[1], pc.owners.keys())
-        self.assertEqual(pc.owners[self.game.getState().players[1]], 30)
-        self.assertEqual(pc.president, self.game.getState().players[1])
+        self.assertIn(self.game.getState().players[1], c_and_o.owners.keys())
+        self.assertEqual(c_and_o.owners[self.game.getState().players[1]], 30)
+        self.assertEqual(c_and_o.president, self.game.getState().players[1])
 
         for _ in range(4):
             """Skipped 4 times"""
@@ -151,7 +152,7 @@ class SimulateFirstStockRoundTest(TestBase):
         self.execute_valid_move(move)
 
         # Price has to go down.
-        self.assertEqual(pc.stockPrice[StockPurchaseSource.BANK], 67,
+        self.assertEqual(c_and_o.stockPrice[StockPurchaseSource.BANK], 67,
                          "The price of the stock is not being reduced after a valid sale")
 
         move = StockRoundMoves.sell_private_company(
@@ -173,12 +174,100 @@ class SimulateFirstStockRoundTest(TestBase):
         self.assertEqual(self.game.minigame_class, "StockRoundSellPrivateCompanyDecision")
 
         # You can't accept a bid when none exists.
+        move = StockRoundPrivateCompanyAuctionDecisionMoves.accept(
+            "Alex",
+            "Jawaad",
+            self.game.state
+        )
+
+        self.execute_invalid_move(move)
+
+        move = StockRoundPrivateCompanyAuctionDecisionMoves.reject(
+            "Alex",
+            self.game.state
+        )
+        self.execute_valid_move(move)
+
+        self.assertEqual(self.game.minigame_class, "StockRound")
+        self.assertEqual(self.game.current_player, self.game.getState().players[1],
+                         [str(self.game.current_player), str(self.game.getState().players[1])])
 
 
+        # This time I will bid half the price and he will accept it.
+        move = StockRoundMoves.sell_private_company(
+            "Alex",
+            "C&StL",
+            self.game.state
+        )
 
+        self.execute_valid_move(move)
 
+        for _ in range(4):
+            self.skip_private_company_bid()
 
+        move = StockRoundPrivateCompanyAuctionMoves.bid(
+            "Jawaad",
+            20,
+            self.game.state
+        )
 
+        self.execute_valid_move(move)
+        self.assertEqual(self.game.minigame_class, "StockRoundSellPrivateCompanyDecision")
+
+        company = self.game.state.auctioned_private_company
+        self.assertEqual(company.belongs_to, self.game.state.players[1])
+
+        move = StockRoundPrivateCompanyAuctionDecisionMoves.accept(
+            "Alex",
+            "Jawaad",
+            self.game.state
+        )
+
+        self.execute_valid_move(move)
+        self.assertEqual(company.belongs_to, self.game.state.players[0])
+        self.assertEqual(int(jawaad_cash - 20 - 2 * 76  - 2 * 71 + self.game.getState().private_companies[0].revenue),
+                         int(self.game.state.players[0].cash))  # TODO: Make sure everyone got money from their private companies.
+        self.assertEqual(self.game.current_player, self.game.getState().players[2],
+                         [str(self.game.current_player), str(self.game.getState().players[2])])
+
+        for _ in range(1):
+
+            move = StockRoundMoves.buy_sell(
+                "Baba",
+                "C&O",
+                [],
+                self.game.getState()
+            )
+            self.execute_valid_move(move)
+
+            move = StockRoundMoves.buy_sell(
+                "Sho",
+                "C&O",
+                [],
+                self.game.getState()
+            )
+            self.execute_valid_move(move)
+
+            move = StockRoundMoves.buy_sell(
+                "Yuki",
+                "C&O",
+                [],
+                self.game.getState()
+            )
+            self.execute_valid_move(move)
+
+            move = StockRoundMoves.buy_sell(
+                "Rafael",
+                "C&O",
+                [],
+                self.game.getState()
+            )
+            self.execute_valid_move(move)
+
+        self.assertTrue(c_and_o.isFloated())
+
+        for _ in range(6):
+            self.skip_round()  # skip jawaad and alex
 
 if __name__ == "__main__":
     unittest.main()

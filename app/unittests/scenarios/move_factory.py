@@ -6,6 +6,40 @@ from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMov
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove, AuctionBidMove
 from app.minigames.StockRound.move import StockRoundMove
 
+
+class StockRoundPrivateCompanyAuctionDecisionMoves:
+    @staticmethod
+    def accept(player_name, accepted_player_name, state: MutableGameState):
+        player = next(
+            player for player in state.players if player_name == player.name
+        )
+
+        accepted_player = next(
+            player for player in state.players if accepted_player_name == player.name
+        )
+
+        msg = json.dumps({
+            "player_id": player.id,
+            "move_type": "ACCEPT",
+            "accepted_player_id": accepted_player.id
+        })
+        move = Move.fromMessage(msg)
+        return AuctionDecisionMove.fromMove(move)
+
+    @staticmethod
+    def reject(player_name, state: MutableGameState):
+        player = next(
+            player for player in state.players if player_name == player.name
+        )
+
+        msg = json.dumps({
+            "player_id": player.id,
+            "move_type": "REJECT",
+        })
+        move = Move.fromMessage(msg)
+        return AuctionDecisionMove.fromMove(move)
+
+
 class StockRoundPrivateCompanyAuctionMoves:
     @staticmethod
     def pass_on_bid(player_name, state: MutableGameState):
@@ -20,6 +54,22 @@ class StockRoundPrivateCompanyAuctionMoves:
         })
         move = Move.fromMessage(msg)
         return AuctionBidMove.fromMove(move)
+
+    @staticmethod
+    def bid(player_name, amount, state: MutableGameState):
+        player = next(
+            player for player in state.players if player_name == player.name
+        )
+
+        msg = json.dumps({
+            "player_id": player.id,
+            "private_company_id": state.auctioned_private_company.order,
+            "move_type": "BID",
+            "amount": amount
+        })
+        move = Move.fromMessage(msg)
+        return AuctionBidMove.fromMove(move)
+
 
 
 
