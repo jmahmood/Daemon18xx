@@ -4,13 +4,13 @@ from typing import List, NamedTuple
 import logging
 
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
+from app.minigames.OperatingRound.minigame_operatinground import OperatingRound
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import StockRoundSellPrivateCompany
 from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import StockRoundSellPrivateCompanyDecision
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.base import Minigame, MinigameFlow
-from app.minigames.operating_round import OperatingRound
 
 
 class PlayerTurnOrder:
@@ -42,6 +42,13 @@ class PlayerTurnOrder:
 
     def removeCompany(self, company:PublicCompany):
         raise NotImplementedError
+
+
+class CorporateTurnOrder(PlayerTurnOrder):
+    def __init__(self, state: MutableGameState):
+        super().__init__(state)
+        self.companies = [company for company in state.public_companies if company.isFloated()]
+        self.players = [pc.president for pc in self.companies]
 
 
 class StockRoundTurnOrder(PlayerTurnOrder):
@@ -171,7 +178,7 @@ class Game:
             "StockRound": StockRoundTurnOrder,
             "StockRoundSellPrivateCompany": StockRoundSellPrivateCompanyTurnOrder,
             "StockRoundSellPrivateCompanyDecision": StockRoundPrivateCompanyDecisionTurnOrder,
-            "OperatingRound": None
+            "OperatingRound": CorporateTurnOrder
         }
 
         try:
@@ -217,9 +224,7 @@ class Game:
             "StockRound": StockRound,
             "StockRoundSellPrivateCompany": StockRoundSellPrivateCompany, #TODO
             "StockRoundSellPrivateCompanyDecision": StockRoundSellPrivateCompanyDecision,
-            "OperatingRound1": OperatingRound,  # TODO
-            "OperatingRound2": OperatingRound,  # TODO
-            "OperatingRound3": OperatingRound,  # TODO
+            "OperatingRound": OperatingRound,  # TODO
         }
 
         cls: type(Minigame) = classes[self.minigame_class]
@@ -261,7 +266,6 @@ class Game:
         return success
 
     def setError(self, error_list: List[str]) -> None:
-        # TODO: Sets the error that will be returned
         self.errors_list = error_list
 
     def errors(self):
