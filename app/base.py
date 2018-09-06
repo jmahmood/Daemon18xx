@@ -4,10 +4,12 @@ from enum import Enum, IntEnum
 from functools import reduce
 from typing import NamedTuple, List, Set, Dict, Tuple
 import networkx as nx
-
+import os.path
 import logging
 
 from app.minigames.StockRound.const import STOCK_MARKET
+
+BASE_DIR = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/"
 
 STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
@@ -49,9 +51,41 @@ class Color(IntEnum):
     RED = 4
 
 
+class City:
+    """Loads cities and the value they provide when a train passes through them.  Used in setup phase."""
+    FILES = ["cities", "double_city"]
+
+    def __init__(self, tile, name, value=0, stations=0, special=None, company=None, private_company=None, **kwargs):
+        self.tile: str = tile  # TODO: Do we want to use the tile class here?
+        self.name: str = name
+        self.value: int = value
+        self.special: str = special
+        self.company_hq: str = company
+        self.private_company_hq: str = private_company
+        self.stations: int = stations  # The number of stations taht can be setup by public companies.
+        logging.info("Unused Kwargs: {}".format(
+            ",".join(kwargs.keys())
+        ))
+
+    def __str__(self) -> str:
+        return "{} - {}".format(self.name, self.tile)
+
+    @classmethod
+    def load(cls):
+        ret = []
+        for f in cls.FILES:
+            with open(os.path.join(BASE_DIR, f)) as json_file:
+                data = json.load(json_file)
+                ret += [cls(**d) for d in data]
+        return ret
+
+
+class Town(City):
+    FILES = ["town", "double_town"]
+
+
 class Train:
     pass
-
 
 class Route(NamedTuple):
     pass
@@ -70,7 +104,6 @@ class Position(IntEnum):
     LEFT = 6
     CITY_1 = 11
     CITY_2 = 12
-
 
 
 class TrackType():
@@ -124,6 +157,7 @@ class Track(NamedTuple):
                     None
                 ))
         return ret
+
 
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""

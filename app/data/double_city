@@ -1,7 +1,1 @@
-[
-        ("D10", {"cost": 80, "names": ["Toronto", "Hamilton"]}),
-        ("E5",  {"cost": 80, "names": ["Detroit", "Windsor"]}),
-        ("E11", {"special": "ER", "names": ["Buffalo", "Dunkirk"]}),
-        ("G19", {"company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}),
-        ("H18", {"private_company": "C&A", "names": ["Trenton", "Philidelphia"]})
-]
+[{"tile": "d10", "name": "Toronto", "cost": 80, "names": ["Toronto", "Hamilton"]}, {"tile": "d10", "name": "Hamilton", "cost": 80, "names": ["Toronto", "Hamilton"]}, {"tile": "e5", "name": "Detroit", "cost": 80, "names": ["Detroit", "Windsor"]}, {"tile": "e5", "name": "Windsor", "cost": 80, "names": ["Detroit", "Windsor"]}, {"tile": "e11", "name": "Buffalo", "special": "ER", "names": ["Buffalo", "Dunkirk"]}, {"tile": "e11", "name": "Dunkirk", "special": "ER", "names": ["Buffalo", "Dunkirk"]}, {"tile": "g19", "name": "New York", "company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}, {"tile": "g19", "name": "Newark", "company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}, {"tile": "h18", "name": "Trenton", "private_company": "C&A", "names": ["Trenton", "Philidelphia"]}, {"tile": "h18", "name": "Philidelphia", "private_company": "C&A", "names": ["Trenton", "Philidelphia"]}]

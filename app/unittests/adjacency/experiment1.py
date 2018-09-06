@@ -199,3 +199,64 @@ print(repr(list(nx.all_simple_paths(G, source="Trenton", target="Newark"))))
 
 print(repr([str(t) for t in TrackType.Load()]))
 
+
+
+cities = [
+        ("a19", {"name": "Montreal", "company": "CP", "value": 40}),
+        ("b10", {"name": "Barrie"}),
+        ("b16", {"name": "Ottawa"}),
+        ("d2",  {"name": "Lansing", }),
+        ("d14", {"name": "Rochester", }),
+        ("e19", {"name": "Albany", "company": "NYC"}),
+        ("e23", {"name": "Boston", "special": "B", "company": "B&M", "value": 30}),
+        ("f4",  {"name": "Toledo", }),
+        ("f6",  {"name": "Cleveland", "company": "C&O", "value": 30}),
+        ("f16", {"name": "Scranton", "private_company": "D&H", "cost": 120}),
+        ("f22", {"name": "Providence", "cost": 80}),
+        ("h4",  {"name": "Columbus", }),
+        ("h10", {"name": "Pittsburgh", }),
+        ("h12", {"name": "Altoona", "company": "PRR", "value": 10}),
+        ("h16", {"name": "Lancaster"}),
+        ("i15", {"name": "Baltimore", "company": "B&O"}),
+        ("j14", {"name": "Washington", "cost": 80}),
+        ("k15", {"name": "Richmond"}),
+]
+
+data = [{"token": x, **y} for x, y in cities]
+
+double_city_nodes = [
+    ("d10", {"cost": 80, "names": ["Toronto", "Hamilton"]}),
+    ("e5",  {"cost": 80, "names": ["Detroit", "Windsor"]}),
+    ("e11", {"special": "ER", "names": ["Buffalo", "Dunkirk"]}),
+    ("g19", {"company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}),
+    ("h18", {"private_company": "C&A", "names": ["Trenton", "Philidelphia"]})
+]
+data = [{"token": x, "name": name, **y} for x, y in double_city_nodes for name in y["names"]]
+
+town_nodes = [
+    ("B20", {"name": "Burlington", "private_company": "C&StL"}),
+    ("D4", {"name": "Flint"}),
+    ("E7", {"name": "London"}),
+    ("F10", {"name": "Erie"}),
+    ("C15", {"name": "Kingston"})
+]
+
+data = [{"token": x, **y} for x, y in town_nodes]
+print(json.dumps(data))
+
+double_town_nodes = [
+    ("F20", {"names": ["Hartford", "New Haven"]}),
+    ("G7", {"names": ["Akron", "Canton"]}),
+    ("G17", {"names": ["Reading", "Allentown"]})
+]
+
+data = [{"token": x, "name": name, **y} for x, y in double_town_nodes for name in y["names"]]
+print(json.dumps(data))
+
+    red_zones = [
+        (["A9", "A11"], "Canadian West"),
+        (["F2"], "Chicago"),
+        (["A24", "B24"], "Maritime Provinces"),
+        (["I2", "J3"], "Gulf"),
+        (["K13"], "Deep South")
+    ]
