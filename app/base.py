@@ -1,8 +1,9 @@
 import json
 import uuid
-from enum import Enum
+from enum import Enum, IntEnum
 from functools import reduce
 from typing import NamedTuple, List, Set, Dict, Tuple
+import networkx as nx
 
 import logging
 
@@ -21,18 +22,19 @@ class MutableGameState:
     """This is state that needs to be accessed or modified by the minigames.
     We are initially putting all of that into this one object, but this will be refactored once the
     minigames are ready (and we can distinguish between mutable & non-mutable game state)"""
+
     def __init__(self):
         """
         players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
-        self.auction: List[Tuple[str, int]] = None # All bids on current auction; (player_id, amount)
+        self.auction: List[Tuple[str, int]] = None  # All bids on current auction; (player_id, amount)
         self.auctioned_private_company: PrivateCompany = None
-        self.sales:List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you sell in each stock round.
-        self.purchases: List[Dict[Player, List[PublicCompany]]] = [] # Full list of things you buy in each stock round.
+        self.sales: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you sell in each stock round.
+        self.purchases: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you buy in each stock round.
         self.public_companies: List["PublicCompany"] = None
         self.private_companies: List["PrivateCompany"] = None
         self.stock_round_passed_in_a_row: int = 0  # If every player passes during the stock round, the round is over.
-        self.stock_round_play:int = 0
+        self.stock_round_play: int = 0
         self.stock_round_count: int = 0
         self.stock_round_last_buyer_seller_id: str = None
         self.players: List[Player] = None
@@ -40,7 +42,7 @@ class MutableGameState:
     pass
 
 
-class Color(Enum):
+class Color(IntEnum):
     GRAY = 1
     YELLOW = 2
     BROWN = 3
@@ -59,13 +61,69 @@ class Token(NamedTuple):
     pass
 
 
-class Track(NamedTuple):
-    id: str
-    id_v2: str
-    color: Color
-    location: str
-    rotation: int
+class Position(IntEnum):
+    TOP_LEFT = 1
+    TOP_RIGHT = 2
+    RIGHT = 3
+    BOTTOM_RIGHT = 4
+    BOTTOM_LEFT = 5
+    LEFT = 6
+    CITY_1 = 11
+    CITY_2 = 12
 
+
+
+class TrackType():
+    def __init__(self,
+                 type_id: str,
+                 connections: List[
+                     List[Tuple[Position, Position]]
+                 ],
+                 copies: int,
+                 color: Color = Color.YELLOW,
+                 cities: int = 0,
+                 upgrades: List["TrackType"] = None,
+                 city_1_stations: int = 0,
+                 city_2_stations: int = 0,
+                 ) -> None:
+        super().__init__()
+        self.type_id = type_id,
+        self.connections = connections
+        self.copies = copies
+        self.color = color
+        self.cities = cities
+        self.upgrades = upgrades
+        self.city_1_stations = city_1_stations
+        self.city_2_stations = city_2_stations
+
+    def __str__(self) -> str:
+        return "{} - {}".format(self.type_id, self.color)
+
+    @staticmethod
+    def Load():
+        fn = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/tracks"
+        with open(fn) as f:
+            data = json.load(f)
+            ret = [TrackType(**d) for d in data]
+        return ret
+
+
+class Track(NamedTuple):
+    id: str  # Unique identifier
+    type: TrackType  # type of track identifier(s)
+    rotation: int  # A number from 0-5 which is added to all of the connections to rotate the tile.
+
+    @staticmethod
+    def GenerateTracks(tt: List[TrackType]) -> List["Track"]:
+        ret = []
+        for t in tt:
+            for i in range(0, t.copies):
+                ret.append(Track(
+                    "{}-{}".format(t.type_id, i),
+                    t,
+                    None
+                ))
+        return ret
 
 class StockMarket:
     """This class holds information about different ordering on the stock market itself"""
@@ -127,7 +185,7 @@ class Player:
         """TODO: Is there a way to avoid cross-linking between Player and Public Company?
         Wouldn't that cause problems when trying to calculate a player's total wealth?"""
         self.portfolio.add(company)
-        self.cash = self.cash - amount  / STOCK_CERTIFICATE * price
+        self.cash = self.cash - amount / STOCK_CERTIFICATE * price
 
     def getCertificateCount(self):
         total_stock_certificates = 0
@@ -151,12 +209,12 @@ class PlayerBid(NamedTuple):
     bid_amount: int
 
 
-class StockPurchaseSource(Enum):
+class StockPurchaseSource(IntEnum):
     IPO = 1
     BANK = 2
 
 
-class StockStatus(Enum):
+class StockStatus(IntEnum):
     NORMAL = 1
     YELLOW = 2
     ORANGE = 3
@@ -166,10 +224,27 @@ class StockStatus(Enum):
 class GameBoard:
     def __init__(self):
         self.board = {}
+        self.graph = nx.Graph()
+        self.all_track: List[Track] = []
+        self.available_track: List[Track] = []
+        self.initialize()
 
-    def setTrack(self, track: Track):
-        self.board[track.location] = track
-        pass
+    def initialize(self):
+        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/public_companies') as f:
+            tracks = json.load(fp=f)
+            for t in tracks:
+                self.all_track.append(
+                    Track(
+                        id=t["id"],
+                        color=t["color"],
+                        description=t["description"],
+                        rotation=None
+                    )
+                )
+
+    def setTrack(self, location: str, track: Track):
+        self.board[location] = track
+        self.updateRoutes()
 
     def setToken(self, token: Token):
         # TODO
@@ -178,9 +253,11 @@ class GameBoard:
     def calculateRoute(self, route) -> int:
         pass
 
+    def updateRoutes(self):
+        pass
+
 
 class PublicCompany:
-
     def __str__(self) -> str:
         return "{}: {} ({})".format(self.id, self.name, self.short_name)
 
@@ -203,7 +280,7 @@ class PublicCompany:
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
         self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
-        self.stock_column = 6 # Used to determine 2d action on the stock market.
+        self.stock_column = 6  # Used to determine 2d action on the stock market.
         self.stock_status = StockStatus.NORMAL
 
     @staticmethod
@@ -363,7 +440,7 @@ class PrivateCompany:
         self.passed_by: List[Player] = None
         # ^-- This is a list of people who have passed on a private company in a bidding round.
         self.pass_count = None
-        self.active:bool = True
+        self.active: bool = True
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
@@ -431,7 +508,6 @@ class PrivateCompany:
         self.setActualCost(selected_bid.bid_amount)
         self.setBelongs(selected_bid.player)
         return True
-
 
     def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
