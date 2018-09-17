@@ -7,10 +7,11 @@
 import json
 import unittest
 
-from app.base import Move, MutableGameState
+from app.base import Move
 from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import StockRoundSellPrivateCompany
 from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import StockRoundSellPrivateCompanyDecision
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove, AuctionBidMove
+from app.state import MutableGameState
 from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
 from app.unittests.StockRoundMinigameTests import fake_public_company
 

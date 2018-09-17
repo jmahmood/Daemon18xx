@@ -103,6 +103,8 @@ class Position(IntEnum):
 
 
 class TrackType():
+    #  TODO: Add a "towns" value for the tracks data set
+
     DATA_FILE = os.path.join(DATA_DIR, "tracks")
 
     def __init__(self,

@@ -74,7 +74,6 @@ class GameMap:
                     ret.append(c.name)
         return ret
 
-
     def generateCompanyGraph(self, company: PublicCompany):
         pass
 
@@ -82,8 +81,6 @@ class GameMap:
         # Generates all simple paths that will lead from one city to the other, within the graph for the company.
         # Then filters out all paths that are not acceptable for one reason or another.
         pass
-
-
 
 
 class GameBoard:

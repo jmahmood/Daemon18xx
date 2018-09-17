@@ -90,6 +90,7 @@ class Game:
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
+        # TODO: What happens if we have something (like an operating round) where there are no player turns?
 
         player_order_generator_from_minigame = {
             "BuyPrivateCompany": PlayerTurnOrder,
