@@ -1,7 +1,7 @@
 import unittest
 
 from app.base import StockPurchaseSource
-from app.state import Game
+from app.game import Game
 from app.unittests.scenarios.SimulateBuyPrivateCompaniesTests import skip_private_companies_round
 from app.unittests.scenarios.common import TestBase
 from app.unittests.scenarios.move_factory import StockRoundMoves, StockRoundPrivateCompanyAuctionMoves, \

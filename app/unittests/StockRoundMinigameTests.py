@@ -6,10 +6,11 @@
 import json
 import unittest
 
-from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
+from app.base import Move, PublicCompany, StockPurchaseSource, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.StockRound.move import StockRoundMove
+from app.state import MutableGameState
 from app.unittests.PrivateCompanyMinigameTests import fake_player
 
 
@@ -272,7 +273,7 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
         )
         minigame = StockRound()
         self.assertFalse(minigame.run(move, state), minigame.errors())
-        self.assertIn("The company does not have enough stock in category StockPurchaseSource.IPO", minigame.errors())
+        self.assertIn("The company does not have enough stock in category IPO", minigame.errors())
 
     def testPlayerInvalidBuySellRound(self):
         # You've already bought this company this round.

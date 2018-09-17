@@ -1,7 +1,7 @@
 import unittest
 
 from app.base import Move
-from app.state import Game
+from app.game import Game
 
 
 class TestBase(unittest.TestCase):

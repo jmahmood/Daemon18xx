@@ -1,7 +1,6 @@
 from typing import List
 
-from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany, MutableGameState
-from app.minigames.base import Minigame
+from app.base import Move, Track, Token, Route, PublicCompany
 
 
 class OperatingRoundMove(Move):
@@ -21,8 +20,8 @@ class OperatingRoundMove(Move):
         self.public_company: PublicCompany = None
         self.token: Token = None
         self.track: Track = None
+        self.track_placement_location: str = None
 
 
 class RustedTrainMove(Move):
     pass
-

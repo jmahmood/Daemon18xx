@@ -1,12 +1,10 @@
-import json
-from enum import Enum
 from typing import List
 
-from app.base import Move, PrivateCompany, err
-from app.base import MutableGameState
+from app.base import PrivateCompany, err
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.base import Minigame, MinigameFlow
+from app.state import MutableGameState
 
 
 # TODO: Need tests to determine how auctions move between different companies being auctioned.

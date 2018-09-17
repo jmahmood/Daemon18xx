@@ -1,10 +1,11 @@
 import json
 from typing import List, Tuple
 
-from app.base import MutableGameState, Move, PublicCompany
+from app.base import Move, PublicCompany
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionDecisionMove, AuctionBidMove
 from app.minigames.StockRound.move import StockRoundMove
+from app.state import MutableGameState
 
 
 class StockRoundPrivateCompanyAuctionDecisionMoves:

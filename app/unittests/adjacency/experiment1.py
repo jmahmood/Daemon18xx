@@ -170,20 +170,19 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
             # Create all natural edges between tiles.
 
             if i-2 > 0:
-                G.add_edge(xy(letter, x, 1), xy(UP_TILE, x, 4))
+                g.add_edge(xy(letter, x, 1), xy(UP_TILE, x, 4))
 
             if x + 1 < 7:
                 if i - 1 >= 0:
-                    G.add_edge(xy(letter, x, 2), xy(UP_DIAGONAL_TILE, x + 1, 5))
-                G.add_edge(xy(letter, x, 3), xy(BOTTOM_DIAGONAL_TILE, x + 1, 6))
+                    g.add_edge(xy(letter, x, 2), xy(UP_DIAGONAL_TILE, x + 1, 5))
+                g.add_edge(xy(letter, x, 3), xy(BOTTOM_DIAGONAL_TILE, x + 1, 6))
 
-            G.add_edge(xy(letter, x, 4), xy(BOTTOM_TILE, x, 1))
+            g.add_edge(xy(letter, x, 4), xy(BOTTOM_TILE, x, 1))
 
             if x - 1 > 0:
-                G.add_edge(xy(letter, x, 5), xy(BOTTOM_DIAGONAL_TILE, x - 1, 2))
+                g.add_edge(xy(letter, x, 5), xy(BOTTOM_DIAGONAL_TILE, x - 1, 2))
                 if i - 1 >= 0:
-                    G.add_edge(xy(letter, x, 6), xy(UP_DIAGONAL_TILE, x - 1, 3))
-"""
+                    g.add_edge(xy(letter, x, 6), xy(UP_DIAGONAL_TILE, x - 1, 3))
 G = nx.Graph()
 tile_nodes_and_natural_edges(G)
 city_nodes(G)
@@ -193,11 +192,12 @@ pprint(repr(G.nodes))
 pprint(G.has_node("Trenton"))
 pprint(G.has_node("Newark"))
 
+G.adjacency()
+
 print(repr(list(nx.all_simple_paths(G, source="Trenton", target="Newark"))))
-"""
 
 
-print(repr([str(t) for t in TrackType.Load()]))
+print(repr([str(t) for t in TrackType.load()]))
 
 
 
@@ -253,10 +253,10 @@ double_town_nodes = [
 data = [{"token": x, "name": name, **y} for x, y in double_town_nodes for name in y["names"]]
 print(json.dumps(data))
 
-    red_zones = [
-        (["A9", "A11"], "Canadian West"),
-        (["F2"], "Chicago"),
-        (["A24", "B24"], "Maritime Provinces"),
-        (["I2", "J3"], "Gulf"),
-        (["K13"], "Deep South")
-    ]
+red_zones = [
+    (["A9", "A11"], "Canadian West"),
+    (["F2"], "Chicago"),
+    (["A24", "B24"], "Maritime Provinces"),
+    (["I2", "J3"], "Gulf"),
+    (["K13"], "Deep South")
+]

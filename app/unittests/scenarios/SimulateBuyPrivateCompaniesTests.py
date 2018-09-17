@@ -4,7 +4,7 @@ Do a full simulation of Private Company rounds and make sure that everything run
 import unittest
 
 from app.base import Move
-from app.state import Game, PrivateCompanyInitialAuctionTurnOrder
+from app.game import Game, PrivateCompanyInitialAuctionTurnOrder
 from app.unittests.scenarios.move_factory import PrivateCompanyInitialAuctionMoves
 
 

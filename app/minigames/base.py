@@ -2,7 +2,8 @@ from typing import List, Tuple, NamedTuple
 
 import logging
 
-from app.base import Move, MutableGameState
+from app.base import Move
+from app.state import MutableGameState
 
 
 class MinigameFlow(NamedTuple):

@@ -1,291 +1,45 @@
-from enum import Enum
-from typing import List, NamedTuple
+from typing import List, Dict, Tuple
 
-import logging
-
-from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
-from app.minigames.OperatingRound.minigame_operatinground import OperatingRound
-from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
-from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
-from app.minigames.PrivateCompanyStockRoundAuction.minigame_auction import StockRoundSellPrivateCompany
-from app.minigames.PrivateCompanyStockRoundAuction.minigame_decision import StockRoundSellPrivateCompanyDecision
-from app.minigames.StockRound.minigame_stockround import StockRound
-from app.minigames.base import Minigame, MinigameFlow
+from app.base import PrivateCompany, PublicCompany, Player, Track
+from app.game_map import GameBoard
 
 
-class PlayerTurnOrder:
-    def __init__(self, state: MutableGameState):
-        self.state = state
-        self.stacking_type = False  # Keeps the full player order stack and adds current generator on top of stack
-        self.replacement_type = False  # Replaces the topmost player turn order generator with this one.
-        self.overwrite_type = True  # Replace all player turn order generators.
-        self.players: List[Player] = state.players
-        self.initial_player: Player = self.players[0]
-        self.iteration = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> Player:
-        player_position = self.iteration % len(self.players)
-        self.iteration += 1
-        return self.players[player_position]
-
-    def isStacking(self):
-        return self.stacking_type
-
-    def isOverwrite(self):
-        return self.overwrite_type
-
-    def removePlayer(self, player:Player):
-        self.players.remove(player)
-
-    def removeCompany(self, company:PublicCompany):
-        raise NotImplementedError
-
-
-class CorporateTurnOrder(PlayerTurnOrder):
-    def __init__(self, state: MutableGameState):
-        super().__init__(state)
-        self.companies = [company for company in state.public_companies if company.isFloated()]
-        self.players = [pc.president for pc in self.companies]
-
-
-class StockRoundTurnOrder(PlayerTurnOrder):
-    """In the stock round, we start the round with the player after the last buyer."""
-    def __init__(self, state: MutableGameState):
-        super().__init__(state)
-        try:
-            self.iteration = next(i for i, p in enumerate(self.players)
-                 if p.id == self.state.stock_round_last_buyer_seller_id) + 1 % len(self.players)
-        except StopIteration:
-            self.iteration = 0
-
-
-class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
-    """Only people who bid on an auction can participate durinng the actual auction; players can be removed as well."""
-    def __init__(self, state: MutableGameState):
-        super().__init__(state)
-        current_private_company = next(c for c in self.state.private_companies if c.belongs_to is None)
-        self.players = [x.player for x in current_private_company.player_bids]
-        self.initial_player: Player = self.players[0]
-        self.stacking_type = True
-        self.overwrite_type = False
-
-
-class StockRoundSellPrivateCompanyTurnOrder(PlayerTurnOrder):
-    def __init__(self, state: MutableGameState):
-        """Create a pivot (is that what we call it?) around the owner so that players are asked in order from his left
-        whether or not they want to buy his private company"""
-        super().__init__(state)
-        owner = state.auctioned_private_company.belongs_to
-        idx = state.players.index(owner)
-
-        self.players = state.players[idx + 1:len(state.players)] + state.players[0:idx]
-        self.initial_player: Player = self.players[0]
-        self.stacking_type = True
-        self.overwrite_type = False
-
-
-class StockRoundPrivateCompanyDecisionTurnOrder(PlayerTurnOrder):
-    def __init__(self, state: MutableGameState):
-        """Create a pivot (is that what we call it?) around the owner so that players are asked in order from his left
-        whether or not they want to buy his private company"""
-        super().__init__(state)
-        self.players = [state.auctioned_private_company.belongs_to]
-        self.stacking_type = False
-        self.overwrite_type = False
-        self.replacement_type = True
-
-
-class Game:
-    """Primary purpose is to hold the player order and the minigame being played"""
-    @staticmethod
-    def start(players: List[str]) -> "Game":
-        total_players = len(players)
-        cash = int(2400 / total_players)
-        player_objects = []
-        for order, player_name in enumerate(players):
-            player_objects.append(
-                Player.create(player_name, cash, order)
-            )
-        game = Game.initialize(player_objects)
-        game.setMinigame(MinigameFlow("BuyPrivateCompany", False))
-        return game
-
-    @staticmethod
-    def initialize(players: List[Player], saved_game: dict = None) -> "Game":
-        """
-
-        :param players:
-        :param saved_game: Used to load data, if any.  If empty, everything defaults to a new game.
-        :return:
-        """
-        game = Game()
-        game.state = MutableGameState()
-        game.state.players = players
-        game.state.private_companies = PrivateCompany.allPrivateCompanies()
-        game.state.public_companies = PublicCompany.allPublicCompanies()
-
-        return game
+class MutableGameState:
+    """This is state that needs to be accessed or modified by the minigames.
+    We are initially putting all of that into this one object, but this will be refactored once the
+    minigames are ready (and we can distinguish between mutable & non-mutable game state)"""
 
     def __init__(self):
-        self.state: MutableGameState = None
-        self.current_player: Player = None
-        self.player_order_generators = []
-        self.errors_list = []
-
-    def isOngoing(self) -> bool:
-        """Is the game still ongoing or has it ended?"""
-        return True
-
-    def isValidMove(self, move: Move) -> bool:
-        """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
-        IE: You normally can't sell stock during an Operating Round"""
-        minigame_move_classes = {
-            "BuyPrivateCompany": "BuyPrivateCompanyMove",
-            "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
-            "StockRound": "StockRoundMove",
-            "StockRoundSellPrivateCompany": "AuctionBidMove",
-            "StockRoundSellPrivateCompanyDecision": "AuctionDecisionMove",
-        }
-        return minigame_move_classes.get(self.minigame_class) == move.__class__.__name__
-
-    def isValidPlayer(self, move: Move) -> bool:
-        """The person who submitted the move must be the current player.
-
-        Warning: The player object is only set in the move once the "Backfill" function is executed (to load info from state)
-        To avoid that, we are only comparing the player ids, which are always present in moves."""
-        errors = err(
-            move.player_id == self.current_player.id,
-            "Wrong player; {} is not {}",
-            move.player_id, self.current_player.id
-        )
-        if errors == None:
-            return True
-        self.errors_list = [errors]
-        return False
-
-    def getState(self) -> MutableGameState:
-        return self.state
-
-    def setPlayerOrder(self):
-        """Initializes a function that inherits from PlayerTurnOrder"""
-
-        player_order_generator_from_minigame = {
-            "BuyPrivateCompany": PlayerTurnOrder,
-            "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
-            "StockRound": StockRoundTurnOrder,
-            "StockRoundSellPrivateCompany": StockRoundSellPrivateCompanyTurnOrder,
-            "StockRoundSellPrivateCompanyDecision": StockRoundPrivateCompanyDecisionTurnOrder,
-            "OperatingRound": CorporateTurnOrder
-        }
-
-        try:
-            player_order_generator = player_order_generator_from_minigame.get(self.minigame_class)(self.getState())
-        except TypeError:
-            raise TypeError("Cannot find turn generator for {}".format(self.minigame_class))
-
-        if player_order_generator.stacking_type:
-            self.player_order_generators.append(player_order_generator)
-
-        if player_order_generator.replacement_type:
-            self.player_order_generators.pop()
-            self.player_order_generators.append(player_order_generator)
-
-        if player_order_generator.overwrite_type:
-            # An overwrite type function usually clears the full stack of player order functions.
-            # The only case in which we don't is if we are "resuming" a player stack.
-            try:
-                self.player_order_generators.pop()
-            except IndexError:
-                logging.warning("No old player order function available")
-
-            if len(self.player_order_generators) > 0 and \
-                            self.getPlayerOrderClass().__class__.__name__ == player_order_generator.__class__.__name__:
-                logging.warning("keeping old player order generator")
-            else:
-                self.player_order_generators = [player_order_generator]
-
-    def getPlayerOrderClass(self) -> PlayerTurnOrder:
-        return self.player_order_generators[len(self.player_order_generators) - 1]
-
-    def setCurrentPlayer(self):
         """
-        Sets the player by incrementing the newest player_order_fn
+        players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
         """
-        self.current_player = next(self.getPlayerOrderClass())
+        self.board: GameBoard = None
+        self.auction: List[Tuple[str, int]] = None  # All bids on current auction; (player_id, amount)
+        self.auctioned_private_company: PrivateCompany = None
+        self.sales: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you sell in each stock round.
+        self.purchases: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you buy in each stock round.
+        self.public_companies: List["PublicCompany"] = None
+        self.private_companies: List["PrivateCompany"] = None
+        self.stock_round_passed_in_a_row: int = 0  # If every player passes during the stock round, the round is over.
+        self.stock_round_play: int = 0
+        self.stock_round_count: int = 0
+        self.stock_round_last_buyer_seller_id: str = None
+        self.players: List[Player] = None
 
-    def getMinigame(self) -> Minigame:
-        """Creates a NEW INSTANCE of a mini game and passes it"""
-        classes = {
-            "BiddingForPrivateCompany": BiddingForPrivateCompany,
-            "BuyPrivateCompany": BuyPrivateCompany,
-            "StockRound": StockRound,
-            "StockRoundSellPrivateCompany": StockRoundSellPrivateCompany, #TODO
-            "StockRoundSellPrivateCompanyDecision": StockRoundSellPrivateCompanyDecision,
-            "OperatingRound": OperatingRound,  # TODO
-        }
+        # [Phase:[Turn, Turn, Turn], Phase: [Turn, Turn, Turn]]
+        self.operating_round_turn: int = 0  # Turns within a single operating round.
+        self.operating_round_phase: int = 1  # Turns within a single operating round.
 
-        cls: type(Minigame) = classes[self.minigame_class]
-        return cls()
+        self.total_operating_round_phases: int = 1 # How many times the operating round needs to be repeated.
+        self.total_operating_rounds: int = 1
 
-    def performedMove(self, move: Move) -> bool:
-        """
-        Performs a move and mutate the Minigame / Player Order states
-        :param move:
-        :return:
-        """
-        self.errors_list = [] # game errors only last from when a move is made until a new move is performed.
+    def isAnotherCompanyWaiting(self):
+        """This is used to message the player order system to see if there is
+        another company that is supposed to go this round."""
+        return self.operating_round_turn < len([p for p in self.public_companies if p.isFloated()])
 
-        minigame = self.getMinigame()
-        minigame.onTurnStart(self.getState())
-        success = minigame.run(move, self.getState())
-
-        if success:
-            next_minigame = minigame.next(self.getState())
-
-            if self.minigame_class != next_minigame.minigame_class or next_minigame.force_player_reorder:
-                """When the minigame changes, you need to switch the player order usually."""
-                minigame.onComplete(self.getState())
-                self.setMinigame(next_minigame)
-                self.setPlayerOrder()
-                self.getMinigame().onStart(self.getState())
-            else:
-                minigame.onTurnComplete(self.getState())
-
-            if next_minigame.do_not_increment_player:
-                logging.warning("Do not increment the player for whatever reason.")
-                pass
-            else:
-                self.setCurrentPlayer()
-
-        else:
-            self.setError(minigame.errors())
-
-        return success
-
-    def setError(self, error_list: List[str]) -> None:
-        self.errors_list = error_list
-
-    def errors(self):
-        return self.errors_list
-
-    def setMinigame(self, next_minigame: MinigameFlow) -> None:
-        """A Minigame is a specific game state that evaluates more complex game rules.
-        Bidding during private bidding, etc..."""
-        self.minigame_class = next_minigame.minigame_class
-
-    def saveState(self) -> None:
-        # TODO: Saves State
-        """This saves the current state to a data store.  Pickle or SQL?
-        This is not necessary if you will run all the logic on the running process without quitting"""
+    def trackUsed(self, track: Track):
         pass
 
-    def notifyPlayers(self) -> None:
-        # TODO: Used for external communication to a front-end module.
-        """Sends a message to all players indicating that the state has been updated.
-        Also sends error messages if any.
-
-        This is not necessary if we are testing the application, and can be overridden where necessary"""
+    def trackAvailable(self, track: Track):
         pass

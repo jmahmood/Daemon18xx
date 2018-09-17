@@ -2,15 +2,17 @@ import json
 import uuid
 from enum import Enum, IntEnum
 from functools import reduce
-from typing import NamedTuple, List, Set, Dict, Tuple
+from typing import NamedTuple, List, Set, Dict, Tuple, Union
 import networkx as nx
 import os.path
 import logging
 
 from app.minigames.StockRound.const import STOCK_MARKET
 
-BASE_DIR = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/"
+DATA_DIR = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/"
 
+# type_id: [type_id....]
+UPGRADE: Dict[str, List[str]] = {}
 STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
 
@@ -20,32 +22,8 @@ def err(validate: bool, error_msg: str, *format_error_msg_params):
         return error_msg.format(*format_error_msg_params)
 
 
-class MutableGameState:
-    """This is state that needs to be accessed or modified by the minigames.
-    We are initially putting all of that into this one object, but this will be refactored once the
-    minigames are ready (and we can distinguish between mutable & non-mutable game state)"""
-
-    def __init__(self):
-        """
-        players: All the players who are playing the game, from "right to left" (ie: in relative order for the stock round)
-        """
-        self.auction: List[Tuple[str, int]] = None  # All bids on current auction; (player_id, amount)
-        self.auctioned_private_company: PrivateCompany = None
-        self.sales: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you sell in each stock round.
-        self.purchases: List[Dict[Player, List[PublicCompany]]] = []  # Full list of things you buy in each stock round.
-        self.public_companies: List["PublicCompany"] = None
-        self.private_companies: List["PrivateCompany"] = None
-        self.stock_round_passed_in_a_row: int = 0  # If every player passes during the stock round, the round is over.
-        self.stock_round_play: int = 0
-        self.stock_round_count: int = 0
-        self.stock_round_last_buyer_seller_id: str = None
-        self.players: List[Player] = None
-
-    pass
-
-
 class Color(IntEnum):
-    GRAY = 1
+    GREY = 1
     YELLOW = 2
     BROWN = 3
     RED = 4
@@ -62,7 +40,7 @@ class City:
         self.special: str = special
         self.company_hq: str = company
         self.private_company_hq: str = private_company
-        self.stations: int = stations  # The number of stations taht can be setup by public companies.
+        self.stations: int = stations  # The number of stations that can be setup by public companies.
         logging.info("Unused Kwargs: {}".format(
             ",".join(kwargs.keys())
         ))
@@ -74,7 +52,7 @@ class City:
     def load(cls):
         ret = []
         for f in cls.FILES:
-            with open(os.path.join(BASE_DIR, f)) as json_file:
+            with open(os.path.join(DATA_DIR, f)) as json_file:
                 data = json.load(json_file)
                 ret += [cls(**d) for d in data]
         return ret
@@ -87,12 +65,15 @@ class Town(City):
 class Train:
     pass
 
+
 class Route(NamedTuple):
     pass
 
 
 class Token(NamedTuple):
-    pass
+    city: City
+    public_company: "PublicCompany"
+    location: str
 
 
 class Position(IntEnum):
@@ -102,11 +83,28 @@ class Position(IntEnum):
     BOTTOM_RIGHT = 4
     BOTTOM_LEFT = 5
     LEFT = 6
-    CITY_1 = 11
-    CITY_2 = 12
+    CITY_1 = 40
+    CITY_2 = 50
+
+    def rotate(self, amount) -> "Position":
+        # TODO: We should create a new position, not reuse the same one.
+        if self.value < Position.CITY_1:
+            return Position((self.value + amount - 1) % 6 + 1)
+        return Position(self.value)
+
+    def edge_name(self, map_hex_name: str) -> str:
+        """
+        :param map_hex_name: Like "A1" or "B2" or whatever.
+        :return:
+        """
+        return "{}-{}".format(
+            map_hex_name, self.value
+        )
 
 
 class TrackType():
+    DATA_FILE = os.path.join(DATA_DIR, "tracks")
+
     def __init__(self,
                  type_id: str,
                  connections: List[
@@ -115,9 +113,11 @@ class TrackType():
                  copies: int,
                  color: Color = Color.YELLOW,
                  cities: int = 0,
+                 towns: int = 0,
                  upgrades: List["TrackType"] = None,
                  city_1_stations: int = 0,
                  city_2_stations: int = 0,
+                 **kwargs
                  ) -> None:
         super().__init__()
         self.type_id = type_id,
@@ -125,19 +125,25 @@ class TrackType():
         self.copies = copies
         self.color = color
         self.cities = cities
+        self.towns = towns
         self.upgrades = upgrades
         self.city_1_stations = city_1_stations
         self.city_2_stations = city_2_stations
+        logging.info("Unused Kwargs: {}".format(
+            ",".join(kwargs.keys())
+        ))
 
     def __str__(self) -> str:
         return "{} - {}".format(self.type_id, self.color)
 
-    @staticmethod
-    def Load():
-        fn = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/tracks"
-        with open(fn) as f:
+    def can_upgrade_to(self, track_type: "TrackType") -> bool:
+        return track_type.type_id in UPGRADE.get(self.type_id)
+
+    @classmethod
+    def load(cls):
+        with open(cls.DATA_FILE) as f:
             data = json.load(f)
-            ret = [TrackType(**d) for d in data]
+        ret = [cls(**d) for d in data]
         return ret
 
 
@@ -145,6 +151,17 @@ class Track(NamedTuple):
     id: str  # Unique identifier
     type: TrackType  # type of track identifier(s)
     rotation: int  # A number from 0-5 which is added to all of the connections to rotate the tile.
+
+    def connections(self) -> List[List[Tuple[Position, Position]]]:
+        connections = []
+        for possibilities in self.type.connections:
+            rotated_possibilities = []
+            for position_1, position_2 in possibilities:
+                rotated_possibilities.append(
+                    (position_1.rotate(self.rotation), position_2.rotate(self.rotation))
+                )
+            connections.append(rotated_possibilities)
+        return connections
 
     @staticmethod
     def GenerateTracks(tt: List[TrackType]) -> List["Track"]:
@@ -253,42 +270,6 @@ class StockStatus(IntEnum):
     YELLOW = 2
     ORANGE = 3
     BROWN = 4
-
-
-class GameBoard:
-    def __init__(self):
-        self.board = {}
-        self.graph = nx.Graph()
-        self.all_track: List[Track] = []
-        self.available_track: List[Track] = []
-        self.initialize()
-
-    def initialize(self):
-        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/public_companies') as f:
-            tracks = json.load(fp=f)
-            for t in tracks:
-                self.all_track.append(
-                    Track(
-                        id=t["id"],
-                        color=t["color"],
-                        description=t["description"],
-                        rotation=None
-                    )
-                )
-
-    def setTrack(self, location: str, track: Track):
-        self.board[location] = track
-        self.updateRoutes()
-
-    def setToken(self, token: Token):
-        # TODO
-        pass
-
-    def calculateRoute(self, route) -> int:
-        pass
-
-    def updateRoutes(self):
-        pass
 
 
 class PublicCompany:
@@ -469,7 +450,7 @@ class PrivateCompany:
         self.cost: int = None
         self.actual_cost: int = None
         self.revenue: int = None
-        self.belongs_to: Player = None
+        self.belongs_to: Union[Player, PublicCompany] = None
         self.player_bids: List[PlayerBid] = None
         self.passed_by: List[Player] = None
         # ^-- This is a list of people who have passed on a private company in a bidding round.
@@ -567,15 +548,22 @@ class Move:
     def __init__(self) -> None:
         super().__init__()
         self.player_id: str = None
+
+        # We may be using a company id instead if we are dealing with a public company.
+        # TODO: This could be a security problem, if we are playing with cheaters, is that something worth worrying about?
+        # TODO: Specifically, they could extract the company id and send moves as the company
+        # TODO: (Unlike player ids, which are not accessible to everyone)
+        # TODO: You'd have to be a do-nothing loser to actually do that though.
+        self.company_id: str = None
         self.player: Player = None
         self.msg = None
 
-    def backfill(self, kwargs: MutableGameState) -> None:
+    def backfill(self, state) -> None:
         """We do not have all the context when we receive a move; we are only passed a JSON text file, not the
         objects themselves.  We receive the objects from the game object when executing the Minigame.
         We bind those objects when the minigame is run, keeping ID values to allow us to match them up to the object itself"""
 
-        for player in kwargs.players:
+        for player in state.players:
             if player.id == self.player_id:
                 self.player = player
                 return

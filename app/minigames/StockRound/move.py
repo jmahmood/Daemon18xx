@@ -3,8 +3,9 @@ from typing import List, Tuple
 
 import logging
 
-from app.base import Move, PublicCompany, StockPurchaseSource, MutableGameState, PrivateCompany
+from app.base import Move, PublicCompany, StockPurchaseSource, PrivateCompany
 from app.minigames.StockRound.enums import StockRoundType
+from app.state import MutableGameState
 
 
 class StockRoundMove(Move):

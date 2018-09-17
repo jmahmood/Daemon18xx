@@ -5,7 +5,7 @@ from app.base import PrivateCompany, Move, Player
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
-from app.state import MutableGameState
+from app.game import MutableGameState
 
 
 def fake_private_company(order=1, cost=250):

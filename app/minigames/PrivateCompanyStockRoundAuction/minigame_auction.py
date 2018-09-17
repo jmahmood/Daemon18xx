@@ -1,7 +1,8 @@
-from app.base import MutableGameState, err
+from app.base import err
 from app.minigames.PrivateCompanyStockRoundAuction.enums import PrivateCompanyBidType
 from app.minigames.PrivateCompanyStockRoundAuction.move import AuctionBidMove
 from app.minigames.base import Minigame, MinigameFlow
+from app.state import MutableGameState
 
 
 class StockRoundSellPrivateCompany(Minigame):

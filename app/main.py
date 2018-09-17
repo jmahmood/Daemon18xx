@@ -7,7 +7,7 @@ import os
 import time
 
 from app.base import Player, Move
-from app.state import Game
+from app.game import Game
 
 
 def ongoing_game(pipe_filen="/tmp/mypipe"):

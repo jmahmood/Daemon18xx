@@ -1,69 +1,76 @@
 from typing import List
 
-from app.base import GameBoard, Token, Route, PublicCompany, MutableGameState, PrivateCompany, err
+from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color
+from app.game_map import GameBoard
 from app.minigames.OperatingRound.operating_round import OperatingRoundMove
-from app.minigames.base import Minigame
+from app.minigames.base import Minigame, MinigameFlow
+from app.state import MutableGameState
 
 
 class OperatingRound(Minigame):
-
     def __init__(self):
         self.rusted_train_type: str = None
         self.trains_rusted: str = None
 
-    def run(self, move: OperatingRoundMove, **kwargs) -> bool:
-        move.backfill(**kwargs)
+    def run(self, move: OperatingRoundMove, state: MutableGameState) -> bool:
+        move.backfill(state)
 
-        if move.construct_track and not self.isValidTrackPlacement(move) or \
-            move.purchase_token and not self.isValidTokenPlacement(move) or \
-            move.run_route and not self.isValidRoute(move) or \
-            not self.isValidPaymentOption(move) or \
-            move.buy_train and not self.isValidTrainPurchase(move):
+        if move.construct_track and not self.isValidTrackPlacement(move, state) or \
+                        move.purchase_token and not self.isValidTokenPlacement(move, state) or \
+                        move.run_route and not self.isValidRoute(move, state) or \
+                not self.isValidPaymentOption(move, state) or \
+                        move.buy_train and not self.isValidTrainPurchase(move, state):
             return False
 
-        self.constructTrack(move, **kwargs)
-        self.purchaseToken(move, **kwargs)
-        self.runRoutes(move, **kwargs)
-        self.payDividends(move, **kwargs)
+        self.constructTrack(move, state)
+        self.purchaseToken(move, state)
+        self.runRoutes(move, state)
+        self.payDividends(move, state)
 
         return True
 
-    def constructTrack(self, move: OperatingRoundMove, **kwargs):
+    def constructTrack(self, move: OperatingRoundMove, state: MutableGameState):
         track = move.track
-        board: GameBoard = kwargs.get("board")
-        if move.construct_track and self.isValidTrackPlacement(move):
-            board.setTrack(track)
+        board = state.board
+        if move.construct_track and self.isValidTrackPlacement(move, state):
+            put_back_track = board.setTrack(track)  # Adds track to the board
+            state.trackUsed(track)  # Removes track from the available tracks
+            state.trackAvailable(put_back_track)  # If valid, add this track back to the list of what you can do.
 
-    def purchaseToken(self, move: OperatingRoundMove, **kwargs):
+    def purchaseToken(self, move: OperatingRoundMove, state: MutableGameState):
         token: Token = move.token
-        board: GameBoard = kwargs.get("board")
-        if move.purchase_token and self.isValidTokenPlacement(move):
-            board.setToken(token)
+        board: GameBoard = state.board
+        if move.purchase_token and self.isValidTokenPlacement(move, state):
+            board.setToken(public_company=token.public_company,
+                           city=token.city,
+                           location=token.location)
 
-    def runRoutes(self, move: OperatingRoundMove, **kwargs):
+    def runRoutes(self, move: OperatingRoundMove, state: MutableGameState):
+        # TODO: We may help users select routes, but they need to confirm the route they will run.
+
         routes: List[Route] = move.routes
-        board: GameBoard = kwargs.get("board")
+        board: GameBoard = state.board
         public_company = move.public_company
 
-        if move.run_route and self.isValidRoute(move):
+        if move.run_route and self.isValidRoute(move, state):
             for route in routes:
                 public_company.addIncome(board.calculateRoute(route))
 
-    def payDividends(self, move: OperatingRoundMove, **kwargs):
+    def payDividends(self, move: OperatingRoundMove, state: MutableGameState):
         if move.pay_dividend:
             raise NotImplementedError()  # TODO: Need to spread cash between owners and whatever.
         else:
             move.public_company.incomeToCash()
 
-    def purchaseTrain(self, move: OperatingRoundMove):
-        if move.buy_train and self.isValidTrainPurchase(move):
+    def purchaseTrain(self, move: OperatingRoundMove, state: MutableGameState):
+        if move.buy_train and self.isValidTrainPurchase(move, state):
             pass
 
-    def isValidPaymentOption(self, move: OperatingRoundMove):
+    def isValidPaymentOption(self, move: OperatingRoundMove, state: MutableGameState):
         # TODO: Validate the payment (to players or to company)
         return self.validate([])
 
-    def isValidTrainPurchase(self, move: OperatingRoundMove):
+    def isValidTrainPurchase(self, move: OperatingRoundMove, state: MutableGameState):
         return self.validate([
             err(
                 False,
@@ -75,7 +82,7 @@ class OperatingRound(Minigame):
             ),
         ])
 
-    def isValidRoute(self, move: OperatingRoundMove):
+    def isValidRoute(self, move: OperatingRoundMove, state: MutableGameState):
         """When determining valid routes, you also need to take into account the state of the board
         after the currently queued tile placement is made."""
         # TODO: You also need to take into account any rail placements
@@ -114,7 +121,7 @@ class OperatingRound(Minigame):
             ),
         ])
 
-    def isValidTokenPlacement(self, move: OperatingRoundMove):
+    def isValidTokenPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         token = move.token
         return self.validate([
             err(
@@ -147,106 +154,139 @@ class OperatingRound(Minigame):
             ),
         ])
 
-    def isValidTrackPlacement(self, move: OperatingRoundMove):
-        # TODO
-        # Probably will have to implement a path finding algorithm for each company.
-        # Dykstra's algo for tracks :o
+    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
+        game_board = state.board
+        placement_track = move.track
+        placement_track_location = move.track_placement_location
 
-        track = move.track
+        company_stations = game_board.game_map.findCompanyStationCities(move.public_company)
+        routes = game_board.findPaths(company_stations, placement_track_location)
+
+        rotated_track_connections = [
+            (x.rotate(move.track.rotation),
+             y.rotate(move.track.rotation)) for possibility
+            in move.track.type.connections for x, y in possibility
+        ]
+
+        # We use the links to make sure we don't accidentally connect to a gray
+
+        inbound_outbound_labels = [x.edge_name(placement_track_location) for x, _ in rotated_track_connections] \
+                + [y.edge_name(placement_track_location) for _, y in rotated_track_connections]
+
+        is_valid_orientation = False not in [
+            game_board.hasExternalConnection(x) for x in inbound_outbound_labels
+        ]
+
+        hex_config = game_board.game_map.map.get(placement_track_location)
+
+        cost = game_board.getCost(move.track_placement_location)
+
         return self.validate([
             err(
-                False,
+                placement_track in game_board.available_track,
+                "The track you selected is not available.",
+                placement_track
+            ),
+            err(
+                game_board.isValidLocation(placement_track_location),
                 "Your track needs to be on a location that exists"
             ),
             err(
-                False,
+                placement_track in hex_config.track.type.upgrades,
                 "Someone has already set a tile there"
             ),
             err(
-                False,
+                # Make sure there is a route to the specific location, or you have no other placements?
+                len(company_stations) == 0 or len(routes) > 0,
                 "Your track needs to connect to your track or it needs to be your originating city, "
                 "except in special cases (the base cities of the NYC and Erie, "
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
+            # err(
+            #     False,
+            #     "You can only lay one tile"
+            # ),
             err(
-                False,
-                "You can only lay one tile"
+                hex_config.track.type.color != Color.YELLOW and
+                move.track.type.color == Color.BROWN,
+                "You need to have a yellow tile before laying a brown tile"
             ),
             err(
-                False,
-                "You need to have a yellow tile before laying a green tile"
+                hex_config.track.type.color != Color.BROWN and
+                move.track.type.color == Color.RED,
+                "You need to have a brown tile before laying a red tile"
             ),
             err(
-                False,
-                "You need to have a green tile before laying an orange tile"
-            ),
-            err(
-                False,
-                "A tile may not be placed so that a track runs off the grid"
-            ),
-            err(
-                False,
-                "A tile may not terminate against the blank side of a grey hexagon"
-            ),
-            err(
-                False,
+                is_valid_orientation,
+                "A tile may not be placed so that a track runs off the grid /"
+                "A tile may not terminate against the blank side of a grey hexagon /"
                 "A tile may not terminate against a solid blue hexside in a lake or river"
             ),
             err(
-                False,
-                "You don't have enough money to build tile there"
+                cost <= move.public_company.cash,
+                "{} don't have enough money to build tile there",
+                move.public_company.name
             ),
             err(
-                False,
-                "That tile requires the company to own a Private Company ({})"
+                not hex_config.requires_private_company or
+                hex_config.requires_private_company.belongs_to.id ==
+                move.public_company.id,
+                "That tile requires the company to own a Private Company ({})",
+                hex_config.requires_private_company.name
             ),
             err(
-                False,
+                len(hex_config.cities) == 0 and move.track.type.cities != 0,
+                "That location requires you to use a tile that has no cities"
+            ),
+            err(
+                len(hex_config.cities) == 1 and move.track.type.cities != 1,
                 "That location requires you to use a tile that has one city"
             ),
             err(
-                False,
+                len(hex_config.cities) == 2 and move.track.type.cities != 2,
                 "That location requires you to use a tile that has two city"
             ),
             err(
-                False,
+                len(hex_config.towns) == 0 and move.track.type.towns != 0,
+                "That location requires you to use a tile that has no towns"
+            ),
+            err(
+                len(hex_config.towns) == 1 and move.track.type.towns != 1,
                 "That location requires you to use a tile that has one town"
             ),
             err(
-                False,
+                len(hex_config.towns) == 2 and move.track.type.towns != 2,
                 "That location requires you to use a tile that has two towns"
             ),
             err(
-                False,
+                set(hex_config.track.connections()) <= set(move.track.connections()),
                 "Replacement tiles must maintain all previously existing route connections"
             ),
             err(
-                False,
-                "You cannot access that tile from your company")
+                len(routes) == 0, # TODO: This should be ignored if you are placing your first tile.
+                "You cannot access that map location from your company")
         ])
 
-    def next(self, **kwargs) -> str:
+    def next(self, state: MutableGameState) -> MinigameFlow:
         """Need to pass it to Operating Round or to handle a situation where trains have rusted"""
+        state.operating_round_turn += 1
 
-        public_companies: List[PublicCompany] = kwargs.get("public_companies")
+        public_companies: List[PublicCompany] = state.public_companies
         if self.rusted_train_type:
             for pc in public_companies:
                 pc.removeRustedTrains(self.rusted_train_type)
                 if pc.hasNoTrains() and not pc.hasValidRoute():
-                    return "TrainsRusted"
+                    return MinigameFlow("TrainsRusted", False)
 
-        # Do we have another operating round?
-        if kwargs.get("playerTurn").anotherCompanyWaiting():
-            return "OperatingRound{}".format(kwargs.get("currentOperatingRound"))  # Continue the same Operating Round
+        if state.operating_round_turn < len([p for p in state.public_companies if p.isFloated()]):
+            return MinigameFlow("OperatingRound", False)
 
-        # Do we have another operating round?
-        if not kwargs.get("playerTurn").anotherCompanyWaiting() and \
-                        kwargs.get("currentOperatingRound") < kwargs.get("totalOperatingRounds"):
-            # TODO increment current operating round
-            kwargs.get("playerTurn").restart() # Should re-calculate the turn order and run a new operating round from the start.
-            return "OperatingRound{}".format(kwargs.get("currentOperatingRound") + 1)
+        elif state.operating_round_phase < state.total_operating_round_phases:
+            state.operating_round_turn = 0
+            state.operating_round_phase += 1
+            return MinigameFlow("OperatingRound", True)  # Triggers reorders as necessary.
 
-        return "StockRound"
+        return MinigameFlow("StockRound", False)
 
     @staticmethod
     def onStart(state: MutableGameState) -> None:
@@ -266,4 +306,3 @@ class OperatingRound(Minigame):
     @staticmethod
     def onComplete(state: MutableGameState) -> None:
         super().onComplete(state)
-

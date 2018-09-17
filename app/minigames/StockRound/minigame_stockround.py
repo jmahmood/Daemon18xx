@@ -3,12 +3,12 @@ from typing import List
 
 import logging
 
-from app.base import PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
-    STOCK_PRESIDENT_CERTIFICATE
+from app.base import PublicCompany, StockPurchaseSource, Player, err, STOCK_CERTIFICATE, STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.const import VALID_CERTIFICATE_COUNT, VALID_IPO_PRICES, ALL_AVAILABLE_STOCK
 from app.minigames.StockRound.enums import StockRoundType
 from app.minigames.StockRound.move import StockRoundMove
 from app.minigames.base import Minigame, MinigameFlow
+from app.state import MutableGameState
 
 
 class StockRound(Minigame):
@@ -199,7 +199,7 @@ class StockRound(Minigame):
             err(
                 move.public_company.hasStock(move.source, STOCK_CERTIFICATE),
                 "The company does not have enough stock in category {}",
-                move.source),
+                move.source.name),
             err(
                 move.player.hasEnoughMoney(cost_of_stock),
                 "You cannot afford poorboi. {} (You have: {})",

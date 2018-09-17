@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List
 
 from app.base import Move, PrivateCompany, err
-from app.base import MutableGameState
+from app.state import MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.base import Minigame, MinigameFlow

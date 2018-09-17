@@ -1,7 +1,8 @@
 import json
 
-from app.base import Move, MutableGameState, PrivateCompany, Player
+from app.base import Move, PrivateCompany, Player
 from app.minigames.PrivateCompanyStockRoundAuction.enums import PrivateCompanyBidType, AuctionResponseType
+from app.state import MutableGameState
 
 
 class AuctionBidMove(Move):
