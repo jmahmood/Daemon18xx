@@ -16,7 +16,7 @@ class CorporateTurnOrder(NonRepeatingPlayerTurnOrder):
 
     def __next__(self) -> PublicCompany:
         super().__next__()
-        return self.companies[self.iteration]
+        return self.companies[self.iteration - 1]
 
     def removeCompany(self, company: PublicCompany):
         raise Exception("You should never actually have to remove a company from the player order during the"

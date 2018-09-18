@@ -6,7 +6,7 @@ from app.base import City, Town, Track, TrackType, Player, PublicCompany, Privat
 
 
 class MapHexConfig:
-    """We use this because ()"""
+    """We use this to keep information about individual map hexes, and about cities within the hex."""
     def __init__(self):
         self.location: str = None  # A9 or whatever
         self.track: Track = None  # The current track laid down, or null if nothing.

@@ -33,8 +33,8 @@ class City:
     """Loads cities and the value they provide when a train passes through them.  Used in setup phase."""
     FILES = ["cities", "double_city"]
 
-    def __init__(self, tile, name, value=0, stations=0, special=None, company=None, private_company=None, **kwargs):
-        self.tile: str = tile  # TODO: Do we want to use the tile class here?
+    def __init__(self, hex_name, name, value=0, stations=0, special=None, company=None, private_company=None, **kwargs):
+        self.map_hex_name: str = hex_name
         self.name: str = name
         self.value: int = value
         self.special: str = special
@@ -46,7 +46,7 @@ class City:
         ))
 
     def __str__(self) -> str:
-        return "{} - {}".format(self.name, self.tile)
+        return "{} - {}".format(self.name, self.map_hex_name)
 
     @classmethod
     def load(cls):
@@ -87,7 +87,6 @@ class Position(IntEnum):
     CITY_2 = 50
 
     def rotate(self, amount) -> "Position":
-        # TODO: We should create a new position, not reuse the same one.
         if self.value < Position.CITY_1:
             return Position((self.value + amount - 1) % 6 + 1)
         return Position(self.value)
@@ -103,8 +102,6 @@ class Position(IntEnum):
 
 
 class TrackType():
-    #  TODO: Add a "towns" value for the tracks data set
-
     DATA_FILE = os.path.join(DATA_DIR, "tracks")
 
     def __init__(self,
@@ -298,6 +295,7 @@ class PublicCompany:
         self.owners = {}
         self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
         self.stock_column = 6  # Used to determine 2d action on the stock market.
+        self.stock_row: int = None  # Determined elsewhere
         self.stock_status = StockStatus.NORMAL
 
     @staticmethod
@@ -334,28 +332,23 @@ class PublicCompany:
         pass
 
     def priceUp(self, spaces):
-        # TODO: Market goes up if there are no stocks left over..
-        pass
+        # Price goes up if there are no stocks left; conversely, the row goes down by one space.
+        self.stock_row = max([int(self.stock_row - 1), 0])
+        self.stockPrice[StockPurchaseSource.BANK] = int(STOCK_MARKET[self.stock_column][self.stock_row][0:-1])
 
     def priceDown(self, spaces: int):
         """
-        Need to change how we keep this information as the same price may repeat more than once on the way down.
         :param spaces:
         :return:
         """
-        # TODO: Market price tanks on news.
-        price = self.stockPrice[StockPurchaseSource.BANK]
         stock_column = STOCK_MARKET[self.stock_column]
         self.stock_row = min([int(self.stock_row + spaces), len(stock_column)])
-
         self.stockPrice[StockPurchaseSource.BANK] = int(stock_column[self.stock_row][0:-1])
 
     def checkPresident(self):
         """Goes through owners and determines who the president is.
         The minimum ownership (20%) is not enforced here."""
-        # TODO: Should this go into the minigame instead since it affects state?
-        # Or keep it here because this is repetitive logic?
-        # Ownership can technically change in an operating round (Train rusting = no money = sell stock = less money)
+
         max_ownership = max(self.owners.values())
         top_owners = [k for k, v in self.owners.items() if v == max_ownership]
         if self.president is None or self.president not in top_owners:
@@ -425,10 +418,6 @@ class PublicCompany:
 
     def hasNoTrains(self) -> bool:
         return len(self.trains) > 0
-
-    def hasValidRoute(self) -> bool:
-        # TODO You need to have a train if you have a valid route
-        raise NotImplementedError
 
     @staticmethod
     def allPublicCompanies() -> List["PublicCompany"]:
@@ -553,9 +542,9 @@ class Move:
 
         # We may be using a company id instead if we are dealing with a public company.
         # TODO: This could be a security problem, if we are playing with cheaters, is that something worth worrying about?
-        # TODO: Specifically, they could extract the company id and send moves as the company
-        # TODO: (Unlike player ids, which are not accessible to everyone)
-        # TODO: You'd have to be a do-nothing loser to actually do that though.
+        # Specifically, they could extract the company id and send moves as the company
+        # (Unlike player ids, which are not accessible to everyone)
+        # You'd have to be a do-nothing loser to actually do that though.
         self.company_id: str = None
         self.player: Player = None
         self.msg = None

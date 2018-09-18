@@ -39,7 +39,7 @@ class NonRepeatingPlayerTurnOrder(PlayerTurnOrder):
     def __next__(self) -> Player:
         """TODO: Do we want to return the player or the company..??"""
         self.iteration += 1
-        return self.players[self.iteration]
+        return self.players[self.iteration-1]
 
     def has_next(self) -> bool:
         # iteration starts at 0, the length starts at 1.

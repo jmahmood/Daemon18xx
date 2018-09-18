@@ -16,10 +16,10 @@ class OperatingRound(Minigame):
         move.backfill(state)
 
         if move.construct_track and not self.isValidTrackPlacement(move, state) or \
-                        move.purchase_token and not self.isValidTokenPlacement(move, state) or \
-                        move.run_route and not self.isValidRoute(move, state) or \
+                move.purchase_token and not self.isValidTokenPlacement(move, state) or \
+                move.run_route and not self.isValidRoute(move, state) or \
                 not self.isValidPaymentOption(move, state) or \
-                        move.buy_train and not self.isValidTrainPurchase(move, state):
+                move.buy_train and not self.isValidTrainPurchase(move, state):
             return False
 
         self.constructTrack(move, state)
@@ -86,8 +86,19 @@ class OperatingRound(Minigame):
         """When determining valid routes, you also need to take into account the state of the board
         after the currently queued tile placement is made."""
         # TODO: You also need to take into account any rail placements
+        route_list: List[str] = move.routes.list
+
+        state.board.game_map.pathExists()
+
+        blockage = False
+
+        # If there is a city with all stations occupied AND all of those stations belong to different companies, return false.
+
+
+
         return self.validate([
             err(
+
                 False,
                 "You must join at least two cities"
             ),
@@ -267,6 +278,13 @@ class OperatingRound(Minigame):
                 "You cannot access that map location from your company")
         ])
 
+    def pcHasValidRoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
+        if not state.board.game_map.findCompanyStationCities(pc):
+            return False
+
+        # TODO: You need to be sure that you have routes to any cities.
+        raise NotImplementedError
+
     def next(self, state: MutableGameState) -> MinigameFlow:
         """Need to pass it to Operating Round or to handle a situation where trains have rusted"""
         state.operating_round_turn += 1
@@ -275,7 +293,7 @@ class OperatingRound(Minigame):
         if self.rusted_train_type:
             for pc in public_companies:
                 pc.removeRustedTrains(self.rusted_train_type)
-                if pc.hasNoTrains() and not pc.hasValidRoute():
+                if pc.hasNoTrains() and self.pcHasValidRoute(pc, state):
                     return MinigameFlow("TrainsRusted", False)
 
         if state.operating_round_turn < len([p for p in state.public_companies if p.isFloated()]):
