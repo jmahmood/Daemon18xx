@@ -35,11 +35,20 @@ class MapHexConfig:
     def getTowns(self):
         return self.towns
 
+    def hasStation(self, city:City, pc: PublicCompany):
+        return pc in self.getStations(city)
+
     def getStations(self, city: City):
         return self.stations.get(city)
 
     def getCompanyStations(self, company: PublicCompany):
         return [city for city in self.stations.keys() if company in self.stations[city]]
+
+    def isFull(self, city:City):
+        if city not in self.cities:
+            raise NotImplemented("How to handle someone getting cheeky with the city they pass?")
+        return city.stations < len(self.stations.get(city))
+
 
     def recalculateEdges(self):
         # Creates a new set of edges based on any track placements.
@@ -51,10 +60,64 @@ class GameMap:
     def __init__(self):
         self.map: Dict[str, MapHexConfig] = {}
         self.graph = nx.Graph()
+        self.companyGraph: Dict[PublicCompany, nx.Graph] = {}
 
     def initialize(self):
         """Loads all static map data."""
         pass
+
+    def getNodeConfig(self, node) -> MapHexConfig:
+        raise NotImplemented()
+
+    def getNodeCity(self, node) -> City:
+        raise NotImplemented()
+
+    def isCity(self, node) -> bool:
+        return False
+
+    def invalidateCompanyGraph(self, pc: PublicCompany):
+        # When there is a new placement, the company graph may change so this needs to be invalidated.
+        pass
+
+    def getCompanyGraph(self, pc: PublicCompany):
+        if pc not in self.companyGraph.keys():
+            self.companyGraph[pc] = self.generateCompanyGraph(pc)
+        return self.companyGraph.get(pc)
+
+    def generateCompanyGraph(self, pc: PublicCompany):
+        company_graph = nx.create_empty_copy(self.graph)  # Creates a copy with all nodes, but no edges.
+        nbunch = set([city for location, city in self.getCompanyStations(pc)])
+        explored = set()
+
+        while len(nbunch.difference(explored)) > 0:
+            to_explore = list(nbunch.difference(explored))
+            explored = explored.union(nbunch)
+
+            non_terminal_nodes = set([])
+
+            for node in to_explore:
+                if self.isCity(node):
+                    city = self.getNodeCity(node)
+                    city_config = self.getNodeConfig(node)
+                    if city_config.isFull(city) and not city_config.hasStation(city, pc):
+                        continue
+                non_terminal_nodes.add(node)
+
+            company_graph.add_edges_from(
+                nx.edges(self.graph, non_terminal_nodes)
+            )
+
+            nbunch = set()
+            for node in non_terminal_nodes:
+                for neighbor in nx.neighbors(self.graph, node):
+                    nbunch.add(neighbor)
+
+        return company_graph
+
+
+    def getAdjacent(self, location) -> List[MapHexConfig]:
+        # https://networkx.github.io/documentation/networkx-1.10/reference/generated/networkx.Graph.neighbors.html#networkx.Graph.neighbors
+        return self.graph[location]
 
     def get(self, location: str) -> MapHexConfig:
         return self.map.get(location)
@@ -208,8 +271,7 @@ class GameBoard(ErrorListValidator):
             # Start a BFS from this location and update the graph.
             city_name = city.name
 
-            # https://networkx.github.io/documentation/networkx-1.10/reference/generated/networkx.Graph.neighbors.html#networkx.Graph.neighbors
-            adjacent_nodes = self.game_map.graph[city_name]
+            adjacent_nodes = self.game_map.get_adjacent(city_name)
 
     def generatePath(self, company: PublicCompany, frm: City, to: City):
         # Generates all simple paths that will lead from one city to the other, within the graph for the company.
