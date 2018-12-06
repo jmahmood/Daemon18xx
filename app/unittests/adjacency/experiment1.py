@@ -5,10 +5,24 @@ import json
 
 from app.base import TrackType
 
+MAP_HEX_CONFIG = {}
+
 """Adjacency of tiles """
 import string
 
+EMPTY_SQUARES = (
+    ["a{}".format(x) for x in list(range(1, 15)) + list(range(21, 24))] +
+    ["b{}".format(x) for x in range(1, 8)] +
+    ["c{}".format(x) for x in range(1, 6)] +
+    ["k{}".format(x) for x in range(1, 11)] +
+    ["j{}".format(x) for x in range(16, 24)] +
+    ["k{}".format(x) for x in range(17, 24)] +
+    ["e1", "g1", "g21", "g23", "g25", "h20", "h22", "h24", "h26", "i21", "i23", "i25"]
+)
 
+RED_TILES = [
+    "a9", "a11", "f2", "a24", "b24", "i2", "j3", "k13"
+]
 
 class TilePlacement():
     """This is used to handle logic around tile placement"""
@@ -26,6 +40,7 @@ def xy(letter, coordinate, edge):
     if ord(letter) >= ord("a") and ord(letter) <= ord("x"):
         return "{}{}-{}".format(letter, coordinate, edge)
     return None
+
 
 def add_red_tiles(g: nx.Graph):
     red_zones = [
@@ -113,23 +128,37 @@ def city_nodes(g: nx.Graph):
     ]
 
     for n, details in city_nodes:
+        MAP_HEX_CONFIG[n]["cities"] = [details]
+        MAP_HEX_CONFIG[n]["cost"] = details.get("cost", 0)
+        MAP_HEX_CONFIG[n]["requires_private_company"] = details.get("private_company", None)
+
         g.add_node(
             details["name"], location=n, is_city=True, **details
         )
 
     for n, details in town_nodes:
+        MAP_HEX_CONFIG[n]["towns"] = [details]
         g.add_node(
             details["name"], location=n, is_town=True, **details
         )
 
     for n, details in double_city_nodes:
+        MAP_HEX_CONFIG[n]["cities"] = []
+        MAP_HEX_CONFIG[n]["requires_private_company"] = details.get("private_company", None)
+        MAP_HEX_CONFIG[n]["cost"] = details.get("cost", 0)
         for name in details["names"]:
+            MAP_HEX_CONFIG[n]["cities"].append(details)
+            MAP_HEX_CONFIG[n]["cities"][-1]["name"] = name
+
             g.add_node(
                 n, name=name, location=n, is_city=True, **details
             )
 
     for n, details in double_town_nodes:
+        MAP_HEX_CONFIG[n]["towns"] = []
         for name in details["names"]:
+            MAP_HEX_CONFIG[n]["towns"].append(details)
+            MAP_HEX_CONFIG[n]["towns"][-1]["name"] = name
             g.add_node(
                 n, name=name, location=n, is_town=True, **details
             )
@@ -152,10 +181,19 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
     nodes = []
     edges = {}
 
+
     for i in range(0, 11):
+        is_odd = i % 2 == 1
         letter = string.ascii_lowercase[i]
-        start = 2 if i % 2 == 1 else 1
-        for x in range(start, 25, 2):
+        start = 1 if is_odd else 2
+        for x in range(start, 24, 2):
+            label = "{}{}".format(letter, x)
+            if label in EMPTY_SQUARES or label in RED_TILES:
+                # Skip all points on the map that don't let you place anything.
+                continue
+
+            MAP_HEX_CONFIG[label] = {}
+
             for y in range(1,7): # Create each node for each tile
                 label = xy(letter, str(x), str(y))
                 # nodes.append(label)
@@ -185,78 +223,81 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
                     g.add_edge(xy(letter, x, 6), xy(UP_DIAGONAL_TILE, x - 1, 3))
 G = nx.Graph()
 tile_nodes_and_natural_edges(G)
-city_nodes(G)
-preexisting_edges(G)
+# city_nodes(G)
+# preexisting_edges(G)
 
-pprint(repr(G.nodes))
-pprint(G.has_node("Trenton"))
-pprint(G.has_node("Newark"))
+pprint(MAP_HEX_CONFIG)
+#
+# pprint(repr(G.nodes))
+# pprint(G.has_node("Trenton"))
+# pprint(G.has_node("Newark"))
+#
+# G.adjacency()
+#
+# print(repr(list(nx.all_simple_paths(G, source="Trenton", target="Newark"))))
+#
+#
+# print(repr([str(t) for t in TrackType.load()]))
+#
+#
+#
+# cities = [
+#         ("a19", {"name": "Montreal", "company": "CP", "value": 40}),
+#         ("b10", {"name": "Barrie"}),
+#         ("b16", {"name": "Ottawa"}),
+#         ("d2",  {"name": "Lansing", }),
+#         ("d14", {"name": "Rochester", }),
+#         ("e19", {"name": "Albany", "company": "NYC"}),
+#         ("e23", {"name": "Boston", "special": "B", "company": "B&M", "value": 30}),
+#         ("f4",  {"name": "Toledo", }),
+#         ("f6",  {"name": "Cleveland", "company": "C&O", "value": 30}),
+#         ("f16", {"name": "Scranton", "private_company": "D&H", "cost": 120}),
+#         ("f22", {"name": "Providence", "cost": 80}),
+#         ("h4",  {"name": "Columbus", }),
+#         ("h10", {"name": "Pittsburgh", }),
+#         ("h12", {"name": "Altoona", "company": "PRR", "value": 10}),
+#         ("h16", {"name": "Lancaster"}),
+#         ("i15", {"name": "Baltimore", "company": "B&O"}),
+#         ("j14", {"name": "Washington", "cost": 80}),
+#         ("k15", {"name": "Richmond"}),
+# ]
+#
+# data = [{"token": x, **y} for x, y in cities]
+#
+# double_city_nodes = [
+#     ("d10", {"cost": 80, "names": ["Toronto", "Hamilton"]}),
+#     ("e5",  {"cost": 80, "names": ["Detroit", "Windsor"]}),
+#     ("e11", {"special": "ER", "names": ["Buffalo", "Dunkirk"]}),
+#     ("g19", {"company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}),
+#     ("h18", {"private_company": "C&A", "names": ["Trenton", "Philidelphia"]})
+# ]
+# data = [{"token": x, "name": name, **y} for x, y in double_city_nodes for name in y["names"]]
+#
+# town_nodes = [
+#     ("b20", {"name": "Burlington", "private_company": "C&StL"}),
+#     ("d4", {"name": "Flint"}),
+#     ("e7", {"name": "London"}),
+#     ("f10", {"name": "Erie"}),
+#     ("c15", {"name": "Kingston"})
+# ]
+#
+# data = [{"token": x, **y} for x, y in town_nodes]
+# print(json.dumps(data))
+#
+# double_town_nodes = [
+#     ("f20", {"names": ["Hartford", "New Haven"]}),
+#     ("g7", {"names": ["Akron", "Canton"]}),
+#     ("g17", {"names": ["Reading", "Allentown"]})
+# ]
+#
+# data = [{"token": x, "name": name, **y} for x, y in double_town_nodes for name in y["names"]]
+# print(json.dumps(data))
+#
+# red_zones = [
+#     (["a9", "a11"], "Canadian West"),
+#     (["f2"], "Chicago"),
+#     (["a24", "b24"], "Maritime Provinces"),
+#     (["i2", "j3"], "Gulf"),
+#     (["k13"], "Deep South")
+# ]
 
-G.adjacency()
-
-print(repr(list(nx.all_simple_paths(G, source="Trenton", target="Newark"))))
-
-
-print(repr([str(t) for t in TrackType.load()]))
-
-
-
-cities = [
-        ("a19", {"name": "Montreal", "company": "CP", "value": 40}),
-        ("b10", {"name": "Barrie"}),
-        ("b16", {"name": "Ottawa"}),
-        ("d2",  {"name": "Lansing", }),
-        ("d14", {"name": "Rochester", }),
-        ("e19", {"name": "Albany", "company": "NYC"}),
-        ("e23", {"name": "Boston", "special": "B", "company": "B&M", "value": 30}),
-        ("f4",  {"name": "Toledo", }),
-        ("f6",  {"name": "Cleveland", "company": "C&O", "value": 30}),
-        ("f16", {"name": "Scranton", "private_company": "D&H", "cost": 120}),
-        ("f22", {"name": "Providence", "cost": 80}),
-        ("h4",  {"name": "Columbus", }),
-        ("h10", {"name": "Pittsburgh", }),
-        ("h12", {"name": "Altoona", "company": "PRR", "value": 10}),
-        ("h16", {"name": "Lancaster"}),
-        ("i15", {"name": "Baltimore", "company": "B&O"}),
-        ("j14", {"name": "Washington", "cost": 80}),
-        ("k15", {"name": "Richmond"}),
-]
-
-data = [{"token": x, **y} for x, y in cities]
-
-double_city_nodes = [
-    ("d10", {"cost": 80, "names": ["Toronto", "Hamilton"]}),
-    ("e5",  {"cost": 80, "names": ["Detroit", "Windsor"]}),
-    ("e11", {"special": "ER", "names": ["Buffalo", "Dunkirk"]}),
-    ("g19", {"company": "NYNH", "special": "NY", "cost": 80, "names": ["New York", "Newark"]}),
-    ("h18", {"private_company": "C&A", "names": ["Trenton", "Philidelphia"]})
-]
-data = [{"token": x, "name": name, **y} for x, y in double_city_nodes for name in y["names"]]
-
-town_nodes = [
-    ("B20", {"name": "Burlington", "private_company": "C&StL"}),
-    ("D4", {"name": "Flint"}),
-    ("E7", {"name": "London"}),
-    ("F10", {"name": "Erie"}),
-    ("C15", {"name": "Kingston"})
-]
-
-data = [{"token": x, **y} for x, y in town_nodes]
-print(json.dumps(data))
-
-double_town_nodes = [
-    ("F20", {"names": ["Hartford", "New Haven"]}),
-    ("G7", {"names": ["Akron", "Canton"]}),
-    ("G17", {"names": ["Reading", "Allentown"]})
-]
-
-data = [{"token": x, "name": name, **y} for x, y in double_town_nodes for name in y["names"]]
-print(json.dumps(data))
-
-red_zones = [
-    (["A9", "A11"], "Canadian West"),
-    (["F2"], "Chicago"),
-    (["A24", "B24"], "Maritime Provinces"),
-    (["I2", "J3"], "Gulf"),
-    (["K13"], "Deep South")
-]
