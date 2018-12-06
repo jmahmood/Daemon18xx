@@ -69,7 +69,11 @@ class Train:
 
 
 class Route(NamedTuple):
-    pass
+    # TODO: P1: Is the route passed directly or do we init it with the info passed in the JSON?
+    # Need to make sure the full city / town info is filled in by the game when the initial info is passed
+
+    start: Union[City, Town]
+    end: Union[City, Town]
 
 
 class Token(NamedTuple):

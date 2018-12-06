@@ -86,22 +86,20 @@ class OperatingRound(Minigame):
         """When determining valid routes, you also need to take into account the state of the board
         after the currently queued tile placement is made."""
         # TODO: You also need to take into account any rail placements
-        route_list: List[str] = move.routes.list
-
-        state.board.game_map.pathExists()
-
+        all_routes_exist = [state.board.pathExists(move.public_company, start, end) for start, end in move.routes]
+        all_possible_routes = None # nx.all_simple_paths(graph, start, end)
+        all_routes_are_disjoint = True  # TODO: P2: Routes need to be disjoint in order to be valid
         blockage = False
 
-        # If there is a city with all stations occupied AND all of those stations belong to different companies, return false.
-
-
+        # If there is a city with all stations occupied
+        # AND all of those stations belong to different companies, return false.
 
         return self.validate([
-            err(
-
-                False,
-                "You must join at least two cities"
-            ),
+            # You need to pass two cities / towns in order to create a route.
+            # err(
+            #     False,
+            #     "You must join at least two cities"
+            # ),
             err(
                 False,
                 "You cannot reverse across a junction"

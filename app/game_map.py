@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Tuple, Set, Union
 import networkx as nx
 from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town, DATA_DIR
 from app.error_handling import ErrorListValidator
@@ -161,6 +161,10 @@ class GameBoard(ErrorListValidator):
         self.game_tracks: GameTracks = None
         self.error_list = []
 
+    def pathExists(self, pc: PublicCompany, start: Union[City, Town], end: Union[City, Town]):
+        company_graph = self.game_map.getCompanyGraph(pc)
+        return nx.has_path(company_graph, start.name, end.name)
+
     def hasExternalConnection(self, vertex_label):
         """Determines if it is facing off-board or to a gray tile (IE: violating rules of game)."""
         # TODO: P4 - Check if any connections exist to the vertex in the graph.
@@ -248,30 +252,7 @@ class GameBoard(ErrorListValidator):
         """Returns a list of names of cities with a station of the company"""
         # TODO: P4: Do we want to cache this information somewhere?  Possibly in the company itself?
         return [city for location, city in self.game_map.getCompanyStations(company)]
-        #
-        # for loc in self.game_map.locations():
-        #     map_hex = self.game_map.get(loc)
-        #     cities = map_hex.cities
-        #     for c in cities:
-        #         companies = map_hex.stations.get(c)
-        #         if company in companies:
-        #             ret.append(c.name)
-        # return ret
 
-    def generateCompanyGraph(self, company: PublicCompany):
-        """Each company has a graph generated that is used to determine the routes it has available"""
-        # Crappy initial algorithm:
-        # Treat each company station as a potentially disjoint node
-        # BFS from each station.
-        # All connections are treated as nodes, with them treated as internal nodes iff they have children &
-        # they are not full with other company stations.
-
-        my_stations = self.game_map.getCompanyStations(company)
-        for location, city in my_stations:
-            # Start a BFS from this location and update the graph.
-            city_name = city.name
-
-            adjacent_nodes = self.game_map.get_adjacent(city_name)
 
     def generatePath(self, company: PublicCompany, frm: City, to: City):
         # Generates all simple paths that will lead from one city to the other, within the graph for the company.
