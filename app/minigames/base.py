@@ -3,6 +3,7 @@ from typing import List, Tuple, NamedTuple
 import logging
 
 from app.base import Move
+from app.error_handling import ErrorListValidator
 from app.state import MutableGameState
 
 
@@ -28,9 +29,11 @@ class MinigameFlow(NamedTuple):
     """
     minigame_class: str
     force_player_reorder: bool
-    do_not_increment_player: bool = False  # Player order should not be incremented; like if you reject an auction but still have a move waiting.
+    # Player order should not be incremented; like if you reject an auction but still have a move waiting.
+    do_not_increment_player: bool = False
 
-class LifeCycle:
+
+class LifeCycle(object):
     """
     This is necessary to have minigames perform final changes / deletions / whatever when interacting with the
     state object.
@@ -52,16 +55,10 @@ class LifeCycle:
         logging.info("Minigame turn complete")
 
 
-class Minigame(LifeCycle):
+class Minigame(LifeCycle, ErrorListValidator):
     """
     A State object for the game, used to evaluate rules that apply only to subsections of hte game itself.
     """
-    error_list: List[str] = []
-
-    def validate(self,
-                 possible_errors: List[str]):
-        self.error_list = self.error_list + [err for err in possible_errors if err is not None]
-        return len(self.error_list) == 0
 
     def run(self, move: Move, state: MutableGameState) -> bool:
         raise NotImplementedError()

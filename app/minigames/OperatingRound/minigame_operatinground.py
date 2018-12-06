@@ -194,7 +194,7 @@ class OperatingRound(Minigame):
 
         return self.validate([
             err(
-                placement_track in game_board.available_track,
+                placement_track in game_board.game_tracks.available_track,
                 "The track you selected is not available.",
                 placement_track
             ),
@@ -213,10 +213,6 @@ class OperatingRound(Minigame):
                 "except in special cases (the base cities of the NYC and Erie, "
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
-            # err(
-            #     False,
-            #     "You can only lay one tile"
-            # ),
             err(
                 hex_config.track.type.color != Color.YELLOW and
                 move.track.type.color == Color.BROWN,
@@ -280,7 +276,8 @@ class OperatingRound(Minigame):
 
     def pcHasValidRoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
         # Step 1: Does the company have any stations?
-        if not state.board.game_map.findCompanyStationCities(pc):
+
+        if len(state.board.findCompanyStationCities(pc)) == 0:
             return False
 
         # Step 2: Does the company have any valid routes from that station to any city or town?

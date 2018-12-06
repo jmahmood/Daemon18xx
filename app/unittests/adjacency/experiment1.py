@@ -194,7 +194,7 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
 
             MAP_HEX_CONFIG[label] = {}
 
-            for y in range(1,7): # Create each node for each tile
+            for y in range(1, 7): # Create each node for each tile
                 label = xy(letter, str(x), str(y))
                 # nodes.append(label)
                 g.add_node(label)
