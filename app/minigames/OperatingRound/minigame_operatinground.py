@@ -274,13 +274,23 @@ class OperatingRound(Minigame):
                 "Replacement tiles must maintain all previously existing route connections"
             ),
             err(
-                len(routes) == 0, # TODO: This should be ignored if you are placing your first tile.
+                len(routes) == 0,  # TODO: This should be ignored if you are placing your first tile.
                 "You cannot access that map location from your company")
         ])
 
     def pcHasValidRoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
+        # Step 1: Does the company have any stations?
         if not state.board.game_map.findCompanyStationCities(pc):
             return False
+
+        # Step 2: Does the company have any valid routes from that station to any city or town?
+        # a. Where is a list of all the cities and towns?
+        #
+        # b. For each city/town, can the company reach it with their own personal graph from any of their stations?
+        # c. If not, return false
+
+        # Step 3: Does the company have any trains?
+        # a. Where are all the trains that a public company owns?
 
         # TODO: You need to be sure that you have routes to any cities.
         raise NotImplementedError

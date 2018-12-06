@@ -16,7 +16,7 @@ def ongoing_game(pipe_filen="/tmp/mypipe"):
     if not os.path.exists(pipe_path):
         os.mkfifo(pipe_path)
     # Open the fifo. We need to open in non-blocking mode or it will stalls until
-    # someone opens it for writting
+    # someone opens it for writing
     pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
     continue_game = True
     with os.fdopen(pipe_fd) as pipe:

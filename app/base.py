@@ -9,7 +9,9 @@ import logging
 
 from app.minigames.StockRound.const import STOCK_MARKET
 
-DATA_DIR = "/Users/jawaad/PycharmProjects/Daemon1830/app/data/"
+BASE_DIR = "/home/jawaad/Daemon18xx/"
+
+DATA_DIR = os.path.join(BASE_DIR, "app/data")
 
 # type_id: [type_id....]
 UPGRADE: Dict[str, List[str]] = {}
@@ -422,7 +424,10 @@ class PublicCompany:
     @staticmethod
     def allPublicCompanies() -> List["PublicCompany"]:
         content = []
-        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/public_companies') as f:
+
+        data_path = os.path.join(DATA_DIR, "public_companies")
+
+        with open(data_path) as f:
             content = json.load(f)
         return [PublicCompany.initiate(**private_company_dict) for private_company_dict in content]
 
@@ -450,7 +455,8 @@ class PrivateCompany:
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
-        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/private_companies') as f:
+        data_path = os.path.join(DATA_DIR, "private_companies")
+        with open(data_path) as f:
             content = f.readlines()
         return [PrivateCompany.initiate(*c.strip().split("|")) for c in content]
 

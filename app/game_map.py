@@ -1,12 +1,13 @@
 import json
 from typing import List, Dict, Tuple, Set
-
+import os.path
 import networkx as nx
-from app.base import City, Town, Track, TrackType, Player, PublicCompany, PrivateCompany
+from app.base import City, Town, Track, TrackType, Player, PublicCompany, PrivateCompany, DATA_DIR
 
 
 class MapHexConfig:
     """We use this to keep information about individual map hexes, and about cities within the hex."""
+
     def __init__(self):
         self.location: str = None  # A9 or whatever
         self.track: Track = None  # The current track laid down, or null if nothing.
@@ -16,10 +17,10 @@ class MapHexConfig:
 
         self.requires_private_company: PrivateCompany = None
 
-        #TODO: Do we want to make self.edges into a set instead of list so we can use subset?
+        # TODO: Do we want to make self.edges into a set instead of list so we can use subset?
         self.edges: List[Tuple[str, str]] = None  # All edges created by the current tile that was laid down.
 
-    def recalculate_edges(self):
+    def recalculateEdges(self):
         # Creates a new set of edges based on any track placements.
         pass
 
@@ -39,7 +40,7 @@ class GameMap:
         config = self.map.get(location)
         pre_existing_track = config.track
         config.track = track
-        config.recalculate_edges()
+        config.recalculateEdges()
 
         return pre_existing_track
 
@@ -61,8 +62,8 @@ class GameMap:
         config = self.map[location]
         config.stations.get(city).add(company)
 
-    def findCompanyStationCities(self, company:PublicCompany) -> List[str]:
-        """Returns a list of names of cities with a station of hte company"""
+    def findCompanyStationCities(self, company: PublicCompany) -> List[str]:
+        """Returns a list of names of cities with a station of the company"""
         ret = []
 
         for loc in self.map.keys():
@@ -95,7 +96,8 @@ class GameBoard:
         self.initialize()
 
     def initialize(self):
-        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/public_companies') as f:
+        data_path = os.path.join(DATA_DIR, "public_companies")
+        with open(data_path) as f:
             tracks = json.load(fp=f)
             for t in tracks:
                 self.all_track.append(
