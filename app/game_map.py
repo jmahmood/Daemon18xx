@@ -1,13 +1,11 @@
-import json
 from typing import List, Dict, Tuple, Set
-
 import networkx as nx
-
-from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town
+from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town, DATA_DIR
 
 
 class MapHexConfig:
     """We use this to keep information about individual map hexes, and about cities within the hex."""
+
     def __init__(self):
         self.location: str = None  # A9 or whatever
         self.track: Track = None  # The current track laid down, or null if nothing.
@@ -21,7 +19,7 @@ class MapHexConfig:
         # TODO: Do we want to make self.edges into a set instead of list so we can use subset?
         self.edges: List[Tuple[str, str]] = None  # All edges created by the current tile that was laid down.
 
-    def recalculate_edges(self):
+    def recalculateEdges(self):
         # Creates a new set of edges based on any track placements.
         pass
 
@@ -47,7 +45,7 @@ class GameTracks:
     def initialize(self):
         """Loads all static data related to the game from data files"""
         self.ALL_TRACK_TYPES = TrackType.load()
-        self.ALL_TRACK: Track.GenerateTracks(self.ALL_TRACK_TYPES)
+        self.ALL_TRACK = Track.GenerateTracks(self.ALL_TRACK_TYPES)
         self.available_track = [t for t in self.ALL_TRACK]
 
 
@@ -81,9 +79,8 @@ class GameBoard(object):
         config = self.game_map.map.get(location)
         pre_existing_track = config.track
         config.track = track
-        config.recalculate_edges()
+        config.recalculateEdges()
         return pre_existing_track
-
 
     def canSetStation(self, public_company: PublicCompany, city: City, location: str) -> bool:
         # TODO: Do we want to have this here or at the move level?
@@ -96,11 +93,9 @@ class GameBoard(object):
         # max_number_of_stations = config.track.type.city_1_stations
         # return max_number_of_stations <= current_number_of_stations + 1
 
-
     def setStation(self, public_company: PublicCompany, city: City, location: str):
         config = self.game_map.map[location]
         config.stations.get(city).add(public_company)
-
 
     def calculateRoute(self, route) -> int:
         raise NotImplementedError()
@@ -113,7 +108,6 @@ class GameBoard(object):
             return self.game_map.map.get(location).cost
         except KeyError:
             raise KeyError("Location {} does not exist in game map".format(location))
-
 
     def validatePlaceTrack(self, track: Track, location: str) -> bool:
         raise NotImplementedError
@@ -131,7 +125,6 @@ class GameBoard(object):
 
         if company in config.stations.get(city):
             return False
-
 
     def findCompanyStationCities(self, company:PublicCompany) -> List[str]:
         """Returns a list of names of cities with a station of the company"""

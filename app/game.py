@@ -156,7 +156,7 @@ class Game:
         :param move:
         :return:
         """
-        self.errors_list = [] # game errors only last from when a move is made until a new move is performed.
+        self.errors_list = []  # game errors only last from when a move is made until a new move is performed.
 
         minigame = self.getMinigame()
         minigame.onTurnStart(self.getState())
