@@ -236,7 +236,7 @@ class OperatingRound(Minigame):
             game_board.hasExternalConnection(x) for x in inbound_outbound_labels
         ]
 
-        hex_config = game_board.game_map.map.get(placement_track_location)
+        hex_config = game_board.game_map.mapHexConfig.get(placement_track_location)
 
         cost = game_board.getCost(move.track_placement_location)
 

@@ -444,7 +444,6 @@ class PublicCompany:
     @staticmethod
     def allPublicCompanies() -> List["PublicCompany"]:
         content = []
-
         data_path = os.path.join(DATA_DIR, "public_companies")
 
         with open(data_path) as f:
