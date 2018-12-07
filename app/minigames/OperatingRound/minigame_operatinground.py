@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Union
 
-from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color
+from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color, City, Town
 from app.game_map import GameBoard
 from app.minigames.OperatingRound.operating_round import OperatingRoundMove
 from app.minigames.base import Minigame, MinigameFlow
@@ -33,7 +33,7 @@ class OperatingRound(Minigame):
         track = move.track
         board = state.board
         if move.construct_track and self.isValidTrackPlacement(move, state):
-            put_back_track = board.setTrack(track)  # Adds track to the board
+            put_back_track = board.placeTrack(track)  # Adds track to the board
             state.trackUsed(track)  # Removes track from the available tracks
             state.trackAvailable(put_back_track)  # If valid, add this track back to the list of what you can do.
 
@@ -41,13 +41,11 @@ class OperatingRound(Minigame):
         token: Token = move.token
         board: GameBoard = state.board
         if move.purchase_token and self.isValidTokenPlacement(move, state):
-            board.setToken(public_company=token.public_company,
-                           city=token.city,
-                           location=token.location)
+            board.setStation(public_company=token.public_company,
+                             city=token.city,
+                             location=token.location)
 
     def runRoutes(self, move: OperatingRoundMove, state: MutableGameState):
-        # TODO: We may help users select routes, but they need to confirm the route they will run.
-
         routes: List[Route] = move.routes
         board: GameBoard = state.board
         public_company = move.public_company
@@ -82,53 +80,92 @@ class OperatingRound(Minigame):
             ),
         ])
 
+    def atLeastOneStation(self, move: OperatingRoundMove):
+        station_nodes = set()  # TODO: P1: You can't pass through the same station twice.
+        for route in move.routes:
+            stations = route.full_route.intersection(station_nodes)
+            if len(stations) < 1:
+                return False
+        return True
+
+    def areStationsDisjoint(self, move: OperatingRoundMove):
+        station_nodes = set()  # TODO: P1: You can't pass through the same station twice.
+        passed_through = set()
+        for route in move.routes:
+            stations = route.full_route.intersection(station_nodes)
+            if stations in passed_through:
+                return False
+            passed_through = passed_through.union(passed_through)
+        return True
+
+    def areRoutesDisjoint(self, move: OperatingRoundMove):
+        city_nodes = set()  # TODO: P1: You can pass through the same city nodes but nothing else.
+        passed_through = set()
+        for route in move.routes:
+            #
+            invalid_repetition_nodes = passed_through.intersection(
+                route.full_route
+            ).difference(city_nodes)
+
+            if len(invalid_repetition_nodes) > 0:
+                return False
+
+            passed_through = passed_through.union(route.full_route)
+        return True
+
+    def atLeasttwoCities(self, move: OperatingRoundMove):
+        city_nodes = set()  # TODO: P1: You can pass through the same city nodes but nothing else.
+        for route in move.routes:
+            if len(route.full_route.intersection(city_nodes)) < 2:
+                return False
+        return True
+
     def isValidRoute(self, move: OperatingRoundMove, state: MutableGameState):
         """When determining valid routes, you also need to take into account the state of the board
         after the currently queued tile placement is made."""
-        # TODO: You also need to take into account any rail placements
-        all_routes_exist = [state.board.pathExists(move.public_company, start, end) for start, end in move.routes]
-        all_possible_routes = None # nx.all_simple_paths(graph, start, end)
-        all_routes_are_disjoint = True  # TODO: P2: Routes need to be disjoint in order to be valid
-        blockage = False
+        # TODO: P2: You also need to take into account any rail placements
+        all_routes_exist = [state.board.doesCityRouteExist(move.public_company, start, end) for start, end, _ in move.routes]
+        # all_possible_routes = None  # nx.all_simple_paths(graph, start, end)
 
-        # If there is a city with all stations occupied
-        # AND all of those stations belong to different companies, return false.
-
-        return self.validate([
-            # You need to pass two cities / towns in order to create a route.
-            # err(
-            #     False,
-            #     "You must join at least two cities"
-            # ),
-            err(
-                False,
+        return self.validator(
+            (
+                False not in all_routes_exist,
+                "You don't have control of that route",
+                state.board.error_list
+            ),
+            (
+                self.atLeasttwoCities(move),
+                "Each route must join at least two cities"
+            ),
+            (
+                True,  # TODO: P4: We may have to add in some kind of one way edge (ugh) to handle this.
                 "You cannot reverse across a junction"
             ),
-            err(
-                False,
+            (
+                True,  # Because of the way the route information is handled, this is not possible
                 "You cannot change track at a cross-over"
             ),
-            err(
-                False,
+            (
+                self.areRoutesDisjoint(move),
                 "You cannot travel the same track section twice"
             ),
-            err(
-                False,
+            (
+                self.areStationsDisjoint(move),
                 "You cannot use the same station twice"
             ),
-            err(
-                False,
-                "Two trains cannot overlap"
-            ),
-            err(
-                False,
+            # (
+            #     False,
+            #     "Two trains cannot overlap"
+            # ),
+            (
+                self.atLeastOneStation(move),
                 "At least one city must be occupied by that corporation's token"
             ),
-            err(
-                False,
+            (
+                not move.public_company.hasNoTrains(),
                 "You need to have a train in order to run a route"
             ),
-        ])
+        )
 
     def isValidTokenPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         token = move.token
@@ -163,13 +200,25 @@ class OperatingRound(Minigame):
             ),
         ])
 
+    def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
+        game_board = state.board
+        company_stations = game_board.findCompanyStationCities(move.public_company)
+
+        inbound_locations = []  # TODO: P2: A list of all possible places from which we can connect to this track.
+        # example: A tile on C6 has C6-1, C6-2 (etc).  It may only bind to C6-1 and C6-3 which binds to C4-3 and C8-1
+        # We need to get all these possible connections, and make sure we can connect to any of them.
+        # We can shortcut this if the person has no track.
+
+        for station in company_stations:
+            for inbound_location in inbound_locations:
+                if game_board.doesRouteExist(move.public_company, station.name, inbound_location):
+                    return True
+        return False
+
     def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
         placement_track = move.track
         placement_track_location = move.track_placement_location
-
-        company_stations = game_board.game_map.findCompanyStationCities(move.public_company)
-        routes = game_board.findPaths(company_stations, placement_track_location)
 
         rotated_track_connections = [
             (x.rotate(move.track.rotation),
@@ -180,7 +229,7 @@ class OperatingRound(Minigame):
         # We use the links to make sure we don't accidentally connect to a gray
 
         inbound_outbound_labels = [x.edge_name(placement_track_location) for x, _ in rotated_track_connections] \
-                + [y.edge_name(placement_track_location) for _, y in rotated_track_connections]
+                                  + [y.edge_name(placement_track_location) for _, y in rotated_track_connections]
 
         is_valid_orientation = False not in [
             game_board.hasExternalConnection(x) for x in inbound_outbound_labels
@@ -190,105 +239,102 @@ class OperatingRound(Minigame):
 
         cost = game_board.getCost(move.track_placement_location)
 
-        return self.validate([
-            err(
+        return self.validator(
+            (
                 placement_track in game_board.game_tracks.available_track,
                 "The track you selected is not available.",
                 placement_track
             ),
-            err(
+            (
                 game_board.isValidLocation(placement_track_location),
                 "Your track needs to be on a location that exists"
             ),
-            err(
+            (
                 placement_track in hex_config.track.type.upgrades,
                 "Someone has already set a tile there"
             ),
-            err(
+            (
                 # Make sure there is a route to the specific location, or you have no other placements?
-                len(company_stations) == 0 or len(routes) > 0,
+                len(game_board.findCompanyStationCities(move.public_company)) == 0 or
+                self.isValidConnectionToOtherTrack(move, state),
                 "Your track needs to connect to your track or it needs to be your originating city, "
                 "except in special cases (the base cities of the NYC and Erie, "
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
-            err(
+            (
                 hex_config.track.type.color != Color.YELLOW and
                 move.track.type.color == Color.BROWN,
                 "You need to have a yellow tile before laying a brown tile"
             ),
-            err(
+            (
                 hex_config.track.type.color != Color.BROWN and
                 move.track.type.color == Color.RED,
                 "You need to have a brown tile before laying a red tile"
             ),
-            err(
+            (
                 is_valid_orientation,
                 "A tile may not be placed so that a track runs off the grid /"
                 "A tile may not terminate against the blank side of a grey hexagon /"
                 "A tile may not terminate against a solid blue hexside in a lake or river"
             ),
-            err(
+            (
                 cost <= move.public_company.cash,
                 "{} don't have enough money to build tile there",
                 move.public_company.name
             ),
-            err(
+            (
                 not hex_config.requires_private_company or
                 hex_config.requires_private_company.belongs_to.id ==
                 move.public_company.id,
                 "That tile requires the company to own a Private Company ({})",
                 hex_config.requires_private_company.name
             ),
-            err(
+            (
                 len(hex_config.cities) == 0 and move.track.type.cities != 0,
                 "That location requires you to use a tile that has no cities"
             ),
-            err(
+            (
                 len(hex_config.cities) == 1 and move.track.type.cities != 1,
                 "That location requires you to use a tile that has one city"
             ),
-            err(
+            (
                 len(hex_config.cities) == 2 and move.track.type.cities != 2,
                 "That location requires you to use a tile that has two city"
             ),
-            err(
+            (
                 len(hex_config.towns) == 0 and move.track.type.towns != 0,
                 "That location requires you to use a tile that has no towns"
             ),
-            err(
+            (
                 len(hex_config.towns) == 1 and move.track.type.towns != 1,
                 "That location requires you to use a tile that has one town"
             ),
-            err(
+            (
                 len(hex_config.towns) == 2 and move.track.type.towns != 2,
                 "That location requires you to use a tile that has two towns"
             ),
-            err(
+            (
                 set(hex_config.track.connections()) <= set(move.track.connections()),
                 "Replacement tiles must maintain all previously existing route connections"
             ),
-            err(
-                len(routes) == 0,  # TODO: This should be ignored if you are placing your first tile.
-                "You cannot access that map location from your company")
-        ])
+        )
 
-    def pcHasValidRoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
+    def companyHasARoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
+        stations = state.board.findCompanyStationCities(pc)
+        game_board = state.board
+
+        # TODO: P1: Get a list of all cities and towns that are available
+        all_destinations: List[Union[City, Town]] = []
+
         # Step 1: Does the company have any stations?
+        if len(stations) > 0:
+            # Step 2: Does the company have any valid routes from that station to any city or town?
+            for station in stations:
+                for destination in all_destinations:
+                    if game_board.doesCityRouteExist(pc, station, destination):
+                        return True
 
-        if len(state.board.findCompanyStationCities(pc)) == 0:
-            return False
-
-        # Step 2: Does the company have any valid routes from that station to any city or town?
-        # a. Where is a list of all the cities and towns?
-        #
-        # b. For each city/town, can the company reach it with their own personal graph from any of their stations?
-        # c. If not, return false
-
-        # Step 3: Does the company have any trains?
-        # a. Where are all the trains that a public company owns?
-
-        # TODO: You need to be sure that you have routes to any cities.
-        raise NotImplementedError
+        return False
 
     def next(self, state: MutableGameState) -> MinigameFlow:
         """Need to pass it to Operating Round or to handle a situation where trains have rusted"""
@@ -298,7 +344,7 @@ class OperatingRound(Minigame):
         if self.rusted_train_type:
             for pc in public_companies:
                 pc.removeRustedTrains(self.rusted_train_type)
-                if pc.hasNoTrains() and self.pcHasValidRoute(pc, state):
+                if pc.hasNoTrains() and self.companyHasARoute(pc, state):
                     return MinigameFlow("TrainsRusted", False)
 
         if state.operating_round_turn < len([p for p in state.public_companies if p.isFloated()]):

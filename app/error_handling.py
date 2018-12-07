@@ -1,3 +1,4 @@
+import logging
 from typing import List, Tuple
 
 
@@ -11,7 +12,8 @@ class ErrorListValidator(object):
 
     def validate(self,
                  possible_errors: List[str]):
-        self.error_list = self.error_list + [err for err in possible_errors if err is not None]
+        logging.warning("DEPRECIATED: replace validate with validator.")
+        self.error_list = self.error_list + [error for error in possible_errors if error is not None]
         return len(self.error_list) == 0
 
     def validator(self,

@@ -114,10 +114,9 @@ class GameMap:
 
         return company_graph
 
-
-    def getAdjacent(self, location) -> List[MapHexConfig]:
-        # https://networkx.github.io/documentation/networkx-1.10/reference/generated/networkx.Graph.neighbors.html#networkx.Graph.neighbors
-        return self.graph[location]
+    # def getAdjacent(self, location) -> List[MapHexConfig]:
+    #     # https://networkx.github.io/documentation/networkx-1.10/reference/generated/networkx.Graph.neighbors.html#networkx.Graph.neighbors
+    #     return self.graph[location]
 
     def get(self, location: str) -> MapHexConfig:
         return self.map.get(location)
@@ -161,9 +160,12 @@ class GameBoard(ErrorListValidator):
         self.game_tracks: GameTracks = None
         self.error_list = []
 
-    def pathExists(self, pc: PublicCompany, start: Union[City, Town], end: Union[City, Town]):
+    def doesRouteExist(self, pc: PublicCompany, start: str, end: str):
         company_graph = self.game_map.getCompanyGraph(pc)
-        return nx.has_path(company_graph, start.name, end.name)
+        return nx.has_path(company_graph, start, end)
+
+    def doesCityRouteExist(self, pc: PublicCompany, start: Union[City, Town], end: Union[City, Town]):
+        return self.doesRouteExist(pc, start.name, end.name)
 
     def hasExternalConnection(self, vertex_label):
         """Determines if it is facing off-board or to a gray tile (IE: violating rules of game)."""
@@ -173,7 +175,7 @@ class GameBoard(ErrorListValidator):
     def isValidLocation(self, location: str) -> bool:
         return location in self.game_map.locations()
 
-    def findPaths(self, cities: List[str], location: str) -> List:
+    def findPaths(self, cities: List[Union[City, Town]], location: str) -> List:
         # TODO: P1 - Not implemented
         raise NotImplementedError("Add path finding to location")
 

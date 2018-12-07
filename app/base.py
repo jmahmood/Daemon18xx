@@ -52,11 +52,13 @@ class City:
 
     @classmethod
     def load(cls):
+        logging.warning(cls)
         ret = []
         for f in cls.FILES:
             with open(os.path.join(DATA_DIR, f)) as json_file:
                 data = json.load(json_file)
-                ret += [cls(**d) for d in data]
+                for d in data:
+                    ret.append(cls(**d))
         return ret
 
 
@@ -70,10 +72,12 @@ class Train:
 
 class Route(NamedTuple):
     # TODO: P1: Is the route passed directly or do we init it with the info passed in the JSON?
+    # TODO: P1: This should be something other than a tuple, as we may want to have convenience methods added to it
     # Need to make sure the full city / town info is filled in by the game when the initial info is passed
 
     start: Union[City, Town]
     end: Union[City, Town]
+    full_route: Set[str]
 
 
 class Token(NamedTuple):
@@ -107,7 +111,7 @@ class Position(IntEnum):
         )
 
 
-class TrackType():
+class TrackType(object):
     DATA_FILE = os.path.join(DATA_DIR, "tracks")
 
     def __init__(self,
