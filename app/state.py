@@ -39,7 +39,9 @@ class MutableGameState:
         return self.operating_round_turn < len([p for p in self.public_companies if p.isFloated()])
 
     def trackUsed(self, track: Track):
+        # TODO: P1: Refresh the graph used in the game board
         pass
 
     def trackAvailable(self, track: Track):
+        # TODO: P2:  Allow the track to be reused.
         pass

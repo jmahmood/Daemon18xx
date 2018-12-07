@@ -4,6 +4,7 @@ from app.minigames.OperatingRound.minigame_operatinground import OperatingRound
 import unittest
 
 from app.minigames.OperatingRound.operating_round import OperatingRoundMove
+from app.state import MutableGameState
 
 
 class OperatingRoundMinigame(unittest.TestCase):
@@ -13,10 +14,9 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.cities = City.load()
         self.towns = Town.load()
         self.all_tracks = TrackType.load()
-
+        self.board = None
 
     def testPurchaseToken(self):
-
         move = OperatingRoundMove()
         move.purchase_token = True
         move.construct_track = True
@@ -29,5 +29,11 @@ class OperatingRoundMinigame(unittest.TestCase):
         # move.track = Track()
         move.track_placement_location = "A1"
 
+        mgs = MutableGameState()
+        mgs.board = self.board
 
         mg_or = OperatingRound()
+
+        mg_or.isValidTrackPlacement(move, mgs)
+
+

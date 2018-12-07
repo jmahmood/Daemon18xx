@@ -8,6 +8,7 @@ from app.state import MutableGameState
 
 
 class OperatingRound(Minigame):
+
     def __init__(self):
         self.rusted_train_type: str = None
         self.trains_rusted: str = None
@@ -33,7 +34,7 @@ class OperatingRound(Minigame):
         track = move.track
         board = state.board
         if move.construct_track and self.isValidTrackPlacement(move, state):
-            put_back_track = board.placeTrack(track)  # Adds track to the board
+            put_back_track = board.placeTrack(move.track_placement_location, track)  # Adds track to the board
             state.trackUsed(track)  # Removes track from the available tracks
             state.trackAvailable(put_back_track)  # If valid, add this track back to the list of what you can do.
 

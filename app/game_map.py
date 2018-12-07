@@ -1,12 +1,42 @@
 import logging
+import string
 from typing import List, Dict, Tuple, Set, Union
 import networkx as nx
 from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town, DATA_DIR
 from app.error_handling import ErrorListValidator
 
+EMPTY_SQUARES = (
+        ["a{}".format(x) for x in list(range(1, 15)) + list(range(21, 25))] +
+        ["b{}".format(x) for x in range(1, 8)] +
+        ["c{}".format(x) for x in range(1, 6)] +
+        ["k{}".format(x) for x in range(1, 11)] +
+        ["j{}".format(x) for x in range(16, 25)] +
+        ["k{}".format(x) for x in range(17, 25)] +
+        ["e1", "g1", "g21", "g23", "g25", "h20", "h22", "h24", "h26", "i21", "i23", "i25"]
+)
+
+WATER_TILES = [
+    "c19", "b18", "j14", "d6", "f4"
+]
+
+MOUNTAIN_TILES = [
+    "c21", "c17", "f16", "g15", "g13", "i11", "j10", "j12", "d22", "e21"
+]
+
+RED_TILES = [
+    "a9", "a11", "f2", "a24", "i1", "j2", "k13"
+]
+
+RED_TILE_LOCATIONS = [(["a9", "a11"], "Canadian West", [30, 50]),
+                      (["f2"], "Chicago", [40, 70]),
+                      (["b24"], "Maritime Provinces", [20, 30]),
+                      (["i1", "j2"], "Gulf of Mexico", [30, 60]),
+                      (["k13"], "Deep South", [30, 40])]
+
 
 class MapHexConfig:
     """We use this to keep information about individual map hexes, and about cities within the hex."""
+
     def __str__(self):
         return self.location
 
@@ -16,9 +46,111 @@ class MapHexConfig:
     def __eq__(self, o: "MapHexConfig") -> bool:
         return self.location == o.location
 
+    @staticmethod
+    def load() -> Dict[str, "MapHexConfig"]:
+        # TODO: P4: This is embarrassing.
+        hex_configs = {}
+
+        for i in range(0, 11):
+            is_odd = i % 2 == 1
+            letter = string.ascii_lowercase[i]
+            start = 2 if is_odd else 1
+            for x in range(start, 25, 2):
+                label = "{}{}".format(letter, x)
+                if label in EMPTY_SQUARES:
+                    # Skip all points on the map that don't let you place anything.
+                    continue
+                hex_configs[label] = {
+                    "location": label,
+                    "red_tile": None,
+                    "track": None,
+                    "cities": [],
+                    "towns": [],
+                    "stations": {},
+                    "cost": None,
+                    "requires_private_company": None,
+                    "edges": None
+                }
+
+        # Now how about cities?
+
+        all_cities = City.load()
+
+        for x in all_cities:
+            if hex_configs.get(x.map_hex_name):
+                hex_configs[x.map_hex_name.lower()]["cities"].append(x)
+            else:
+                hex_configs[x.map_hex_name.lower()] = {
+                    "location": x.map_hex_name.lower(),
+                    "red_tile": None,
+                    "track": None,
+                    "cities": [x],
+                    "towns": [],
+                    "stations": {},
+                    "cost": x.value,
+                    "requires_private_company": x.private_company_hq,
+                    "edges": None
+                }
+
+        all_towns = Town.load()
+
+        for x in all_towns:
+            if hex_configs.get(x.map_hex_name.lower()):
+                hex_configs[x.map_hex_name.lower()]["towns"].append(x)
+                hex_configs[x.map_hex_name.lower()]["requires_private_company"] = x.private_company_hq
+            else:
+                hex_configs[x.map_hex_name.lower()] = {
+                    "location": x.map_hex_name.lower(),
+                    "red_tile": None,
+                    "track": None,
+                    "cities": [],
+                    "towns": [x],
+                    "stations": {},
+                    "cost": x.value,
+                    "requires_private_company": x.private_company_hq,
+                    "edges": None
+                }
+
+        for locations, name, values in RED_TILE_LOCATIONS:
+            for x in locations:
+                hex_configs[x] = {
+                    "location": x,
+                    "track": None,
+                    "red_tile": name,
+                    "cities": [],
+                    "towns": [],
+                    "stations": {},
+                    "cost": values,
+                    "requires_private_company": None,
+                    "edges": None
+                }
+
+        for x in MOUNTAIN_TILES:
+            hex_configs[x]["cost"] = 120
+
+        for x in WATER_TILES:
+            hex_configs[x]["cost"] = 80
+
+        all_private_companies = PrivateCompany.load()
+        for h in hex_configs:
+            hex_configs[h] = MapHexConfig.initialize(all_private_companies, **hex_configs[h])
+
+        return hex_configs
+
+    @classmethod
+    def initialize(cls, all_private_companies: List[PrivateCompany], **kwargs):
+        ret = cls()
+        for k, v in kwargs.items():
+            setattr(ret, k, v)
+        if ret.requires_private_company is not None:
+            ret.requires_private_company = next(pc for pc in all_private_companies
+                                                if pc.short_name == ret.requires_private_company)
+        return ret
+
     def __init__(self):
         self.location: str = None  # A9 or whatever
         self.track: Track = None  # The current track laid down, or null if nothing.
+        self.red_tile: str = None  # If this is a red tile, the name should be in here.
         self.cities: List[City] = None  # Cities in that hex.
         self.towns: List[Town] = None  # Towns in that hex.
         self.stations: Dict[City, Set[PublicCompany]] = None
@@ -35,7 +167,7 @@ class MapHexConfig:
     def getTowns(self):
         return self.towns
 
-    def hasStation(self, city:City, pc: PublicCompany):
+    def hasStation(self, city: City, pc: PublicCompany):
         return pc in self.getStations(city)
 
     def getStations(self, city: City):
@@ -44,11 +176,10 @@ class MapHexConfig:
     def getCompanyStations(self, company: PublicCompany):
         return [city for city in self.stations.keys() if company in self.stations[city]]
 
-    def isFull(self, city:City):
+    def isFull(self, city: City):
         if city not in self.cities:
             raise NotImplemented("How to handle someone getting cheeky with the city they pass?")
         return city.stations < len(self.stations.get(city))
-
 
     def recalculateEdges(self):
         # Creates a new set of edges based on any track placements.
@@ -57,6 +188,7 @@ class MapHexConfig:
 
 class GameMap:
     """Container for all map locations"""
+
     def __init__(self):
         self.map: Dict[str, MapHexConfig] = {}
         self.graph = nx.Graph()
@@ -85,6 +217,9 @@ class GameMap:
         return self.companyGraph.get(pc)
 
     def generateCompanyGraph(self, pc: PublicCompany):
+        """Takes the overall connectivity graph, and then generates one for the company,
+        using its stations as root nodes."""
+
         company_graph = nx.create_empty_copy(self.graph)  # Creates a copy with all nodes, but no edges.
         nbunch = set([city for location, city in self.getCompanyStations(pc)])
         explored = set()
@@ -139,6 +274,7 @@ class GameMap:
 
 class GameTracks:
     """Contains logic that confirms whether or not a track is available, and allows you to place it / etc.."""
+
     # TODO: P2: Add a class function to check for a track being valid and available.  Add to GameBoard as well.
     def __init__(self):
         self.ALL_TRACK_TYPES: List[TrackType] = []
@@ -224,7 +360,8 @@ class GameBoard(ErrorListValidator):
         raise NotImplementedError
 
     def validatePlaceStation(self, company: PublicCompany, city: City, location: str) -> bool:
-        # TODO: P1: Should we be setting errors within a "Game Map" class?
+        # TODO: P2: Should we be setting errors within a "Game Map" class?
+        # This would make more sense being in the Minigame (since you can only place a station within that minigame anyway?)
         config = self.game_map.map[location]
 
         self.validator(
@@ -254,7 +391,6 @@ class GameBoard(ErrorListValidator):
         """Returns a list of names of cities with a station of the company"""
         # TODO: P4: Do we want to cache this information somewhere?  Possibly in the company itself?
         return [city for location, city in self.game_map.getCompanyStations(company)]
-
 
     def generatePath(self, company: PublicCompany, frm: City, to: City):
         # Generates all simple paths that will lead from one city to the other, within the graph for the company.

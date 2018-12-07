@@ -24,6 +24,7 @@ RED_TILES = [
     "a9", "a11", "f2", "a24", "b24", "i2", "j3", "k13"
 ]
 
+
 class TilePlacement():
     """This is used to handle logic around tile placement"""
     def addTile(self, player, track):
@@ -33,7 +34,6 @@ class TilePlacement():
 class Routes():
     """Handles Route generation"""
     pass
-
 
 
 def xy(letter, coordinate, edge):
@@ -181,7 +181,6 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
     nodes = []
     edges = {}
 
-
     for i in range(0, 11):
         is_odd = i % 2 == 1
         letter = string.ascii_lowercase[i]
@@ -221,12 +220,12 @@ def tile_nodes_and_natural_edges(g: nx.Graph):
                 g.add_edge(xy(letter, x, 5), xy(BOTTOM_DIAGONAL_TILE, x - 1, 2))
                 if i - 1 >= 0:
                     g.add_edge(xy(letter, x, 6), xy(UP_DIAGONAL_TILE, x - 1, 3))
-G = nx.Graph()
-tile_nodes_and_natural_edges(G)
-# city_nodes(G)
-# preexisting_edges(G)
-
-pprint(MAP_HEX_CONFIG)
+# G = nx.Graph()
+# tile_nodes_and_natural_edges(G)
+# # city_nodes(G)
+# # preexisting_edges(G)
+#
+# pprint(MAP_HEX_CONFIG)
 #
 # pprint(repr(G.nodes))
 # pprint(G.has_node("Trenton"))
