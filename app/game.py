@@ -43,7 +43,7 @@ class Game:
         game = Game()
         game.state = MutableGameState()
         game.state.players = players
-        game.state.private_companies = PrivateCompany.allPrivateCompanies()
+        game.state.private_companies = PrivateCompany.load()
         game.state.public_companies = PublicCompany.allPublicCompanies()
 
         return game

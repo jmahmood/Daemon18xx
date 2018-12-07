@@ -9,6 +9,7 @@ from app.minigames.OperatingRound.operating_round import OperatingRoundMove
 class OperatingRoundMinigame(unittest.TestCase):
     def setUp(self):
         super().setUp()
+        self.public_companies = PublicCompany.load()
         self.cities = City.load()
         self.towns = Town.load()
         self.all_tracks = TrackType.load()
@@ -24,7 +25,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         move.pay_dividend = False
         move.routes = False
         move.public_company = PublicCompany()
-        # move.token = Token()
+        move.token = Token(self.cities[0], self.public_companies[0], self.cities[0].map_hex_name)
         # move.track = Track()
         move.track_placement_location = "A1"
 

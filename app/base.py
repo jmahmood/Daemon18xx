@@ -1,11 +1,10 @@
 import json
+import logging
+import os.path
 import uuid
-from enum import Enum, IntEnum
+from enum import IntEnum
 from functools import reduce
 from typing import NamedTuple, List, Set, Dict, Tuple, Union
-import networkx as nx
-import os.path
-import logging
 
 from app.minigames.StockRound.const import STOCK_MARKET
 
@@ -282,6 +281,19 @@ class StockStatus(IntEnum):
 
 
 class PublicCompany:
+    FILES = ["public_companies",]
+
+    @classmethod
+    def load(cls):
+        logging.warning(cls)
+        ret = []
+        for f in cls.FILES:
+            with open(os.path.join(DATA_DIR, f)) as json_file:
+                data = json.load(json_file)
+                for d in data:
+                    ret.append(cls.initiate(**d))
+        return ret
+
     def __str__(self) -> str:
         return "{}: {} ({})".format(self.id, self.name, self.short_name)
 
@@ -462,7 +474,7 @@ class PrivateCompany:
         self.active: bool = True
 
     @staticmethod
-    def allPrivateCompanies() -> List["PrivateCompany"]:
+    def load() -> List["PrivateCompany"]:
         data_path = os.path.join(DATA_DIR, "private_companies")
         with open(data_path) as f:
             content = f.readlines()
