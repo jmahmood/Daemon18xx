@@ -170,35 +170,50 @@ class OperatingRound(Minigame):
 
     def isValidTokenPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         token = move.token
+        company_stations = state.board.findCompanyStationCities(move.public_company)
+
         return self.validate([
             err(
-                False,
+                move.token.location == move.public_company.base or len(company_stations) > 0,
+                "Your first token needs to be in your company's base location: {}",
+                move.public_company.base
+            ),
+            err(
+                move.public_company == move.token.public_company,
+                "You can only place a token for your own company ({}, {})",
+                move.public_company.name,
+                move.token.public_company.name
+            ),
+            err(
+                state.board.hasTrack(move.token.location),
                 "There is no track there"
             ),
             err(
-                False,
+                len(state.board.getStations(token.city)) < token.city.stations,
                 "There are no free spots to place a token"
             ),
             err(
-                False,
+                True in (state.board.doesCityRouteExist(move.public_company, cs, move.token.city)
+                         for cs in company_stations),
                 "You cannot connect to the location to place a token"
             ),
             err(
-                False,
+                move.token.city in company_stations,
                 "You cannot put two tokens for the same company in one location"
             ),
             err(
-                False,
+                len(company_stations) > len(move.public_company.tokens),
                 "There are no remaining tokens for that company"
             ),
-            err(
-                False,
-                "You cannot place more than one token in one turn"
-            ),
-            err(
-                False,
-                "You cannot place a token in Erie's home town before Erie"
-            ),
+            # err(
+            #     False,
+            #     "You cannot place more than one token in one turn"
+            # ),
+            # # TODO: P4: I really don't care about this rule right now..
+            # err(
+            #     False,
+            #     "You cannot place a token in Erie's home town before Erie"
+            # ),
         ])
 
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):

@@ -229,7 +229,7 @@ class MapHexConfig:
 
         self.requires_private_company: PrivateCompany = None
 
-        # TODO: Do we want to make self.edges into a set instead of list so we can use subset?
+        # TODO: P4: Do we want to make self.edges into a set instead of list so we can use subset?
         self.edges: List[Tuple[str, str]] = None  # All edges created by the current tile that was laid down.
 
     def getCities(self):
@@ -359,12 +359,12 @@ class GameMap:
             node1, node2 = edge.split(":")
             self.graph.remove_edge(node1, node2)
 
-    def generateCompanyGraph(self, pc: PublicCompany):
+    def generateCompanyGraph(self, pc: PublicCompany) -> nx.Graph:
         """Takes the overall connectivity graph, and then generates one for the company,
         using its stations as root nodes."""
 
         company_graph = nx.create_empty_copy(self.graph)  # Creates a copy with all nodes, but no edges.
-        nbunch = set([city for location, city in self.getCompanyStations(pc)])
+        nbunch = set([city for location, city in self.getCompanyTokens(pc)])
         explored = set()
 
         while len(nbunch.difference(explored)) > 0:
@@ -399,7 +399,7 @@ class GameMap:
     def get(self, location: str) -> MapHexConfig:
         return self.mapHexConfig.get(location)
 
-    def getCompanyStations(self, company: PublicCompany) -> [Tuple[str, str]]:
+    def getCompanyTokens(self, company: PublicCompany) -> [Tuple[str, str]]:
         """Returns location, city tuple for stations that belong to the company"""
         # TODO: P4: Cache this information instead of building it from scratch?
         ret = []
@@ -546,12 +546,19 @@ class GameBoard(ErrorListValidator):
 
         return len(self.error_list) == 0
 
+    def getStations(self, city: City) -> Set[PublicCompany]:
+        return self.game_map.mapHexConfig[city.map_hex_name].stations[city]
+
     def findCompanyStationCities(self, company: PublicCompany) -> List[City]:
         """Returns a list of names of cities with a station of the company"""
         # TODO: P4: Do we want to cache this information somewhere?  Possibly in the company itself?
-        return [city for location, city in self.game_map.getCompanyStations(company)]
+        return [city for location, city in self.game_map.getCompanyTokens(company)]
 
     def generatePath(self, company: PublicCompany, frm: City, to: City):
         # Generates all simple paths that will lead from one city to the other, within the graph for the company.
         # Then filters out all paths that are not acceptable for one reason or another.
         pass
+
+    def hasTrack(self, location: str):
+        config = self.game_map.mapHexConfig[location]
+        return config.track is not None

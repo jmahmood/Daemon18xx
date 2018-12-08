@@ -311,6 +311,7 @@ class PublicCompany:
         self._floated = None
         self.id: str = None
         self.name: str = None
+        self.base: str = None  # Original station/token location
         self.short_name: str = None
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
@@ -319,6 +320,8 @@ class PublicCompany:
         self.stock_column = 6  # Used to determine 2d action on the stock market.
         self.stock_row: int = None  # Determined elsewhere
         self.stock_status = StockStatus.NORMAL
+
+        self.tokens: List[int] = []  # Cost for each subsequent token / station
 
     @staticmethod
     def initiate(**kwargs):
