@@ -34,6 +34,15 @@ class City:
     """Loads cities and the value they provide when a train passes through them.  Used in setup phase."""
     FILES = ["cities", "double_city"]
 
+    def __str__(self) -> str:
+        return "{}: {} ({})".format(self.name, self.value, self.special)
+
+    def __hash__(self) -> int:
+        return int("".join(str(ord(char)) for char in self.name))
+
+    def __eq__(self, o: "City") -> bool:
+        return isinstance(o, City) and self.name == o.name
+
     def __init__(self, hex_name, name, value=0, tokens=0, special=None, company=None, private_company=None, **kwargs):
         self.map_hex_name: str = hex_name
         self.name: str = name
@@ -86,12 +95,12 @@ class Token(NamedTuple):
 
 
 class Position(IntEnum):
-    TOP_LEFT = 1
-    TOP_RIGHT = 2
-    RIGHT = 3
-    BOTTOM_RIGHT = 4
-    BOTTOM_LEFT = 5
-    LEFT = 6
+    LEFT = 1
+    TOP_LEFT = 2
+    TOP_RIGHT = 3
+    RIGHT = 4
+    BOTTOM_RIGHT = 5
+    BOTTOM_LEFT = 6
     CITY_1 = 40
     CITY_2 = 50
 
@@ -137,6 +146,9 @@ class TrackType(object):
         self.upgrades = upgrades
         self.city_1_stations = city_1_stations
         self.city_2_stations = city_2_stations
+        self.value = int(kwargs.get("value", 0))  # Value for a train to pass through
+        self.default_location = kwargs.get("default_location")
+
         logging.info("Unused Kwargs: {}".format(
             ",".join(kwargs.keys())
         ))
@@ -170,6 +182,13 @@ class Track(NamedTuple):
                 )
             connections.append(rotated_possibilities)
         return connections
+
+    def rotate(self, rotation):
+        return Track(
+            id=self.id,
+            type=self.type,
+            rotation=rotation
+        )
 
     @staticmethod
     def GenerateTracks(tt: List[TrackType]) -> List["Track"]:

@@ -125,7 +125,8 @@ class OperatingRound(Minigame):
         """When determining valid routes, you also need to take into account the state of the board
         after the currently queued tile placement is made."""
         # TODO: P2: You also need to take into account any rail placements
-        all_routes_exist = [state.board.doesCityRouteExist(move.public_company, start, end) for start, end, _ in move.routes]
+        all_routes_exist = [state.board.doesCityRouteExist(move.public_company, start, end) for start, end, _ in
+                            move.routes]
         # all_possible_routes = None  # nx.all_simple_paths(graph, start, end)
 
         return self.validator(
@@ -185,6 +186,7 @@ class OperatingRound(Minigame):
                 move.token.public_company.name
             ),
             err(
+                # TODO: P1: Add in the initial track that exists for all cities?
                 state.board.hasTrack(move.token.location),
                 "There is no track there"
             ),
@@ -193,17 +195,17 @@ class OperatingRound(Minigame):
                 "There are no free spots to place a token: Max ()",
                 state.board.maxTokens(token.city)
             ),
-            err(
+            err(move.token.location == move.public_company.base or
                 True in (state.board.doesCityRouteExist(move.public_company, cs, move.token.city)
                          for cs in company_stations),
                 "You cannot connect to the location to place a token"
             ),
             err(
-                move.token.city in company_stations,
+                move.token.city not in company_stations,
                 "You cannot put two tokens for the same company in one location"
             ),
             err(
-                len(company_stations) > len(move.public_company.token),
+                len(company_stations) < len(move.public_company.token),
                 "There are no remaining tokens for that company"
             ),
             # err(

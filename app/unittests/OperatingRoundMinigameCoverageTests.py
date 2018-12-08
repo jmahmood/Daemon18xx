@@ -35,8 +35,11 @@ class OperatingRoundMinigame(unittest.TestCase):
 
     def testTokenPlacement(self):
         """If you have no tokens, you must place a token to start"""
+
+        # CPR uses a gray tile, so it should be inserted from the start
         move = OperatingRoundMove()
-        pc = self.public_companies[0]
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+
         token_hex = self.all_hextypes[pc.base]
 
         move.purchase_token = True
@@ -52,7 +55,9 @@ class OperatingRoundMinigame(unittest.TestCase):
         mgs.board = self.board
 
         mg_or = OperatingRound()
-        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.isValidTokenPlacement(move, mgs)
+
+        self.assertEqual(len(mg_or.error_list), 0)
 
 
 

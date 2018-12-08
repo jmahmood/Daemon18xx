@@ -1,9 +1,9 @@
-import logging
 import string
 from typing import List, Dict, Tuple, Set, Union
+
 import networkx as nx
-from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town, DATA_DIR
-from app.error_handling import ErrorListValidator
+
+from app.base import City, Track, PublicCompany, PrivateCompany, TrackType, Town, Position, Color
 
 EMPTY_SQUARES = (
         ["a{}".format(x) for x in list(range(1, 15)) + list(range(21, 25))] +
@@ -14,6 +14,41 @@ EMPTY_SQUARES = (
         ["k{}".format(x) for x in range(17, 25)] +
         ["e1", "g1", "g21", "g23", "g25", "h20", "h22", "h24", "h26", "i21", "i23", "i25"]
 )
+
+GRAY_TILES = [
+    # location, number of tokens, value, *in out pairs
+    # ("d2", 1, 20, 1, 0, (4, "Lansing"), (5, "Lansing")),  # Lansing
+    # ("a17", 0, 0, 0, 0, (5, 6)),
+    # ("a19", 1, 40, 1, 0, (5, "Montreal"), (6, "Montreal")),
+    # ("c15", 0, 10, 0, 1, (1, "Kingston"), (3, "Kingston")),
+    # ("d14", 1, 20, 1, 0, (1, "Rochester"), (4, "Rochester"), (6, "Rochester")),
+    # ("d24", 0, 0, 0, 0, (1, 6)),
+    # ("e9", 0, 0, 0, 0, (2, 3)),
+    # ("f24", 0, 10, 0, 1, (1, "Fall River"), (2, "Fall River")),
+    # ("f6", 1, 30, 1, 0, (5, "Cleveland"), (6, "Cleveland")),
+    # ("h12", 1, 10, 1, 0, (1, "Altoona"), (4, "Altoona"), (1, 4)),
+    # ("i19", 0, 10, 0, 1, (1, "Atlantic City"), (2, "Atlantic City")),
+    # ("k15", 1, 20, 1, 0, (2, "Richmond"))
+    ("d2", 1, 20, 1, 0, (Position.RIGHT, Position.CITY_1), (Position.BOTTOM_RIGHT, Position.CITY_1)),  # Lansing
+    ("a17", 0, 0, 0, 0, (Position.BOTTOM_RIGHT, Position.BOTTOM_LEFT)),
+    ("a19", 1, 40, 1, 0, (Position.BOTTOM_RIGHT, Position.CITY_1), (Position.BOTTOM_LEFT, Position.CITY_1)),
+    ("c15", 0, 10, 0, 1, (Position.LEFT, Position.CITY_1), (Position.TOP_RIGHT, Position.CITY_1)),
+    ("d14", 1, 20, 1, 0, (Position.LEFT, Position.CITY_1), (Position.RIGHT, Position.CITY_1),
+     (Position.BOTTOM_LEFT, Position.CITY_1)),
+    ("d24", 0, 0, 0, 0, (Position.LEFT, Position.BOTTOM_LEFT)),
+    ("e9", 0, 0, 0, 0, (2, Position.TOP_RIGHT)),
+    ("f24", 0, 10, 0, 1, (Position.LEFT, Position.CITY_1), (Position.TOP_RIGHT, Position.CITY_1)),
+    ("f6", 1, 30, 1, 0, (Position.BOTTOM_RIGHT, Position.CITY_1), (Position.BOTTOM_LEFT, Position.CITY_1)),
+    ("h12", 1, 10, 1, 0, (Position.LEFT, Position.CITY_1), (Position.RIGHT, Position.CITY_1),
+     (Position.LEFT, Position.RIGHT)),
+    ("i19", 0, 10, 0, 1, (Position.LEFT, Position.CITY_1), (Position.TOP_RIGHT, Position.CITY_1)),
+    ("k15", 1, 20, 1, 0, (Position.TOP_RIGHT, Position.CITY_1))
+
+]
+
+STARTER_YELLOW_TILES = [
+
+]
 
 WATER_TILES = [
     "c19", "b18", "j14", "d6", "f4"
@@ -82,38 +117,33 @@ class MapHexConfig:
 
         edges = []
 
-        LEFT = 1
-        TOPLEFT = 2
-        TOPRIGHT = 3
-        RIGHT = 4
-        BOTTOMRIGHT = 5
-        BOTTOMLEFT = 6
-
         if column > 'a':
             top_column = chr(ord(column) - 1)
             if row > 1:
                 top_left_row = row - 1
-                edges.append([(column, row, TOPLEFT), (top_column, top_left_row, BOTTOMRIGHT)])
+                edges.append([(column, row, Position.TOP_LEFT), (top_column, top_left_row, Position.BOTTOM_RIGHT)])
 
             if row < 25:
                 top_right_row = row + 1
-                edges.append([(column, row, TOPRIGHT), (top_column, top_right_row, BOTTOMLEFT)])
+                edges.append([(column, row, Position.TOP_RIGHT), (top_column, top_right_row, Position.BOTTOM_LEFT)])
 
         if row > 2:
-            edges.append([(column, row, LEFT), (column, row - 2, RIGHT)])
+            edges.append([(column, row, Position.LEFT), (column, row - 2, Position.RIGHT)])
 
         if row < 23:
-            edges.append([(column, row, RIGHT), (column, row + 2, LEFT)])
+            edges.append([(column, row, Position.RIGHT), (column, row + 2, Position.LEFT)])
 
         if column < 'k':
             bottom_column = chr(ord(column) + 1)
             if row > 1:
                 bottom_left_row = row - 1
-                edges.append([(column, row, BOTTOMLEFT), (bottom_column, bottom_left_row, TOPRIGHT)])
+                edges.append(
+                    [(column, row, Position.BOTTOM_LEFT), (bottom_column, bottom_left_row, Position.TOP_RIGHT)])
 
             if row < 25:
                 bottom_right_row = row + 1
-                edges.append([(column, row, BOTTOMRIGHT), (bottom_column, bottom_right_row, TOPLEFT)])
+                edges.append(
+                    [(column, row, Position.BOTTOM_RIGHT), (bottom_column, bottom_right_row, Position.TOP_LEFT)])
 
         return edges
 
@@ -243,7 +273,7 @@ class MapHexConfig:
 
     def getTokens(self, city: City):
         if city in self.cities:
-            return self.tokens.get(city)
+            return self.tokens.get(city, [])
 
         # TODO: P4: How are we going to deal with these sorts of attempts at cheating / programming errors / etc?
         #   We don't want the app to crash, but I don't want to handle every Attribute error possible.
@@ -253,6 +283,7 @@ class MapHexConfig:
         if city in self.cities:
             if self.track:
                 return self.track.type.city_1_stations
+            return 1
         # TODO: P4: How are we going to deal with these sorts of attempts at cheating / programming errors / etc?
         #   We don't want the app to crash, but I don't want to handle every Attribute error possible.
         raise AttributeError("That is not a city in this hex.")
@@ -297,7 +328,33 @@ class GameMap:
         else:
             ret.companyGraph = companyGraph
 
+        # TODO: P4: Move to own function.
+        gray_tracks = Track.GenerateTracks([TrackType(
+            type_id="gray-{}".format(i),
+            connections=list(gray_tile[5:]),
+            copies=1,
+            color=Color.GREY,
+            cities=gray_tile[3],
+            towns=gray_tile[4],
+            upgrades=None,
+            city_1_stations=gray_tile[1],
+            city_2_stations=0,
+            value=gray_tile[2],
+            default_location=gray_tile[0])
+            for i, gray_tile in enumerate(GRAY_TILES)])
+
+        for t in gray_tracks:
+            ret.placeTrack(t.type.default_location, t.rotate(0))
+
+
         return ret
+
+    def placeTrack(self, location: str, track: Track) -> Track:
+        config = self.mapHexConfig.get(location)
+        pre_existing_track = config.track
+        config.track = track
+        config.recalculateEdges()
+        return pre_existing_track
 
     def getNodeConfig(self, node) -> MapHexConfig:
         raise NotImplemented()
@@ -319,6 +376,7 @@ class GameMap:
 
     def generateGraph(self):
         """Uses MapHexConfig to generate the nx.Graph"""
+        # TODO: P2: Use the tile in MapHexConfig to configure the current values.
         self.graph = nx.Graph()
 
         for hex, val in self.mapHexConfig.items():
@@ -498,6 +556,7 @@ class GameBoard(object):
 
     def placeTrack(self, location: str, track: Track) -> Track:
         """We return the old track so it can be returned to the list of available track types."""
+        # TODO: P4: How are we dealing with rotation?
         config = self.game_map.mapHexConfig.get(location)
         pre_existing_track = config.track
         config.track = track
