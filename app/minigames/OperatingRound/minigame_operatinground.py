@@ -42,9 +42,9 @@ class OperatingRound(Minigame):
         token: Token = move.token
         board: GameBoard = state.board
         if move.purchase_token and self.isValidTokenPlacement(move, state):
-            board.setStation(public_company=token.public_company,
-                             city=token.city,
-                             location=token.location)
+            board.setToken(public_company=token.public_company,
+                           city=token.city,
+                           location=token.location)
 
     def runRoutes(self, move: OperatingRoundMove, state: MutableGameState):
         routes: List[Route] = move.routes
@@ -170,7 +170,7 @@ class OperatingRound(Minigame):
 
     def isValidTokenPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         token = move.token
-        company_stations = state.board.findCompanyStationCities(move.public_company)
+        company_stations = state.board.findCompanyTokenCities(move.public_company)
 
         return self.validate([
             err(
@@ -189,8 +189,9 @@ class OperatingRound(Minigame):
                 "There is no track there"
             ),
             err(
-                len(state.board.getStations(token.city)) < token.city.stations,
-                "There are no free spots to place a token"
+                len(state.board.getTokens(token.city)) < state.board.maxTokens(token.city),
+                "There are no free spots to place a token: Max ()",
+                state.board.maxTokens(token.city)
             ),
             err(
                 True in (state.board.doesCityRouteExist(move.public_company, cs, move.token.city)
@@ -202,7 +203,7 @@ class OperatingRound(Minigame):
                 "You cannot put two tokens for the same company in one location"
             ),
             err(
-                len(company_stations) > len(move.public_company.tokens),
+                len(company_stations) > len(move.public_company.token),
                 "There are no remaining tokens for that company"
             ),
             # err(
@@ -218,7 +219,7 @@ class OperatingRound(Minigame):
 
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
-        company_stations = game_board.findCompanyStationCities(move.public_company)
+        company_stations = game_board.findCompanyTokenCities(move.public_company)
 
         inbound_locations = []  # TODO: P2: A list of all possible places from which we can connect to this track.
         # example: A tile on C6 has C6-1, C6-2 (etc).  It may only bind to C6-1 and C6-3 which binds to C4-3 and C8-1
@@ -271,7 +272,7 @@ class OperatingRound(Minigame):
             ),
             (
                 # Make sure there is a route to the specific location, or you have no other placements?
-                len(game_board.findCompanyStationCities(move.public_company)) == 0 or
+                len(game_board.findCompanyTokenCities(move.public_company)) == 0 or
                 self.isValidConnectionToOtherTrack(move, state),
                 "Your track needs to connect to your track or it needs to be your originating city, "
                 "except in special cases (the base cities of the NYC and Erie, "
@@ -336,7 +337,7 @@ class OperatingRound(Minigame):
         )
 
     def companyHasARoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
-        stations = state.board.findCompanyStationCities(pc)
+        stations = state.board.findCompanyTokenCities(pc)
         game_board = state.board
 
         # TODO: P1: Get a list of all cities and towns that are available

@@ -34,14 +34,14 @@ class City:
     """Loads cities and the value they provide when a train passes through them.  Used in setup phase."""
     FILES = ["cities", "double_city"]
 
-    def __init__(self, hex_name, name, value=0, stations=0, special=None, company=None, private_company=None, **kwargs):
+    def __init__(self, hex_name, name, value=0, tokens=0, special=None, company=None, private_company=None, **kwargs):
         self.map_hex_name: str = hex_name
         self.name: str = name
         self.value: int = value
         self.special: str = special
         self.company_hq: str = company
         self.private_company_hq: str = private_company
-        self.stations: int = stations  # The number of stations that can be setup by public companies.
+        self.tokens: int = tokens  # TODO: p1: remove The number of stations that can be setup by public companies.
         logging.info("Unused Kwargs: {}".format(
             ",".join(kwargs.keys())
         ))
@@ -128,7 +128,7 @@ class TrackType(object):
                  **kwargs
                  ) -> None:
         super().__init__()
-        self.type_id = type_id,
+        self.type_id = type_id
         self.connections = connections
         self.copies = copies
         self.color = color
@@ -321,7 +321,7 @@ class PublicCompany:
         self.stock_row: int = None  # Determined elsewhere
         self.stock_status = StockStatus.NORMAL
 
-        self.tokens: List[int] = []  # Cost for each subsequent token / station
+        self.token: List[int] = []  # Cost for each subsequent token / station
 
     @staticmethod
     def initiate(**kwargs):

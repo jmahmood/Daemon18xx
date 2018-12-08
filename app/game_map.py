@@ -137,7 +137,7 @@ class MapHexConfig:
                     "track": None,
                     "cities": [],
                     "towns": [],
-                    "stations": {},
+                    "tokens": {},
                     "cost": None,
                     "requires_private_company": None,
                     "edges": None
@@ -157,7 +157,7 @@ class MapHexConfig:
                     "track": None,
                     "cities": [x],
                     "towns": [],
-                    "stations": {},
+                    "tokens": {},
                     "cost": x.value,
                     "requires_private_company": x.private_company_hq,
                     "edges": None
@@ -176,7 +176,7 @@ class MapHexConfig:
                     "track": None,
                     "cities": [],
                     "towns": [x],
-                    "stations": {},
+                    "tokens": {},
                     "cost": x.value,
                     "requires_private_company": x.private_company_hq,
                     "edges": None
@@ -190,7 +190,7 @@ class MapHexConfig:
                     "red_tile": name,
                     "cities": [],
                     "towns": [],
-                    "stations": {},
+                    "tokens": {},
                     "cost": values,
                     "requires_private_company": None,
                     "edges": None
@@ -224,7 +224,7 @@ class MapHexConfig:
         self.red_tile: str = None  # If this is a red tile, the name should be in here.
         self.cities: List[City] = None  # Cities in that hex.
         self.towns: List[Town] = None  # Towns in that hex.
-        self.stations: Dict[City, Set[PublicCompany]] = None
+        self.tokens: Dict[City, Set[PublicCompany]] = {}
         self.cost: int = None  # Cost to upgrade track here.
 
         self.requires_private_company: PrivateCompany = None
@@ -239,18 +239,31 @@ class MapHexConfig:
         return self.towns
 
     def hasStation(self, city: City, pc: PublicCompany):
-        return pc in self.getStations(city)
+        return pc in self.getTokens(city)
 
-    def getStations(self, city: City):
-        return self.stations.get(city)
+    def getTokens(self, city: City):
+        if city in self.cities:
+            return self.tokens.get(city)
 
-    def getCompanyStations(self, company: PublicCompany):
-        return [city for city in self.stations.keys() if company in self.stations[city]]
+        # TODO: P4: How are we going to deal with these sorts of attempts at cheating / programming errors / etc?
+        #   We don't want the app to crash, but I don't want to handle every Attribute error possible.
+        raise AttributeError("That is not a city in this hex.")
+
+    def maxTokens(self, city: City):
+        if city in self.cities:
+            if self.track:
+                return self.track.type.city_1_stations
+        # TODO: P4: How are we going to deal with these sorts of attempts at cheating / programming errors / etc?
+        #   We don't want the app to crash, but I don't want to handle every Attribute error possible.
+        raise AttributeError("That is not a city in this hex.")
+
+    def getCompanyTokens(self, company: PublicCompany):
+        return [city for city in self.tokens.keys() if company in self.tokens[city]]
 
     def isFull(self, city: City):
-        if city not in self.cities:
-            raise NotImplemented("How to handle someone getting cheeky with the city they pass?")
-        return city.stations < len(self.stations.get(city))
+        if city in self.cities:
+            return self.maxTokens(city) <= len(self.getTokens(city))
+        raise AttributeError("That is not a city in this hex.")
 
     def recalculateEdges(self):
         # Creates a new set of edges based on any track placements.
@@ -404,7 +417,7 @@ class GameMap:
         # TODO: P4: Cache this information instead of building it from scratch?
         ret = []
         for location in self.mapHexConfig.keys():
-            stations = self.mapHexConfig[location].getCompanyStations(company)
+            stations = self.mapHexConfig[location].getCompanyTokens(company)
             if len(stations) > 0:
                 for city in stations:
                     ret.append((location, city))
@@ -434,20 +447,18 @@ class GameTracks:
         return ret
 
 
-class GameBoard(ErrorListValidator):
+class GameBoard(object):
     """Top-level class / public interface to the map and other parts of the underlying game board."""
 
     def __init__(self):
         self.game_map: GameMap = None
         self.game_tracks: GameTracks = None
-        self.error_list = []
 
     @staticmethod
     def initialize():
         ret = GameBoard()
         ret.game_map = GameMap.initialize()
         ret.game_tracks = GameTracks.initialize()
-        ret.error_list = []
         return ret
 
     def doesPathExist(self, g: nx.Graph = None, start: str = None, end: str = None):
@@ -474,7 +485,12 @@ class GameBoard(ErrorListValidator):
         # TODO: P1 - Not implemented
         raise NotImplementedError("Add path finding to location")
 
-    def canPlaceTrack(self, location: str, track: Track) -> bool:
+    def hasTrack(self, location: str):
+        config = self.game_map.mapHexConfig[location]
+        return config.track is not None
+
+    def canUpgradeTrack(self, location: str, track: Track) -> bool:
+        """Simplifies process of determining if one track can be replaced with another"""
         existing_track = self.game_map.get(location).track
         if existing_track:
             return existing_track.type.can_upgrade_to(track.type)
@@ -488,22 +504,13 @@ class GameBoard(ErrorListValidator):
         config.recalculateEdges()
         return pre_existing_track
 
-    def canSetStation(self, public_company: PublicCompany, city: City, location: str) -> bool:
-        # TODO: P1 - Do we want to have this here or at the move level?
-        pass
-        # config = self.game_map.map[location]
-        #
-        #
-        # current_stations = config.stations[city]
-        # current_number_of_stations = len(config.stations[city])
-        # max_number_of_stations = config.track.type.city_1_stations
-        # return max_number_of_stations <= current_number_of_stations + 1
-
-    def setStation(self, public_company: PublicCompany, city: City, location: str):
+    def setToken(self, public_company: PublicCompany, city: City, location: str):
         config = self.game_map.mapHexConfig[location]
-        config.stations.get(city).add(public_company)
+        config.tokens.get(city).add(public_company)
 
     def calculateRoute(self, route) -> int:
+        # TODO: P2: Calculate the amount of cash someone would make from a route?
+        # TODO: P4: Rename
         raise NotImplementedError()
 
     def updateRoutes(self):
@@ -518,47 +525,14 @@ class GameBoard(ErrorListValidator):
     def validatePlaceTrack(self, track: Track, location: str) -> bool:
         raise NotImplementedError
 
-    def validatePlaceStation(self, company: PublicCompany, city: City, location: str) -> bool:
-        # TODO: P2: Should we be setting errors within a "Game Map" class?
-        # This would make more sense being in the Minigame (since you can only place a station within that minigame anyway?)
-        config = self.game_map.mapHexConfig[location]
+    def getTokens(self, city: City) -> Set[PublicCompany]:
+        return self.game_map.mapHexConfig[city.map_hex_name].getTokens(city)
 
-        self.validator(
-            (
-                config.getCities() and len(config.getCities()) > 0,
-                "Can't place a station if there are no cities"
-            ),
-            (
-                city in config.cities,
-                "Can't place a station if there are no cities"
-            ),
-            (
-                len(config.stations.get(city)) < city.stations,
-                "Can't place a station if the city is full"
-            ),
-            (
-                company not in config.stations.get(city),
-                "Can't place a station if you already placed one there."
-            ),
-        )
-        if len(self.error_list) > 0:
-            logging.warning(self.error_list)
+    def maxTokens(self, city: City) -> Set[PublicCompany]:
+        return self.game_map.mapHexConfig[city.map_hex_name].maxTokens(city)
 
-        return len(self.error_list) == 0
-
-    def getStations(self, city: City) -> Set[PublicCompany]:
-        return self.game_map.mapHexConfig[city.map_hex_name].stations[city]
-
-    def findCompanyStationCities(self, company: PublicCompany) -> List[City]:
+    def findCompanyTokenCities(self, company: PublicCompany) -> List[City]:
         """Returns a list of names of cities with a station of the company"""
         # TODO: P4: Do we want to cache this information somewhere?  Possibly in the company itself?
+        # TODO: P4: Do we want to call this findCompanyRailheads or is that too obtuse? (Title from the rules)
         return [city for location, city in self.game_map.getCompanyTokens(company)]
-
-    def generatePath(self, company: PublicCompany, frm: City, to: City):
-        # Generates all simple paths that will lead from one city to the other, within the graph for the company.
-        # Then filters out all paths that are not acceptable for one reason or another.
-        pass
-
-    def hasTrack(self, location: str):
-        config = self.game_map.mapHexConfig[location]
-        return config.track is not None

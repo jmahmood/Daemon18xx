@@ -33,7 +33,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertEqual(len(company_graph.nodes), len(self.board.game_map.graph.nodes))
         self.assertEqual(len(company_graph.edges), 0)
 
-    def testPlaceTilePurchaseStation(self):
+    def testTokenPlacement(self):
         """If you have no tokens, you must place a token to start"""
         move = OperatingRoundMove()
         pc = self.public_companies[0]
@@ -47,9 +47,12 @@ class OperatingRoundMinigame(unittest.TestCase):
         move.routes = False
         move.public_company = pc
         move.token = Token(token_hex.cities[0], pc, pc.base)
-        # move.track = Track()
+
         mgs = MutableGameState()
         mgs.board = self.board
+
         mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+
 
 
