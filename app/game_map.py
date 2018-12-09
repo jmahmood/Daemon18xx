@@ -346,7 +346,6 @@ class GameMap:
         for t in gray_tracks:
             ret.placeTrack(t.type.default_location, t.rotate(0))
 
-
         return ret
 
     def placeTrack(self, location: str, track: Track) -> Track:
@@ -501,7 +500,7 @@ class GameTracks:
         ret = GameTracks()
         ret.ALL_TRACK_TYPES = TrackType.load()
         ret.ALL_TRACK = Track.GenerateTracks(ret.ALL_TRACK_TYPES)
-        ret.available_track = [t for t in ret.ALL_TRACK]
+        ret.available_track = set([t for t in ret.ALL_TRACK])
         return ret
 
 
@@ -554,9 +553,16 @@ class GameBoard(object):
             return existing_track.type.can_upgrade_to(track.type)
         return False
 
+    def getAvailableTrack(self, track_type_id: str):
+        for track in self.game_tracks.available_track:
+            if track.type.type_id == track_type_id:
+                return track
+        return None
+
     def placeTrack(self, location: str, track: Track) -> Track:
         """We return the old track so it can be returned to the list of available track types."""
-        # TODO: P4: How are we dealing with rotation?
+        # TODO: P4: How are we dealing with rotation?  By cloning w/ a rotation, we are leaving some crap data in the
+        #   game_tile object
         config = self.game_map.mapHexConfig.get(location)
         pre_existing_track = config.track
         config.track = track

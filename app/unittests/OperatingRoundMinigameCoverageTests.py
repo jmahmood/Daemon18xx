@@ -15,7 +15,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.public_companies = PublicCompany.load()
         self.cities = City.load()
         self.towns = Town.load()
-        self.all_tracks = TrackType.load()
+        self.all_tracks_types = TrackType.load()
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
 
@@ -33,7 +33,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertEqual(len(company_graph.nodes), len(self.board.game_map.graph.nodes))
         self.assertEqual(len(company_graph.edges), 0)
 
-    def testTokenPlacement(self):
+    def testValidTokenPlacement(self):
         """If you have no tokens, you must place a token to start"""
 
         # CPR uses a gray tile, so it should be inserted from the start
@@ -55,9 +55,37 @@ class OperatingRoundMinigame(unittest.TestCase):
         mgs.board = self.board
 
         mg_or = OperatingRound()
-        mg_or.isValidTokenPlacement(move, mgs)
-
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         self.assertEqual(len(mg_or.error_list), 0)
 
+    def testValidTrackPlacement(self):
+        # CPR uses a gray tile, so it should be inserted from the start
+        move = OperatingRoundMove()
+        gt = None
+
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        pc.cash = 500000
+
+        token_hex = self.all_hextypes[pc.base]
+
+        move.purchase_token = True
+        move.construct_track = True  # TODO: P4: Should we call this place_track instead?
+        move.run_route = False
+        move.buy_train = True
+        move.pay_dividend = False
+        move.routes = False
+        move.public_company = pc
+        move.token = Token(token_hex.cities[0], pc, pc.base)
+        gt = self.board.getAvailableTrack(199)  # A fake type for the purpose of this test
+        move.track = gt.rotate(1)
+        move.track_placement_location = "b18"
+
+        mgs = MutableGameState()
+        mgs.board = self.board
+
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.isValidTrackPlacement(move, mgs)
+        self.assertEqual(len(mg_or.error_list), 0)
 
 

@@ -238,6 +238,10 @@ class OperatingRound(Minigame):
         game_board = state.board
         placement_track = move.track
         placement_track_location = move.track_placement_location
+        # TODO: P4: Make sure move.track_placement_location is set.
+
+        if not move.track_placement_location:
+            return False
 
         rotated_track_connections = [
             (x.rotate(move.track.rotation),
@@ -258,6 +262,8 @@ class OperatingRound(Minigame):
 
         cost = game_board.getCost(move.track_placement_location)
 
+        first_placement = not hex_config.track
+
         return self.validator(
             (
                 placement_track in game_board.game_tracks.available_track,
@@ -269,7 +275,7 @@ class OperatingRound(Minigame):
                 "Your track needs to be on a location that exists"
             ),
             (
-                placement_track in hex_config.track.type.upgrades,
+                first_placement or placement_track in hex_config.track.type.upgrades,
                 "Someone has already set a tile there"
             ),
             (
@@ -281,11 +287,13 @@ class OperatingRound(Minigame):
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
             (
+                first_placement or
                 hex_config.track.type.color != Color.YELLOW and
                 move.track.type.color == Color.BROWN,
                 "You need to have a yellow tile before laying a brown tile"
             ),
             (
+                first_placement or
                 hex_config.track.type.color != Color.BROWN and
                 move.track.type.color == Color.RED,
                 "You need to have a brown tile before laying a red tile"
@@ -306,34 +314,34 @@ class OperatingRound(Minigame):
                 hex_config.requires_private_company.belongs_to.id ==
                 move.public_company.id,
                 "That tile requires the company to own a Private Company ({})",
-                hex_config.requires_private_company.name
+                hex_config.requires_private_company
             ),
             (
-                len(hex_config.cities) == 0 and move.track.type.cities != 0,
+                len(hex_config.cities) != 0 or move.track.type.cities == 0,
                 "That location requires you to use a tile that has no cities"
             ),
             (
-                len(hex_config.cities) == 1 and move.track.type.cities != 1,
+                len(hex_config.cities) != 1 or move.track.type.cities == 1,
                 "That location requires you to use a tile that has one city"
             ),
             (
-                len(hex_config.cities) == 2 and move.track.type.cities != 2,
+                len(hex_config.cities) != 2 or move.track.type.cities == 2,
                 "That location requires you to use a tile that has two city"
             ),
             (
-                len(hex_config.towns) == 0 and move.track.type.towns != 0,
+                len(hex_config.towns) != 0 or move.track.type.towns == 0,
                 "That location requires you to use a tile that has no towns"
             ),
             (
-                len(hex_config.towns) == 1 and move.track.type.towns != 1,
+                len(hex_config.towns) != 1 or move.track.type.towns == 1,
                 "That location requires you to use a tile that has one town"
             ),
             (
-                len(hex_config.towns) == 2 and move.track.type.towns != 2,
+                len(hex_config.towns) != 2 or move.track.type.towns == 2,
                 "That location requires you to use a tile that has two towns"
             ),
             (
-                set(hex_config.track.connections()) <= set(move.track.connections()),
+                first_placement or set(hex_config.track.connections()) <= set(move.track.connections()),
                 "Replacement tiles must maintain all previously existing route connections"
             ),
         )

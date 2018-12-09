@@ -164,6 +164,18 @@ class TrackType(object):
         with open(cls.DATA_FILE) as f:
             data = json.load(f)
         ret = [cls(**d) for d in data]
+        for r in ret:
+            # Convert the JSON connections to the correct object type.
+
+            # Some tile types let you have multiple paths, with you only being able to use one of them.
+            all_possible_connections = []
+            for possible_pairs in r.connections:
+                connections = []
+                for pairs in possible_pairs:
+                    connections.append((Position(pairs[0]), Position(pairs[1])))
+                all_possible_connections.append(connections)
+            r.connections = all_possible_connections
+
         return ret
 
 
@@ -171,6 +183,15 @@ class Track(NamedTuple):
     id: str  # Unique identifier
     type: TrackType  # type of track identifier(s)
     rotation: int  # A number from 0-5 which is added to all of the connections to rotate the tile.
+
+    def __str__(self) -> str:
+        return "{}: {}".format(self.id, self.type.type_id)
+
+    def __hash__(self) -> int:
+        return int("".join(str(ord(char)) for char in self.id))
+
+    def __eq__(self, o: "Track") -> bool:
+        return isinstance(o, Track) and self.id == o.id
 
     def connections(self) -> List[List[Tuple[Position, Position]]]:
         connections = []
@@ -183,11 +204,11 @@ class Track(NamedTuple):
             connections.append(rotated_possibilities)
         return connections
 
-    def rotate(self, rotation):
+    def rotate(self, rotation) -> "Track":
         return Track(
-            id=self.id,
-            type=self.type,
-            rotation=rotation
+            self[0],
+            self[1],
+            rotation
         )
 
     @staticmethod
