@@ -1,6 +1,6 @@
-from typing import List, Union
+from typing import List, Union, Tuple
 
-from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color, City, Town
+from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color, City, Town, Position
 from app.game_map import GameBoard
 from app.minigames.OperatingRound.operating_round import OperatingRoundMove
 from app.minigames.base import Minigame, MinigameFlow
@@ -140,7 +140,13 @@ class OperatingRound(Minigame):
                 "Each route must join at least two cities"
             ),
             (
-                True,  # TODO: P4: We may have to add in some kind of one way edge (ugh) to handle this.
+                True,
+                # TODO: P4: As players determine their own movement right now, we can check the routes
+                #   and make sure that pairs of mutually exclusive edges are not being used.
+                #   We will probably have to modify how we store "used edges" in the graph
+                #   algorithm itself in order to properly simulate the actions in this game.
+                #   As of right now, I can't think of an easy way to keep a simple graph and be able to
+                #   distinguish between stuff like
                 "You cannot reverse across a junction"
             ),
             (
@@ -173,38 +179,37 @@ class OperatingRound(Minigame):
         token = move.token
         company_stations = state.board.findCompanyTokenCities(move.public_company)
 
-        return self.validate([
-            err(
+        return self.validator(
+            (
                 move.token.location == move.public_company.base or len(company_stations) > 0,
                 "Your first token needs to be in your company's base location: {}",
                 move.public_company.base
             ),
-            err(
+            (
                 move.public_company == move.token.public_company,
                 "You can only place a token for your own company ({}, {})",
                 move.public_company.name,
                 move.token.public_company.name
             ),
-            err(
-                # TODO: P1: Add in the initial track that exists for all cities?
+            (
                 state.board.hasTrack(move.token.location),
                 "There is no track there"
             ),
-            err(
+            (
                 len(state.board.getTokens(token.city)) < state.board.maxTokens(token.city),
                 "There are no free spots to place a token: Max ()",
                 state.board.maxTokens(token.city)
             ),
-            err(move.token.location == move.public_company.base or
+            (move.token.location == move.public_company.base or
                 True in (state.board.doesCityRouteExist(move.public_company, cs, move.token.city)
                          for cs in company_stations),
                 "You cannot connect to the location to place a token"
             ),
-            err(
+            (
                 move.token.city not in company_stations,
                 "You cannot put two tokens for the same company in one location"
             ),
-            err(
+            (
                 len(company_stations) < len(move.public_company.token),
                 "There are no remaining tokens for that company"
             ),
@@ -217,7 +222,7 @@ class OperatingRound(Minigame):
             #     False,
             #     "You cannot place a token in Erie's home town before Erie"
             # ),
-        ])
+        )
 
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
@@ -276,7 +281,7 @@ class OperatingRound(Minigame):
                 "Your track needs to be on a location that exists"
             ),
             (
-                first_placement or placement_track in hex_config.track.type.upgrades,
+                first_placement or hex_config.track.type.upgrades and placement_track in hex_config.track.type.upgrades,
                 "Someone has already set a tile there"
             ),
             (
@@ -342,10 +347,17 @@ class OperatingRound(Minigame):
                 "That location requires you to use a tile that has two towns"
             ),
             (
-                first_placement or set(hex_config.track.connections()) <= set(move.track.connections()),
+                first_placement or self._connection_set(hex_config.track.connections()) <= self._connection_set(move.track.connections()),
                 "Replacement tiles must maintain all previously existing route connections"
             ),
         )
+    def _connection_set(self, lst: List[List[Tuple[Position, Position]]]):
+        ret = set()
+        for sets in lst:
+            for tpl in sets:
+                ret.add("{}-{}".format(tpl[0].value, tpl[1].value))
+        return ret
+
 
     def companyHasARoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
         stations = state.board.findCompanyTokenCities(pc)

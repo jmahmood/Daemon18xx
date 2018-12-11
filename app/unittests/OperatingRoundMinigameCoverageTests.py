@@ -33,60 +33,131 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertEqual(len(company_graph.nodes), len(self.board.game_map.graph.nodes))
         self.assertEqual(len(company_graph.edges), 0)
 
-    def testValidTokenPlacement(self):
-        """If you have no tokens, you must place a token to start"""
-
-        # CPR uses a gray tile, so it should be inserted from the start
+    def genericValidTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         move = OperatingRoundMove()
-        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
 
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
+        pc.cash = 500000
+
+        if location is None:
+            location = pc.base
+
+        move.construct_track = True  # TODO: P4: Should we call this place_track instead?
+        move.public_company = pc
+        generic_test_track = self.board.getAvailableTrack(track_id)  # A fake type for the purpose of this test
+        move.track = generic_test_track.rotate(track_rotation)
+        move.track_placement_location = location
+
+        mgs = MutableGameState()
+        mgs.board = self.board
+
+        return move, mgs, pc
+
+
+    def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (OperatingRoundMove, MutableGameState, PublicCompany):
+        move = OperatingRoundMove()
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
         token_hex = self.all_hextypes[pc.base]
-
         move.purchase_token = True
-        move.construct_track = False  # TODO: P4: Should we call this place_track instead?
-        move.run_route = False
-        move.buy_train = False
-        move.pay_dividend = False
-        move.routes = False
         move.public_company = pc
         move.token = Token(token_hex.cities[0], pc, pc.base)
 
         mgs = MutableGameState()
         mgs.board = self.board
 
+        return move, mgs, pc
+
+    def testValidTokenPlacement(self):
+        """If you have no tokens, you must place a token to start"""
+
+        # CPR uses a gray tile, so it should be inserted from the start
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         self.assertEqual(len(mg_or.error_list), 0)
 
     def testValidTrackPlacement(self):
         # CPR uses a gray tile, so it should be inserted from the start
-        move = OperatingRoundMove()
 
-        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
-        pc.cash = 500000
-
-        token_hex = self.all_hextypes[pc.base]
-
-        move.purchase_token = True
-        move.construct_track = True  # TODO: P4: Should we call this place_track instead?
-        move.run_route = False
-        move.buy_train = True
-        move.pay_dividend = False
-        move.routes = False
-        move.public_company = pc
-        move.token = Token(token_hex.cities[0], pc, pc.base)
-        generic_test_track = self.board.getAvailableTrack(199)  # A fake type for the purpose of this test
-        move.track = generic_test_track.rotate(1)
-        move.track_placement_location = "b18"
-
-        mgs = MutableGameState()
-        mgs.board = self.board
-
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+
+        move, mgs, pc = self.genericValidTilePlacement()
+        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
         self.assertEqual(len(mg_or.error_list), 0)
         self.assertTrue(self.board.doesPathExist(start='Montreal', end='a17-6'))
+
+
+    def testInvalidTrackPlacementFirstPlacementNotBaseStation(self):
+        """Your first token MUST be placed on your home city"""
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+
+        different_pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "B&O")
+        different_pc_token_hex = self.all_hextypes[different_pc.base]
+
+        move.token = Token(different_pc_token_hex.cities[0], pc, different_pc_token_hex.location)
+
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn("Your first token needs to be in your company's base location: {}".format(pc.base),
+                      mg_or.error_list)
+
+    def testInvalidTrackPlacementAnotherPublicCompanyToken(self):
+        """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+
+        different_pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "B&O")
+        different_pc_token_hex = self.all_hextypes[different_pc.base]
+
+        move.token = Token(different_pc_token_hex.cities[0], different_pc, different_pc_token_hex.location)
+
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn("You can only place a token for your own company ({}, {})".format(move.public_company.name,
+                                                                                        move.token.public_company.name),
+                      mg_or.error_list)
+
+    # TODO: P2: Check to see if you can correctly place the second track
+
+    def testInvalidTrackPlacementNoTrackExists(self):
+        """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+
+        # First placement is executed.
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+
+        # one round later..
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        ottawa = next((city for city in self.cities if city.name == "Ottawa"))
+        move.token = Token(ottawa, pc, ottawa.location)
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn("There is no track there",
+                      mg_or.error_list)
+
+
+    def testInvalidTrackCannotStealHQ(self):
+        """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+
+        # First placement is executed.
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+
+        different_pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "B&O")
+        different_pc_token_hex = self.all_hextypes[different_pc.base]
+        move.token = Token(different_pc_token_hex.cities[0], pc, different_pc_token_hex.location)
+
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn("There is no track there",
+                      mg_or.error_list)
 
 
 

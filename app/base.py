@@ -58,6 +58,10 @@ class City:
     def __str__(self) -> str:
         return "{} - {}".format(self.name, self.map_hex_name)
 
+    @property
+    def location(self):
+        return self.map_hex_name
+
     @classmethod
     def load(cls):
         ret = []

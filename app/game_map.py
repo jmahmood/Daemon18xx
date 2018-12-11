@@ -615,7 +615,7 @@ class GameBoard(object):
 
     def getCost(self, location: str):
         try:
-            return self.game_map.get(location).cost
+            return 0 if self.game_map.get(location).cost is None else self.game_map.get(location).cost
         except KeyError:
             raise KeyError("Location {} does not exist in game map".format(location))
 
@@ -625,7 +625,7 @@ class GameBoard(object):
     def getTokens(self, city: City) -> Set[PublicCompany]:
         return self.game_map.mapHexConfig[city.map_hex_name].getTokens(city)
 
-    def maxTokens(self, city: City) -> Set[PublicCompany]:
+    def maxTokens(self, city: City) -> int:
         return self.game_map.mapHexConfig[city.map_hex_name].maxTokens(city)
 
     def findCompanyTokenCities(self, company: PublicCompany) -> List[City]:
