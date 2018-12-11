@@ -60,7 +60,6 @@ class City:
 
     @classmethod
     def load(cls):
-        logging.warning(cls)
         ret = []
         for f in cls.FILES:
             with open(os.path.join(DATA_DIR, f)) as json_file:
@@ -138,7 +137,7 @@ class TrackType(object):
                  ) -> None:
         super().__init__()
         self.type_id = type_id
-        self.connections = connections
+        self.connections: List[List[Tuple[Position, Position]]] = connections
         self.copies = copies
         self.color = color
         self.cities = cities
@@ -161,16 +160,22 @@ class TrackType(object):
 
     @classmethod
     def load(cls):
+        #TODO: P1: Clarify how we deal with different paths
+
         with open(cls.DATA_FILE) as f:
             data = json.load(f)
         ret = [cls(**d) for d in data]
         for r in ret:
             # Convert the JSON connections to the correct object type.
 
-            # Some tile types let you have multiple paths, with you only being able to use one of them.
+              # Some tile types let you have multiple paths, with you only being able to use one of them.
             all_possible_connections = []
+
             for possible_pairs in r.connections:
-                connections = []
+                connections =  []
+
+
+
                 for pairs in possible_pairs:
                     connections.append((Position(pairs[0]), Position(pairs[1])))
                 all_possible_connections.append(connections)
@@ -198,9 +203,17 @@ class Track(NamedTuple):
         for possibilities in self.type.connections:
             rotated_possibilities = []
             for position_1, position_2 in possibilities:
-                rotated_possibilities.append(
-                    (position_1.rotate(self.rotation), position_2.rotate(self.rotation))
-                )
+                if not isinstance(position_1, Position):
+                    position_1 = Position(position_1)
+                if not isinstance(position_2, Position):
+                    position_2 = Position(position_2)
+
+                try:
+                    rotated_possibilities.append(
+                        (position_1.rotate(self.rotation), position_2.rotate(self.rotation))
+                    )
+                except AttributeError:
+                    pass
             connections.append(rotated_possibilities)
         return connections
 
@@ -325,7 +338,6 @@ class PublicCompany:
 
     @classmethod
     def load(cls):
-        logging.warning(cls)
         ret = []
         for f in cls.FILES:
             with open(os.path.join(DATA_DIR, f)) as json_file:

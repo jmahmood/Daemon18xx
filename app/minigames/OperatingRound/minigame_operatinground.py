@@ -254,9 +254,10 @@ class OperatingRound(Minigame):
         inbound_outbound_labels = [x.edge_name(placement_track_location) for x, _ in rotated_track_connections] \
                                   + [y.edge_name(placement_track_location) for _, y in rotated_track_connections]
 
-        is_valid_orientation = False not in [
-            game_board.hasExternalConnection(x) for x in inbound_outbound_labels
-        ]
+        is_valid_orientation = True # TODO: P4: I don't care about this yet.
+        # # not in [
+        #     game_board.hasExternalConnection(x) for x in inbound_outbound_labels
+        # ]
 
         hex_config = game_board.game_map.mapHexConfig.get(placement_track_location)
 

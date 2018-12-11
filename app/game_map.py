@@ -1,3 +1,4 @@
+import logging
 import string
 from typing import List, Dict, Tuple, Set, Union
 
@@ -111,7 +112,36 @@ class MapHexConfig:
     def __eq__(self, o: "MapHexConfig") -> bool:
         return self.location == o.location
 
+    def get_tile_edges(self) -> List[List[Tuple[str, str]]]:
+        column = self.location[0]
+        row = int(self.location[1:])
+        city1 = self.cities[0] if len(self.cities) > 0 else None
+        city2 = self.cities[2] if len(self.cities) > 1 else None
+
+        translation = {
+            Position.LEFT: "{}{}-{}".format(column, row, 1),
+            Position.TOP_LEFT: "{}{}-{}".format(column, row, 2),
+            Position.TOP_RIGHT: "{}{}-{}".format(column, row, 3),
+            Position.RIGHT: "{}{}-{}".format(column, row, 4),
+            Position.BOTTOM_RIGHT: "{}{}-{}".format(column, row, 5),
+            Position.BOTTOM_LEFT: "{}{}-{}".format(column, row, 6),
+            Position.CITY_1: city1.name if city1 else None,
+            Position.CITY_2: city2.name if city2 else None
+        }
+
+        tile_edges = self.track.connections()
+        ret = []
+        for possible_connections in tile_edges:
+            ret2 = []
+            for connection in possible_connections:
+                ret2.append(
+                    (translation[connection[0]], translation[connection[1]])
+                )
+            ret.append(ret2)
+        return ret
+
     def get_edges(self):
+        """Returns all possible edges around the tile."""
         column = self.location[0]
         row = int(self.location[1:])
 
@@ -297,8 +327,8 @@ class MapHexConfig:
         raise AttributeError("That is not a city in this hex.")
 
     def recalculateEdges(self):
-        # Creates a new set of edges based on any track placements.
-        pass
+        self.edges = self.get_tile_edges()
+
 
 
 class GameMap:
@@ -331,7 +361,7 @@ class GameMap:
         # TODO: P4: Move to own function.
         gray_tracks = Track.GenerateTracks([TrackType(
             type_id="gray-{}".format(i),
-            connections=list(gray_tile[5:]),
+            connections=[list(gray_tile[5:])],
             copies=1,
             color=Color.GREY,
             cities=gray_tile[3],
@@ -353,6 +383,7 @@ class GameMap:
         pre_existing_track = config.track
         config.track = track
         config.recalculateEdges()
+        self.updateGraph(config, self.graph)
         return pre_existing_track
 
     def getNodeConfig(self, node) -> MapHexConfig:
@@ -429,6 +460,14 @@ class GameMap:
             node1, node2 = edge.split(":")
             self.graph.remove_edge(node1, node2)
 
+    def updateGraph(self, hex_config: MapHexConfig, g: nx.Graph = None):
+        if g is None:
+            g = self.graph
+
+        for possible_connection in hex_config.edges:
+            for vertex1, vertex2 in possible_connection:
+                g.add_edge(vertex1, vertex2)
+
     def generateCompanyGraph(self, pc: PublicCompany) -> nx.Graph:
         """Takes the overall connectivity graph, and then generates one for the company,
         using its stations as root nodes."""
@@ -462,9 +501,6 @@ class GameMap:
 
         return company_graph
 
-    # def getAdjacent(self, location) -> List[MapHexConfig]:
-    #     # https://networkx.github.io/documentation/networkx-1.10/reference/generated/networkx.Graph.neighbors.html#networkx.Graph.neighbors
-    #     return self.graph[location]
 
     def get(self, location: str) -> MapHexConfig:
         return self.mapHexConfig.get(location)
@@ -563,11 +599,7 @@ class GameBoard(object):
         """We return the old track so it can be returned to the list of available track types."""
         # TODO: P4: How are we dealing with rotation?  By cloning w/ a rotation, we are leaving some crap data in the
         #   game_tile object
-        config = self.game_map.mapHexConfig.get(location)
-        pre_existing_track = config.track
-        config.track = track
-        config.recalculateEdges()
-        return pre_existing_track
+        return self.game_map.placeTrack(location, track)
 
     def setToken(self, public_company: PublicCompany, city: City, location: str):
         config = self.game_map.mapHexConfig[location]

@@ -61,7 +61,6 @@ class OperatingRoundMinigame(unittest.TestCase):
     def testValidTrackPlacement(self):
         # CPR uses a gray tile, so it should be inserted from the start
         move = OperatingRoundMove()
-        gt = None
 
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
         pc.cash = 500000
@@ -76,8 +75,8 @@ class OperatingRoundMinigame(unittest.TestCase):
         move.routes = False
         move.public_company = pc
         move.token = Token(token_hex.cities[0], pc, pc.base)
-        gt = self.board.getAvailableTrack(199)  # A fake type for the purpose of this test
-        move.track = gt.rotate(1)
+        generic_test_track = self.board.getAvailableTrack(199)  # A fake type for the purpose of this test
+        move.track = generic_test_track.rotate(1)
         move.track_placement_location = "b18"
 
         mgs = MutableGameState()
@@ -85,7 +84,9 @@ class OperatingRoundMinigame(unittest.TestCase):
 
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
-        mg_or.isValidTrackPlacement(move, mgs)
+        mg_or.constructTrack(move, mgs)
         self.assertEqual(len(mg_or.error_list), 0)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='a17-6'))
+
 
 
