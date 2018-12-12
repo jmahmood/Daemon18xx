@@ -8,7 +8,7 @@ from app.minigames.OperatingRound.operating_round import OperatingRoundMove
 from app.state import MutableGameState
 
 
-class OperatingRoundMinigame(unittest.TestCase):
+class ORBaseClass(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.private_companies = PrivateCompany.load()
@@ -18,20 +18,6 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.all_tracks_types = TrackType.load()
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
-
-    def testGameBoardInitializationTest(self):
-        self.assertTrue(self.board.doesPathExist(start='f24-1', end='f24-2'))
-        self.assertTrue(self.board.doesPathExist(start='f24-1', end='d24-1'))
-        self.assertTrue(self.board.doesPathExist(start='f24-1', end='Boston'))
-        self.assertFalse(self.board.doesPathExist(start='f24-1', end='New York'))
-        pc = self.public_companies[0]
-        self.assertEqual(self.board.game_map.getCompanyTokens(pc), [])
-
-        # Company has not yet placed anything, therefore it shouldn't have much of a graph.
-        company_graph = self.board.game_map.generateCompanyGraph(pc)
-        # This should have all the nodes but none of the edges.
-        self.assertEqual(len(company_graph.nodes), len(self.board.game_map.graph.nodes))
-        self.assertEqual(len(company_graph.edges), 0)
 
     def genericValidTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         move = OperatingRoundMove()
@@ -53,7 +39,6 @@ class OperatingRoundMinigame(unittest.TestCase):
 
         return move, mgs, pc
 
-
     def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (OperatingRoundMove, MutableGameState, PublicCompany):
         move = OperatingRoundMove()
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
@@ -67,6 +52,86 @@ class OperatingRoundMinigame(unittest.TestCase):
 
         return move, mgs, pc
 
+
+class TrainPurchaseTests(ORBaseClass):
+    def testValidPurchase(self):
+        raise NotImplemented()
+
+    # Valid edge cases
+
+    def testValidSameCitiesDifferentRoutes(self):
+        """You can start or end in the same city; that is fine.
+        You only cannot reuse the same tracks to do so (or the same station)"""
+        raise NotImplemented()
+
+    # Invalid conditions
+
+    def testTooPoor(self):
+        raise NotImplemented()
+
+    def testTrainNotAvailable(self):
+        raise NotImplemented()
+
+
+class DividendPaymentTests(ORBaseClass):
+    def testValidDividendPayout(self):
+        raise NotImplemented()
+
+    def testValidHordeCash(self):
+        raise NotImplemented()
+
+    # Valid edge cases
+
+    # Invalid conditions
+
+
+class RouteTests(ORBaseClass):
+    def testValidRoute(self):
+        raise NotImplemented()
+
+    # Valid edge cases
+
+    def testValidSameCitiesDifferentRoutes(self):
+        """You can start or end in the same city; that is fine.
+        You only cannot reuse the same tracks to do so (or the same station)"""
+        raise NotImplemented()
+
+    # Invalid conditions
+
+    def testOnlyOneCity(self):
+        raise NotImplemented()
+
+    def testRouteTooBigForAvailableTrain(self):
+        raise NotImplemented()
+
+    def testRoutesNotDisjoint(self):
+        raise NotImplemented()
+
+    def testStationsNotDisjoint(self):
+        raise NotImplemented()
+
+    def testNoStations(self):
+        raise NotImplemented()
+
+    def testNotEnoughTrainsAvailable(self):
+        raise NotImplemented()
+
+
+class TokenPlacementTests(ORBaseClass):
+    def testGameBoardInitializationTest(self):
+        self.assertTrue(self.board.doesPathExist(start='f24-1', end='f24-2'))
+        self.assertTrue(self.board.doesPathExist(start='f24-1', end='d24-1'))
+        self.assertTrue(self.board.doesPathExist(start='f24-1', end='Boston'))
+        self.assertFalse(self.board.doesPathExist(start='f24-1', end='New York'))
+        pc = self.public_companies[0]
+        self.assertEqual(self.board.game_map.getCompanyTokens(pc), [])
+
+        # Company has not yet placed anything, therefore it shouldn't have much of a graph.
+        company_graph = self.board.game_map.generateCompanyGraph(pc)
+        # This should have all the nodes but none of the edges.
+        self.assertEqual(len(company_graph.nodes), len(self.board.game_map.graph.nodes))
+        self.assertEqual(len(company_graph.edges), 0)
+
     def testValidTokenPlacement(self):
         """If you have no tokens, you must place a token to start"""
 
@@ -76,21 +141,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         self.assertEqual(len(mg_or.error_list), 0)
 
-    def testValidTrackPlacement(self):
-        # CPR uses a gray tile, so it should be inserted from the start
-
-        move, mgs, pc = self.genericValidInitialTokenPlacement()
-        mg_or = OperatingRound()
-        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
-
-        move, mgs, pc = self.genericValidTilePlacement()
-        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
-        mg_or.constructTrack(move, mgs)
-        self.assertEqual(len(mg_or.error_list), 0)
-        self.assertTrue(self.board.doesPathExist(start='Montreal', end='a17-6'))
-
-
-    def testInvalidTrackPlacementFirstPlacementNotBaseStation(self):
+    def testInvalidTokenPlacementFirstPlacementWrongBaseLocation(self):
         """Your first token MUST be placed on your home city"""
         move, mgs, pc = self.genericValidInitialTokenPlacement()
 
@@ -104,7 +155,7 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertIn("Your first token needs to be in your company's base location: {}".format(pc.base),
                       mg_or.error_list)
 
-    def testInvalidTrackPlacementAnotherPublicCompanyToken(self):
+    def testInvalidTokenPlacementAnotherPublicCompanyToken(self):
         """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
         move, mgs, pc = self.genericValidInitialTokenPlacement()
 
@@ -121,7 +172,7 @@ class OperatingRoundMinigame(unittest.TestCase):
 
     # TODO: P2: Check to see if you can correctly place the second track
 
-    def testInvalidTrackPlacementNoTrackExists(self):
+    def testInvalidTokenPlacementNoTrackExists(self):
         """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
         move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
@@ -139,25 +190,126 @@ class OperatingRoundMinigame(unittest.TestCase):
         self.assertIn("There is no track there",
                       mg_or.error_list)
 
-
-    def testInvalidTrackCannotStealHQ(self):
+    def testInvalidTokenPlacementCannotStealHQ(self):
         """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementNoTokensLeft(self):
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementAlreadyHaveStation(self):
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementNoConnecion(self):
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementNoSpaceAvailable(self):
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementNotCity(self):
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementNoTrackNewYorkCentral(self):
+        """New York Central's primary location has no pre-existing track and needs you to place one before you can
+        place your token (I think)"""
+        raise NotImplemented()
+
+    def testInvalidTokenPlacementEerie(self):
+        """Eerie has a special rule that prevents you from placing a tile into Buffalo or Dunkirk until it has already
+        gone public w/ a token of its own"""
+        raise NotImplemented()
+
+    def testInvalidTokenLocationDoesntExist(self):
+        raise NotImplemented()
+
+    def testInvalidTokenLocationIsNotCity(self):
+        raise NotImplemented()
+
+    def testInvalidTokenTooPoor(self):
+        raise NotImplemented()
+
+
+class TrackPlacementTests(ORBaseClass):
+    def setUp(self):
+        super().setUp()
+        self.private_companies = PrivateCompany.load()
+        self.public_companies = PublicCompany.load()
+        self.cities = City.load()
+        self.towns = Town.load()
+        self.all_tracks_types = TrackType.load()
+        self.all_hextypes = MapHexConfig.load()
+        self.board = GameBoard.initialize()
+
+    def testValidInitialTrackPlacement(self):
+        # CPR uses a gray tile, so it should be inserted from the start
+
         move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
-
-        # First placement is executed.
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
 
-        move, mgs, pc = self.genericValidInitialTokenPlacement()
-        mg_or = OperatingRound()
+        move, mgs, pc = self.genericValidTilePlacement()
+        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        mg_or.constructTrack(move, mgs)
+        self.assertEqual(len(mg_or.error_list), 0)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='a17-6'))
 
-        different_pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "B&O")
-        different_pc_token_hex = self.all_hextypes[different_pc.base]
-        move.token = Token(different_pc_token_hex.cities[0], pc, different_pc_token_hex.location)
+    def testInvalidTrackUnavailableTrack(self):
+        raise NotImplemented()
 
-        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
-        self.assertIn("There is no track there",
-                      mg_or.error_list)
+    def testInvalidTrackFirstPlacement(self):
+        raise NotImplemented()
+
+    def testInvalidTrackLocationDoesntExist(self):
+        raise NotImplemented()
+
+    def testInvalidTrackConnectionToNeighbours(self):
+        raise NotImplemented()
+
+    def testValidTrackConnectionToNeighbours(self):
+        raise NotImplemented()
+
+    def testInvalidInitialTrackPlacement(self):
+        raise NotImplemented()
+
+    def testInvalidTrackPlacementCannotStealPrivateCompanyLand(self):
+        raise NotImplemented()
+
+    def testTrackPlacementCanBuildOnOwnedPrivateCompanyLand(self):
+        raise NotImplemented()
+
+    def testInvalidTrackPlacementNoWayToConnectTrack(self):
+        raise NotImplemented()
+
+    def testTrackPlacementValidConnection(self):
+        raise NotImplemented()
+
+    def testInvalidTrackUpgrade(self):
+        raise NotImplemented()
+
+    def testInvalidTrackTooPoor(self):
+        raise NotImplemented()
+
+    def testInvalidTrackCityTooSmall(self):
+        raise NotImplemented()
+
+    def testInvalidTrackCityTooLarge(self):
+        raise NotImplemented()
+
+    def testInvalidTrackTownTooSmall(self):
+        raise NotImplemented()
+
+    def testInvalidTrackTownTooLarge(self):
+        raise NotImplemented()
+
+    def testInvalidTrackConnectionsLost(self):
+        raise NotImplemented()
+
+    def testTrackUpgrade(self):
+        raise NotImplemented()
+
+
+
+
 
 
 

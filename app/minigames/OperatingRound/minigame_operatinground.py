@@ -134,6 +134,7 @@ class OperatingRound(Minigame):
                 False not in all_routes_exist,
                 "You don't have control of that route",
                 state.board.error_list
+
             ),
             (
                 self.atLeasttwoCities(move),
@@ -224,9 +225,20 @@ class OperatingRound(Minigame):
             # ),
         )
 
+    def isValidTrackWithinMap(self, move: OperatingRoundMove, state: MutableGameState):
+        # Notwithstanding connections to other tracks, is it connecting properly within the game board?
+
+        "A tile may not be placed so that a track runs off the grid /"
+        "A tile may not terminate against the blank side of a grey hexagon /"
+        "A tile may not terminate against a solid blue hexside in a lake or river"
+
+        raise NotImplemented()
+
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
         company_stations = game_board.findCompanyTokenCities(move.public_company)
+
+        raise NotImplemented()
 
         inbound_locations = []  # TODO: P2: A list of all possible places from which we can connect to this track.
         # example: A tile on C6 has C6-1, C6-2 (etc).  It may only bind to C6-1 and C6-3 which binds to C4-3 and C8-1
@@ -259,10 +271,7 @@ class OperatingRound(Minigame):
         inbound_outbound_labels = [x.edge_name(placement_track_location) for x, _ in rotated_track_connections] \
                                   + [y.edge_name(placement_track_location) for _, y in rotated_track_connections]
 
-        is_valid_orientation = True # TODO: P4: I don't care about this yet.
-        # # not in [
-        #     game_board.hasExternalConnection(x) for x in inbound_outbound_labels
-        # ]
+        is_valid_orientation = self.isValidTrackWithinMap(move, state)  # TODO: P4: I don't care about this yet.
 
         hex_config = game_board.game_map.mapHexConfig.get(placement_track_location)
 
@@ -273,8 +282,8 @@ class OperatingRound(Minigame):
         return self.validator(
             (
                 placement_track in game_board.game_tracks.available_track,
-                "The track you selected is not available.",
-                placement_track
+                "The track you selected is not available. {}",
+                placement_track.type.type_id
             ),
             (
                 game_board.isValidLocation(placement_track_location),
@@ -282,7 +291,9 @@ class OperatingRound(Minigame):
             ),
             (
                 first_placement or hex_config.track.type.upgrades and placement_track in hex_config.track.type.upgrades,
-                "Someone has already set a tile there"
+                "You cannot replace the current track with the track you selected; current: {}, yours: {}",
+                hex_config.track.type.type_id,
+                placement_track.type.type_id
             ),
             (
                 # Make sure there is a route to the specific location, or you have no other placements?
@@ -292,20 +303,21 @@ class OperatingRound(Minigame):
                 "except in special cases (the base cities of the NYC and Erie, "
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
+            # # These are handled by the "track.type.upgrades" already.
+            # (
+            #     first_placement or
+            #     hex_config.track.type.color != Color.YELLOW and
+            #     move.track.type.color == Color.BROWN,
+            #     "You need to have a yellow tile before laying a brown tile"
+            # ),
+            # (
+            #     first_placement or
+            #     hex_config.track.type.color != Color.BROWN and
+            #     move.track.type.color == Color.RED,
+            #     "You need to have a brown tile before laying a red tile"
+            # ),
             (
-                first_placement or
-                hex_config.track.type.color != Color.YELLOW and
-                move.track.type.color == Color.BROWN,
-                "You need to have a yellow tile before laying a brown tile"
-            ),
-            (
-                first_placement or
-                hex_config.track.type.color != Color.BROWN and
-                move.track.type.color == Color.RED,
-                "You need to have a brown tile before laying a red tile"
-            ),
-            (
-                is_valid_orientation,
+                self.isValidTrackWithinMap(move, state),
                 "A tile may not be placed so that a track runs off the grid /"
                 "A tile may not terminate against the blank side of a grey hexagon /"
                 "A tile may not terminate against a solid blue hexside in a lake or river"
@@ -332,7 +344,7 @@ class OperatingRound(Minigame):
             ),
             (
                 len(hex_config.cities) != 2 or move.track.type.cities == 2,
-                "That location requires you to use a tile that has two city"
+                "That location requires you to use a tile that has two cities"
             ),
             (
                 len(hex_config.towns) != 0 or move.track.type.towns == 0,
@@ -357,7 +369,6 @@ class OperatingRound(Minigame):
             for tpl in sets:
                 ret.add("{}-{}".format(tpl[0].value, tpl[1].value))
         return ret
-
 
     def companyHasARoute(self, pc: PublicCompany, state: MutableGameState) -> bool:
         stations = state.board.findCompanyTokenCities(pc)
