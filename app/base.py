@@ -77,10 +77,6 @@ class Town(City):
     FILES = ["town", "double_town"]
 
 
-class Train:
-    pass
-
-
 class Route(NamedTuple):
     # TODO: P1: Is the route passed directly or do we init it with the info passed in the JSON?
     # TODO: P1: This should be something other than a tuple, as we may want to have convenience methods added to it
@@ -164,7 +160,7 @@ class TrackType(object):
 
     @classmethod
     def load(cls):
-        #TODO: P1: Clarify how we deal with different paths
+        # TODO: P1: Clarify how we deal with different paths
 
         with open(cls.DATA_FILE) as f:
             data = json.load(f)
@@ -172,13 +168,11 @@ class TrackType(object):
         for r in ret:
             # Convert the JSON connections to the correct object type.
 
-              # Some tile types let you have multiple paths, with you only being able to use one of them.
+            # Some tile types let you have multiple paths, with you only being able to use one of them.
             all_possible_connections = []
 
             for possible_pairs in r.connections:
-                connections =  []
-
-
+                connections = []
 
                 for pairs in possible_pairs:
                     connections.append((Position(pairs[0]), Position(pairs[1])))
@@ -337,8 +331,73 @@ class StockStatus(IntEnum):
     BROWN = 4
 
 
+class TrainType(IntEnum):
+    A2TRAIN = 2
+    A3TRAIN = 3
+    A4TRAIN = 4
+    A5TRAIN = 5
+    A6TRAIN = 6
+    DIESEL = 10
+
+
+class Train(object):
+
+    def __init__(self, train: TrainType, price: int, sale_order: int) -> None:
+        super().__init__()
+        self.train = train
+        self.price = price
+        self.sale_order = sale_order
+
+    @staticmethod
+    def all():
+        ret = []
+        for i in range(1, 7):
+            ret.append(Train(
+                TrainType.A2TRAIN,
+                80,
+                i
+            ))
+
+        for i in range(7, 12):
+            ret.append(Train(
+                TrainType.A3TRAIN,
+                180,
+                i
+            ))
+
+        for i in range(12, 16):
+            ret.append(Train(
+                TrainType.A4TRAIN,
+                300,
+                i
+            ))
+
+        for i in range(16, 19):
+            ret.append(Train(
+                TrainType.A5TRAIN,
+                450,
+                i
+            ))
+
+        for i in range(19, 21):
+            ret.append(Train(
+                TrainType.A6TRAIN,
+                630,
+                i
+            ))
+
+        for i in range(21, 31):
+            ret.append(Train(
+                TrainType.DIESEL,
+                1100,
+                i
+            ))
+
+        return ret
+
+
 class PublicCompany:
-    FILES = ["public_companies",]
+    FILES = ["public_companies", ]
 
     @classmethod
     def load(cls):

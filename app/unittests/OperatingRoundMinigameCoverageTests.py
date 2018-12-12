@@ -37,6 +37,7 @@ class ORBaseClass(unittest.TestCase):
         mgs = MutableGameState()
         mgs.board = self.board
 
+
         return move, mgs, pc
 
     def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (OperatingRoundMove, MutableGameState, PublicCompany):
@@ -64,6 +65,24 @@ class TrainPurchaseTests(ORBaseClass):
         You only cannot reuse the same tracks to do so (or the same station)"""
         raise NotImplemented()
 
+    def testTrainBoughtFromOtherCompany(self):
+        raise NotImplemented()
+
+    def testDieselCostsLessWithTradein(self):
+        raise NotImplemented()
+
+    def testPhaseChangeOccursWhileBuyingTrain(self):
+        raise NotImplemented()
+
+    def testCanTradeFirst4TrainForDiesel(self):
+        raise NotImplemented()
+
+    def testExcessTrainsForSale(self):
+        raise NotImplemented()
+
+    def testForcedTrainPurchase(self):
+        raise NotImplemented
+
     # Invalid conditions
 
     def testTooPoor(self):
@@ -72,6 +91,8 @@ class TrainPurchaseTests(ORBaseClass):
     def testTrainNotAvailable(self):
         raise NotImplemented()
 
+    def testTrainLimitExceeded(self):
+        raise NotImplemented()
 
 class DividendPaymentTests(ORBaseClass):
     def testValidDividendPayout(self):
@@ -200,7 +221,7 @@ class TokenPlacementTests(ORBaseClass):
     def testInvalidTokenPlacementAlreadyHaveStation(self):
         raise NotImplemented()
 
-    def testInvalidTokenPlacementNoConnecion(self):
+    def testInvalidTokenPlacementNoConnection(self):
         raise NotImplemented()
 
     def testInvalidTokenPlacementNoSpaceAvailable(self):
