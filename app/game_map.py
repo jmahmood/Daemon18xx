@@ -426,7 +426,6 @@ class GameMap:
 
     def generateGraph(self):
         """Uses MapHexConfig to generate the nx.Graph"""
-        # TODO: P2: Use the tile in MapHexConfig to configure the current values.
         self.graph = nx.Graph()
 
         for hex, val in self.mapHexConfig.items():

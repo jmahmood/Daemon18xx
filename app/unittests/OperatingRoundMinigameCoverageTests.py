@@ -457,15 +457,20 @@ class TrackPlacementTests(ORBaseClass):
         print(mg_or.error_list)
 
     def testInvalidTrackCityTooSmall(self):
-        """Yellow track missing?"""
+        """"AKA: Placing a 1 city tile on a 2 city hex"""
         move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs), mg_or.error_list)
         mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
         move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=198, location="i17", track_rotation=0)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
+        self.assertTrue(self.board.doesPathExist(start='Baltimore', end='i17-3'))
+        mgs.board.game_map.regenerateCompanyGraph(move.public_company)
+        self.assertTrue(self.board.doesRouteExist(move.public_company, start='Baltimore', end='i17-3'))
+        self.assertTrue(self.board.doesPathExist(start='Baltimore', end='h18-6'))
 
         move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=169, location="h18", track_rotation=5)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
@@ -474,10 +479,20 @@ class TrackPlacementTests(ORBaseClass):
             mg_or.error_list
         )
 
-
-
     def testInvalidTrackCityTooLarge(self):
-        raise NotImplemented()
+        """"AKA: Placing a 2 city tile on a 1 city hex"""
+        move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs), mg_or.error_list)
+        mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=179, location="j14", track_rotation=2)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        self.assertIn(
+            "That location requires you to use a tile that has one city",
+            mg_or.error_list
+        )
 
     def testInvalidTrackTownTooSmall(self):
         raise NotImplemented()

@@ -31,6 +31,9 @@ class OperatingRound(Minigame):
         return True
 
     def constructTrack(self, move: OperatingRoundMove, state: MutableGameState):
+        # TODO: P4: Split this into two phases.
+        #  Phase 1: Test adding this track to the company graph.
+        #  Phase 2: At the end of the round, when everything is ok, add it to the graph itself.
         track = move.track
         board = state.board
         if move.construct_track and self.isValidTrackPlacement(move, state):
