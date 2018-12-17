@@ -457,10 +457,23 @@ class TrackPlacementTests(ORBaseClass):
         print(mg_or.error_list)
 
     def testInvalidTrackCityTooSmall(self):
-        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        """Yellow track missing?"""
+        move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
         mg_or = OperatingRound()
-        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs), mg_or.error_list)
         mg_or.purchaseToken(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=198, location="i17", track_rotation=0)
+        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        mg_or.constructTrack(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=169, location="h18", track_rotation=5)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        self.assertIn(
+            "That location requires you to use a tile that has two cities",
+            mg_or.error_list
+        )
+
 
 
     def testInvalidTrackCityTooLarge(self):

@@ -18,19 +18,7 @@ EMPTY_SQUARES = (
 )
 
 GRAY_TILES = [
-    # location, number of tokens, value, *in out pairs
-    # ("d2", 1, 20, 1, 0, (4, "Lansing"), (5, "Lansing")),  # Lansing
-    # ("a17", 0, 0, 0, 0, (5, 6)),
-    # ("a19", 1, 40, 1, 0, (5, "Montreal"), (6, "Montreal")),
-    # ("c15", 0, 10, 0, 1, (1, "Kingston"), (3, "Kingston")),
-    # ("d14", 1, 20, 1, 0, (1, "Rochester"), (4, "Rochester"), (6, "Rochester")),
-    # ("d24", 0, 0, 0, 0, (1, 6)),
-    # ("e9", 0, 0, 0, 0, (2, 3)),
-    # ("f24", 0, 10, 0, 1, (1, "Fall River"), (2, "Fall River")),
-    # ("f6", 1, 30, 1, 0, (5, "Cleveland"), (6, "Cleveland")),
-    # ("h12", 1, 10, 1, 0, (1, "Altoona"), (4, "Altoona"), (1, 4)),
-    # ("i19", 0, 10, 0, 1, (1, "Atlantic City"), (2, "Atlantic City")),
-    # ("k15", 1, 20, 1, 0, (2, "Richmond"))
+    # location, number of tokens, value, cities#, towns#, *in out pairs
     ("d2", 1, 20, 1, 0, (Position.RIGHT, Position.CITY_1), (Position.BOTTOM_RIGHT, Position.CITY_1)),  # Lansing
     ("a17", 0, 0, 0, 0, (Position.BOTTOM_RIGHT, Position.BOTTOM_LEFT)),
     ("a19", 1, 40, 1, 0, (Position.BOTTOM_RIGHT, Position.CITY_1), (Position.BOTTOM_LEFT, Position.CITY_1)),
@@ -49,7 +37,12 @@ GRAY_TILES = [
 ]
 
 STARTER_YELLOW_TILES = [
-
+    ("i15", 1, 30, 0, 0, (Position.BOTTOM_LEFT, Position.CITY_1),
+     (Position.RIGHT, Position.CITY_1)),  # Baltimore
+    ("g19", 2, 40, 2, 0, (Position.TOP_RIGHT, Position.CITY_1),
+     (Position.BOTTOM_LEFT, Position.CITY_2)),  # New York / Newark
+    ("e23", 1, 30, 1, 0, (Position.TOP_RIGHT, Position.CITY_1),
+     (Position.BOTTOM_RIGHT, Position.CITY_1)),  # Boston
 ]
 
 WATER_TILES = [
@@ -117,7 +110,7 @@ class MapHexConfig:
         column = self.location[0]
         row = int(self.location[1:])
         citytown1 = self.cities[0] if len(self.cities) > 0 else None
-        citytown2 = self.cities[2] if len(self.cities) > 1 else None
+        citytown2 = self.cities[1] if len(self.cities) > 1 else None
 
         if self.towns is not None and len(self.towns) > 0:
             citytown1 = self.towns[0] if len(self.towns) > 0 else None
@@ -385,6 +378,24 @@ class GameMap:
         for t in gray_tracks:
             ret.placeTrack(t.type.default_location, t.rotate(0))
 
+        yellow_tracks = Track.GenerateTracks([TrackType(
+            type_id="starter-yellow-{}".format(yellow_track[0]),
+            connections=[list(yellow_track[5:])],
+            copies=1,
+            color=Color.YELLOW,
+            cities=yellow_track[3],
+            towns=yellow_track[4],
+            upgrades=None,
+            city_1_stations=yellow_track[1],
+            city_2_stations=yellow_track[1] if yellow_track[3] == 2 else 0,
+            value=yellow_track[2],
+            default_location=yellow_track[0])
+            for i, yellow_track in enumerate(STARTER_YELLOW_TILES)])
+
+        for t in yellow_tracks:
+            ret.placeTrack(t.type.default_location, t.rotate(0))
+
+
         return ret
 
     def placeTrack(self, location: str, track: Track) -> Track:
@@ -522,7 +533,6 @@ class GameMap:
                     nbunch.add(neighbor)
 
         return company_graph
-
 
     def get(self, location: str) -> MapHexConfig:
         return self.mapHexConfig.get(location)

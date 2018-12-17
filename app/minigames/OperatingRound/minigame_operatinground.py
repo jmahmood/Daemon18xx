@@ -316,19 +316,6 @@ class OperatingRound(Minigame):
                 "except in special cases (the base cities of the NYC and Erie, "
                 "and the hexagons containing the C&SL and D&H Private Companies)"
             ),
-            # # These are handled by the "track.type.upgrades" already.
-            # (
-            #     first_placement or
-            #     hex_config.track.type.color != Color.YELLOW and
-            #     move.track.type.color == Color.BROWN,
-            #     "You need to have a yellow tile before laying a brown tile"
-            # ),
-            # (
-            #     first_placement or
-            #     hex_config.track.type.color != Color.BROWN and
-            #     move.track.type.color == Color.RED,
-            #     "You need to have a brown tile before laying a red tile"
-            # ),
             (
                 self.isValidTrackWithinMap(move, state),
                 "A tile may not be placed so that a track runs off the grid /"
