@@ -27,13 +27,13 @@ class ORBaseClass(unittest.TestCase):
         mg_or.constructTrack(move, mgs)
 
     def genericValidTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
+        if location is None:
+            raise AttributeError(
+                "You must set a location before doing a tile placement. There is no generic tile placement location")
         move = OperatingRoundMove()
 
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
         pc.cash = 500000
-
-        if location is None:
-            location = pc.base
 
         move.construct_track = True  # TODO: P4: Should we call this place_track instead?
         move.public_company = pc
@@ -48,7 +48,8 @@ class ORBaseClass(unittest.TestCase):
 
         return move, mgs, pc
 
-    def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (OperatingRoundMove, MutableGameState, PublicCompany):
+    def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (
+    OperatingRoundMove, MutableGameState, PublicCompany):
         move = OperatingRoundMove()
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
         token_hex = self.all_hextypes[pc.base]
@@ -103,6 +104,7 @@ class TrainPurchaseTests(ORBaseClass):
 
     def testTrainLimitExceeded(self):
         raise NotImplemented()
+
 
 class DividendPaymentTests(ORBaseClass):
     def testValidDividendPayout(self):
@@ -170,7 +172,9 @@ class TokenPlacementTests(ORBaseClass):
         move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(mg_or.error_list), 0)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
     def testInvalidTokenPlacementFirstPlacementWrongBaseLocation(self):
         """Your first token MUST be placed on your home city"""
@@ -234,7 +238,8 @@ class TokenPlacementTests(ORBaseClass):
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 0)
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 1)
-        self.assertFalse(self.board.doesPathExist(start='Montreal', end='Boston')) # TODO: why is this erroring out? i19-3
+        self.assertFalse(
+            self.board.doesPathExist(start='Montreal', end='Boston'))  # TODO: why is this erroring out? i19-3
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
 
         self.executeGenericTilePlacement(location="b18", track_id=198, track_rotation=2)
@@ -309,12 +314,28 @@ class TrackPlacementTests(ORBaseClass):
         move, mgs, pc = self.genericValidInitialTokenPlacement()
         mg_or = OperatingRound()
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement()
+        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
         self.assertEqual(len(mg_or.error_list), 0)
         self.assertTrue(self.board.doesPathExist(start='Montreal', end='a17-6'))
+
+    def testInvalidInitialTrackPlacement(self):
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
+
+        move, mgs, pc = self.genericValidTilePlacement(location="b22", track_rotation=3)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        error = ("Your track needs to connect to your track or it needs to be your originating city, "
+                 "except in special cases (the base cities of the NYC and Erie, "
+                 "and the hexagons containing the C&SL and D&H Private Companies)")
+
+        self.assertIn(error, mg_or.error_list, mg_or.error_list)
 
     def testInvalidTrackUnavailableTrack(self):
         raise NotImplemented()
@@ -329,9 +350,6 @@ class TrackPlacementTests(ORBaseClass):
         raise NotImplemented()
 
     def testValidTrackConnectionToNeighbours(self):
-        raise NotImplemented()
-
-    def testInvalidInitialTrackPlacement(self):
         raise NotImplemented()
 
     def testInvalidTrackPlacementCannotStealPrivateCompanyLand(self):
@@ -376,10 +394,3 @@ class TrackPlacementTests(ORBaseClass):
 
     def testTrackUpgrade(self):
         raise NotImplemented()
-
-
-
-
-
-
-

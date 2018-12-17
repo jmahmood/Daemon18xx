@@ -247,23 +247,22 @@ class OperatingRound(Minigame):
         raise NotImplemented()
 
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
-        game_board = state.board
-        company_stations = game_board.findCompanyTokenCities(move.public_company)
-        return True
-        # TODO
-
-        raise NotImplemented()
-
-        inbound_locations = []  # TODO: P2: A list of all possible places from which we can connect to this track.
         # example: A tile on C6 has C6-1, C6-2 (etc).  It may only bind to C6-1 and C6-3 which binds to C4-3 and C8-1
         # We need to get all these possible connections, and make sure we can connect to any of them.
         # We can shortcut this if the person has no track.
 
+        game_board = state.board
+        company_stations = game_board.findCompanyTokenCities(move.public_company)
+        remote = move.track_placement_location
         for station in company_stations:
-            for inbound_location in inbound_locations:
-                if game_board.doesRouteExist(move.public_company, station.name, inbound_location):
+            for i in range(1, 7):
+                potential_connection = "{}-{}".format(remote, i)
+                if state.board.doesRouteExist(move.public_company,
+                                              station.name,
+                                              potential_connection):
                     return True
         return False
+
 
     def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
@@ -272,6 +271,7 @@ class OperatingRound(Minigame):
         # TODO: P4: Make sure move.track_placement_location is set.
 
         if not move.track_placement_location:
+            self.error_list = ["You need to set a track placement location."]
             return False
 
         rotated_track_connections = [
@@ -305,9 +305,10 @@ class OperatingRound(Minigame):
             ),
             (
                 first_placement or hex_config.track.type.upgrades and placement_track in hex_config.track.type.upgrades,
-                "You cannot replace the current track with the track you selected; current: {}, yours: {}",
+                "You cannot replace the current track with the track you selected; current: {}, yours: {} ({})",
                 "Empty" if not hex_config.track else hex_config.track.type.type_id,
-                placement_track.type.type_id
+                placement_track.type.type_id,
+                move.track_placement_location
             ),
             (
                 # Make sure there is a route to the specific location, or you have no other placements?
