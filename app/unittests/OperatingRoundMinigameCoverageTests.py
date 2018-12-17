@@ -456,7 +456,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         print(mg_or.error_list)
 
-    def testInvalidTrackCityTooSmall(self):
+    def testInvalidTrackCityTooLarge(self):
         """"AKA: Placing a 1 city tile on a 2 city hex"""
         move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
         mg_or = OperatingRound()
@@ -479,7 +479,7 @@ class TrackPlacementTests(ORBaseClass):
             mg_or.error_list
         )
 
-    def testInvalidTrackCityTooLarge(self):
+    def testInvalidTrackCityTooSmall(self):
         """"AKA: Placing a 2 city tile on a 1 city hex"""
         move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
         mg_or = OperatingRound()
@@ -495,7 +495,36 @@ class TrackPlacementTests(ORBaseClass):
         )
 
     def testInvalidTrackTownTooSmall(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="B&O")
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs), mg_or.error_list)
+        mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=9, location="i17", track_rotation=0)
+        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        mg_or.constructTrack(move, mgs)
+        self.assertTrue(self.board.doesPathExist(start='Baltimore', end='i17-4'))
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=159, location="i19", track_rotation=5)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        # You can't upgrade a gray but the error message should come up anyway.
+
+        self.assertIn(
+            "That location requires you to use a tile that has one town",
+            mg_or.error_list)
 
     def testInvalidTrackTownTooLarge(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement(company_short_name="C&O")
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs), mg_or.error_list)
+        mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
+
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name="C&O", track_id=149, location="g7", track_rotation=1)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        # You can't upgrade a gray but the error message should come up anyway.
+
+        self.assertIn(
+            "That location requires you to use a tile that has two towns",
+            mg_or.error_list)
