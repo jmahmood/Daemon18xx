@@ -179,6 +179,9 @@ class OperatingRound(Minigame):
     def isValidTokenPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         token = move.token
         company_stations = state.board.findCompanyTokenCities(move.public_company)
+        all_base_cities = dict((pc.base, pc) for pc in state.public_companies)
+
+        hex_info = state.board.game_map.mapHexConfig.get(token.location)
 
         return self.validator(
             (
@@ -214,6 +217,13 @@ class OperatingRound(Minigame):
                 len(company_stations) < len(move.public_company.token),
                 "There are no remaining tokens for that company"
             ),
+            (
+                move.token.location == move.public_company.base or
+                move.token.location not in all_base_cities or
+                move.token.location in all_base_cities.keys() and hex_info.hasStation(token.city, all_base_cities[token.location]), # If there are two stations in that city, you can take one then.
+                "Tokens may not be placed so as to block the base city of a Corporation which is not yet in operation"
+            ),
+
             # err(
             #     False,
             #     "You cannot place more than one token in one turn"
@@ -227,6 +237,8 @@ class OperatingRound(Minigame):
 
     def isValidTrackWithinMap(self, move: OperatingRoundMove, state: MutableGameState):
         # Notwithstanding connections to other tracks, is it connecting properly within the game board?
+        # TODO
+        return True
 
         "A tile may not be placed so that a track runs off the grid /"
         "A tile may not terminate against the blank side of a grey hexagon /"
@@ -237,6 +249,8 @@ class OperatingRound(Minigame):
     def isValidConnectionToOtherTrack(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
         company_stations = game_board.findCompanyTokenCities(move.public_company)
+        return True
+        # TODO
 
         raise NotImplemented()
 
@@ -292,7 +306,7 @@ class OperatingRound(Minigame):
             (
                 first_placement or hex_config.track.type.upgrades and placement_track in hex_config.track.type.upgrades,
                 "You cannot replace the current track with the track you selected; current: {}, yours: {}",
-                hex_config.track.type.type_id,
+                "Empty" if not hex_config.track else hex_config.track.type.type_id,
                 placement_track.type.type_id
             ),
             (

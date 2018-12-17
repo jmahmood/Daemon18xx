@@ -1,6 +1,7 @@
 import logging
 import string
 from typing import List, Dict, Tuple, Set, Union
+import matplotlib.pyplot as plt
 
 import networkx as nx
 
@@ -115,8 +116,12 @@ class MapHexConfig:
     def get_tile_edges(self) -> List[List[Tuple[str, str]]]:
         column = self.location[0]
         row = int(self.location[1:])
-        city1 = self.cities[0] if len(self.cities) > 0 else None
-        city2 = self.cities[2] if len(self.cities) > 1 else None
+        citytown1 = self.cities[0] if len(self.cities) > 0 else None
+        citytown2 = self.cities[2] if len(self.cities) > 1 else None
+
+        if self.towns is not None and len(self.towns) > 0:
+            citytown1 = self.towns[0] if len(self.towns) > 0 else None
+            citytown2 = self.towns[1] if len(self.towns) > 1 else None
 
         translation = {
             Position.LEFT: "{}{}-{}".format(column, row, 1),
@@ -125,8 +130,8 @@ class MapHexConfig:
             Position.RIGHT: "{}{}-{}".format(column, row, 4),
             Position.BOTTOM_RIGHT: "{}{}-{}".format(column, row, 5),
             Position.BOTTOM_LEFT: "{}{}-{}".format(column, row, 6),
-            Position.CITY_1: city1.name if city1 else None,
-            Position.CITY_2: city2.name if city2 else None
+            Position.CITY_1: citytown1.name if citytown1 else None,
+            Position.CITY_2: citytown2.name if citytown2 else None
         }
 
         tile_edges = self.track.connections()
@@ -134,6 +139,10 @@ class MapHexConfig:
         for possible_connections in tile_edges:
             ret2 = []
             for connection in possible_connections:
+
+                if translation[connection[0]] is None or translation[connection[1]] is None:
+                    raise AttributeError()
+
                 ret2.append(
                     (translation[connection[0]], translation[connection[1]])
                 )
@@ -401,7 +410,7 @@ class GameMap:
 
     def getCompanyGraph(self, pc: PublicCompany):
         if pc not in self.companyGraph.keys():
-            self.companyGraph[pc] = self.generateCompanyGraph(pc)
+            self.regenerateCompanyGraph(pc)
         return self.companyGraph.get(pc)
 
     def generateGraph(self):
@@ -419,9 +428,12 @@ class GameMap:
 
             edges = val.get_edges()
             for point1, point2 in edges:
-                self.graph.add_edge(
+                edges = (
                     """{}{}-{}""".format(*point1),
                     """{}{}-{}""".format(*point2),
+                )
+                self.graph.add_edge(
+                    *edges
                 )
 
             if val.getCities() and len(val.getCities()) > 0:
@@ -466,14 +478,24 @@ class GameMap:
 
         for possible_connection in hex_config.edges:
             for vertex1, vertex2 in possible_connection:
-                g.add_edge(vertex1, vertex2)
+                try:
+                    g.add_edge(vertex1, vertex2)
+                except AttributeError:
+                    raise AttributeError("LOL")
+
+
+    def regenerateCompanyGraph(self, pc: PublicCompany) -> nx.Graph:
+        self.companyGraph[pc] = self.generateCompanyGraph(pc)
+        return self.companyGraph[pc]
 
     def generateCompanyGraph(self, pc: PublicCompany) -> nx.Graph:
         """Takes the overall connectivity graph, and then generates one for the company,
         using its stations as root nodes."""
 
         company_graph = nx.create_empty_copy(self.graph)  # Creates a copy with all nodes, but no edges.
-        nbunch = set([city for location, city in self.getCompanyTokens(pc)])
+
+        nbunch = set([next(n for n in company_graph if n == city.name)
+                      for location, city in self.getCompanyTokens(pc)])
         explored = set()
 
         while len(nbunch.difference(explored)) > 0:
@@ -520,6 +542,14 @@ class GameMap:
     def locations(self):
         return self.mapHexConfig.keys()
 
+    def _showGraph(self):
+        nx.draw_networkx(self.graph,
+                         node_size=15,
+                         pos=nx.spring_layout(self.graph,
+                                              iterations=2500))
+
+        plt.show()
+
 
 class GameTracks:
     """Contains logic that confirms whether or not a track is available, and allows you to place it / etc.."""
@@ -554,10 +584,21 @@ class GameBoard(object):
         ret.game_tracks = GameTracks.initialize()
         return ret
 
+    def shortestPath(self, g: nx.Graph = None, start: str = None, end: str = None):
+        if g is None:
+            g = self.game_map.graph
+        start_node = next(n for n in g if n == start)
+        end_node = next(n for n in g if n == end)
+        return nx.all_shortest_paths(g, start_node, end_node)
+
     def doesPathExist(self, g: nx.Graph = None, start: str = None, end: str = None):
         if g is None:
             g = self.game_map.graph
-        return nx.has_path(g, start, end)
+        # start and end need to be converted to nodes.
+        start_node = next(n for n in g if n == start)
+        end_node = next(n for n in g if n == end)
+
+        return nx.has_path(g, start_node, end_node)
 
     def doesRouteExist(self, pc: PublicCompany, start: str, end: str):
         company_graph = self.game_map.getCompanyGraph(pc)
@@ -603,7 +644,9 @@ class GameBoard(object):
 
     def setToken(self, public_company: PublicCompany, city: City, location: str):
         config = self.game_map.mapHexConfig[location]
-        config.tokens.get(city).add(public_company)
+        all_tokens = config.tokens.get(city, set())
+        all_tokens.add(public_company)
+        config.tokens[city] = all_tokens
 
     def calculateRoute(self, route) -> int:
         # TODO: P2: Calculate the amount of cash someone would make from a route?

@@ -1,4 +1,6 @@
 """Basic coverage"""
+import networkx as nx
+
 from app.base import PublicCompany, Token, Track, City, Town, TrackType, PrivateCompany
 from app.game_map import MapHexConfig, GameBoard
 from app.minigames.OperatingRound.minigame_operatinground import OperatingRound
@@ -19,6 +21,11 @@ class ORBaseClass(unittest.TestCase):
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
 
+    def executeGenericTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
+        move, mgs, pc = self.genericValidTilePlacement(company_short_name, location, track_id, track_rotation)
+        mg_or = OperatingRound()
+        mg_or.constructTrack(move, mgs)
+
     def genericValidTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         move = OperatingRoundMove()
 
@@ -36,7 +43,8 @@ class ORBaseClass(unittest.TestCase):
 
         mgs = MutableGameState()
         mgs.board = self.board
-
+        mgs.public_companies = self.public_companies
+        mgs.private_companies = self.private_companies
 
         return move, mgs, pc
 
@@ -50,6 +58,8 @@ class ORBaseClass(unittest.TestCase):
 
         mgs = MutableGameState()
         mgs.board = self.board
+        mgs.public_companies = self.public_companies
+        mgs.private_companies = self.private_companies
 
         return move, mgs, pc
 
@@ -211,9 +221,41 @@ class TokenPlacementTests(ORBaseClass):
         self.assertIn("There is no track there",
                       mg_or.error_list)
 
+    def testInvalidConnectionBostonAtlanticCity(self):
+        self.assertFalse(self.board.doesPathExist(start='Boston', end='Atlantic City'),
+                         self.board.shortestPath(start="Boston", end="Atlantic City"))
+
     def testInvalidTokenPlacementCannotStealHQ(self):
-        """Public Company #1 cannot place tokens for Public Company #2, even if it is in the correct space."""
-        raise NotImplemented()
+        """Tokens may not be placed so as to block the base city of a Corporation which is not yet in operation"""
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertEqual(len(mg_or.error_list), 0)
+        self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 0)
+        mg_or.purchaseToken(move, mgs)
+        self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 1)
+        self.assertFalse(self.board.doesPathExist(start='Montreal', end='Boston')) # TODO: why is this erroring out? i19-3
+        self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
+
+        self.executeGenericTilePlacement(location="b18", track_id=198, track_rotation=2)
+        self.executeGenericTilePlacement(location="c19", track_id=9, track_rotation=1)
+        self.executeGenericTilePlacement(location="d20", track_id=198, track_rotation=1)
+        self.executeGenericTilePlacement(location="d22", track_id=9, track_rotation=0)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='Boston'))
+
+        move = OperatingRoundMove()
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        token_hex = self.all_hextypes["e23"]
+        move.purchase_token = True
+        move.public_company = pc
+        move.token = Token(token_hex.cities[0], pc, "e23")
+        self.board.game_map.regenerateCompanyGraph(pc)
+
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "Tokens may not be placed so as to block the base city of a Corporation which is not yet in operation",
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementNoTokensLeft(self):
         raise NotImplemented()
@@ -293,6 +335,13 @@ class TrackPlacementTests(ORBaseClass):
         raise NotImplemented()
 
     def testInvalidTrackPlacementCannotStealPrivateCompanyLand(self):
+        """
+        From the rules: 6.2.2 (4) A railroad may not place a tile on a hex containing a private
+        company owned by a player. A railroad may place a tile on a
+        hex containing a private company that is closed or owned by a
+        railroad.
+        :return:
+        """
         raise NotImplemented()
 
     def testTrackPlacementCanBuildOnOwnedPrivateCompanyLand(self):
