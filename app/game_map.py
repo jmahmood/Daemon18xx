@@ -630,11 +630,17 @@ class GameBoard(object):
             return existing_track.type.can_upgrade_to(track.type)
         return False
 
+    def getTrackType(self, track_type_id: str):
+        for track_type in self.game_tracks.ALL_TRACK_TYPES:
+            if track_type.type_id == track_type_id:
+                return track_type
+        return None
+
     def getAvailableTrack(self, track_type_id: str):
         for track in self.game_tracks.available_track:
             if track.type.type_id == track_type_id:
                 return track
-        return None
+        return Track("Unavailable", self.getTrackType(track_type_id), 0)
 
     def placeTrack(self, location: str, track: Track) -> Track:
         """We return the old track so it can be returned to the list of available track types."""
@@ -660,7 +666,12 @@ class GameBoard(object):
         try:
             return 0 if self.game_map.get(location).cost is None else self.game_map.get(location).cost
         except KeyError:
-            raise KeyError("Location {} does not exist in game map".format(location))
+            return 0
+            # raise KeyError("Location {} does not exist in game map".format(location))
+        except AttributeError:
+            # Location doesn't exist on the board.
+            return 0
+            #raise KeyError("Location {} does not exist in game map".format(location))
 
     def validatePlaceTrack(self, track: Track, location: str) -> bool:
         raise NotImplementedError

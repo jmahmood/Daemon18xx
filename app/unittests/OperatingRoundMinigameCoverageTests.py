@@ -31,13 +31,15 @@ class ORBaseClass(unittest.TestCase):
             raise AttributeError(
                 "You must set a location before doing a tile placement. There is no generic tile placement location")
         move = OperatingRoundMove()
+        move.track_type_id = track_id
 
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
         pc.cash = 500000
 
         move.construct_track = True  # TODO: P4: Should we call this place_track instead?
         move.public_company = pc
-        generic_test_track = self.board.getAvailableTrack(track_id)  # A fake type for the purpose of this test
+        generic_test_track = self.board.getAvailableTrack(move.track_type_id)
+
         move.track = generic_test_track.rotate(track_rotation)
         move.track_placement_location = location
 
@@ -49,7 +51,7 @@ class ORBaseClass(unittest.TestCase):
         return move, mgs, pc
 
     def genericValidInitialTokenPlacement(self, company_short_name="CPR") -> (
-    OperatingRoundMove, MutableGameState, PublicCompany):
+            OperatingRoundMove, MutableGameState, PublicCompany):
         move = OperatingRoundMove()
         pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
         token_hex = self.all_hextypes[pc.base]
@@ -238,8 +240,7 @@ class TokenPlacementTests(ORBaseClass):
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 0)
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 1)
-        self.assertFalse(
-        self.board.doesPathExist(start='Montreal', end='Boston'))
+        self.assertFalse(self.board.doesPathExist(start='Montreal', end='Boston'))
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
 
         self.executeGenericTilePlacement(location="b18", track_id=198, track_rotation=2)
@@ -338,19 +339,63 @@ class TrackPlacementTests(ORBaseClass):
         self.assertIn(error, mg_or.error_list, mg_or.error_list)
 
     def testInvalidTrackUnavailableTrack(self):
-        raise NotImplemented()
+        """Uh oh.
 
-    def testInvalidTrackFirstPlacement(self):
-        raise NotImplemented()
+            The way Tracks work is that we get a track id in a JSON file or something like that.
+            However, we need to convert that to a Track, and we appear to be doing that outside
+            the normal validation step.
+        """
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1, track_id=200)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        self.assertIn(
+            """The track you selected is not available. {}""".format("200"),
+            mg_or.error_list,
+            mg_or.error_list,
+        )
 
     def testInvalidTrackLocationDoesntExist(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(location="z99", track_rotation=1, track_id=200)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        self.assertIn(
+            """Your track needs to be on a location that exists""",
+            mg_or.error_list,
+            mg_or.error_list,
+        )
 
     def testInvalidTrackConnectionToNeighbours(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=0)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        error = ("Your track needs to connect to your track or it needs to be your originating city, "
+                 "except in special cases (the base cities of the NYC and Erie, "
+                 "and the hexagons containing the C&SL and D&H Private Companies)")
+
+        self.assertIn(error, mg_or.error_list, mg_or.error_list)
 
     def testValidTrackConnectionToNeighbours(self):
-        raise NotImplemented()
+        """Actually, I was wrong;
+        https://boardgamegeek.com/article/13142170#13142170
+        there is no requirement that a track lay has to connect to any track
+        on another tile - except to preserve connections already present (not
+        applicable in this case as there is no tile there already).
+
+        You don't need to connect to the neighbour tracks.
+        """
+        pass
 
     def testInvalidTrackPlacementCannotStealPrivateCompanyLand(self):
         """
@@ -360,19 +405,46 @@ class TrackPlacementTests(ORBaseClass):
         railroad.
         :return:
         """
+
         raise NotImplemented()
 
     def testTrackPlacementCanBuildOnOwnedPrivateCompanyLand(self):
         raise NotImplemented()
 
-    def testInvalidTrackPlacementNoWayToConnectTrack(self):
-        raise NotImplemented()
+    def testTrackUpgrade(self):
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
 
-    def testTrackPlacementValidConnection(self):
-        raise NotImplemented()
+        self.executeGenericTilePlacement(location="b18", track_rotation=1)
+
+        move, mgs, pc = self.genericValidTilePlacement(track_id=197, location="b18", track_rotation=1)
+        self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
 
     def testInvalidTrackUpgrade(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+
+        self.executeGenericTilePlacement(location="b18", track_rotation=1)
+
+        move, mgs, pc = self.genericValidTilePlacement(track_id=198, location="b18", track_rotation=1)
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        self.assertIn(
+            "Replacement tiles must maintain all previously existing route connections",
+            mg_or.error_list,
+            mg_or.error_list,
+        )
+
+        self.assertIn(
+            "You cannot replace the current track with the track you selected"
+            "; current: {}, yours: {} ({})".format("199", "198", "b18"),
+            mg_or.error_list,
+            mg_or.error_list,
+        )
+
 
     def testInvalidTrackTooPoor(self):
         raise NotImplemented()
@@ -390,7 +462,4 @@ class TrackPlacementTests(ORBaseClass):
         raise NotImplemented()
 
     def testInvalidTrackConnectionsLost(self):
-        raise NotImplemented()
-
-    def testTrackUpgrade(self):
         raise NotImplemented()

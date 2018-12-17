@@ -239,8 +239,6 @@ class OperatingRound(Minigame):
         # Notwithstanding connections to other tracks, is it connecting properly within the game board?
         # TODO
         return True
-
-        "A tile may not be placed so that a track runs off the grid /"
         "A tile may not terminate against the blank side of a grey hexagon /"
         "A tile may not terminate against a solid blue hexside in a lake or river"
 
@@ -262,7 +260,6 @@ class OperatingRound(Minigame):
                                               potential_connection):
                     return True
         return False
-
 
     def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         game_board = state.board
@@ -291,20 +288,21 @@ class OperatingRound(Minigame):
 
         cost = game_board.getCost(move.track_placement_location)
 
-        first_placement = not hex_config.track
+        first_placement = hex_config and not hex_config.track
 
         return self.validator(
-            (
-                placement_track in game_board.game_tracks.available_track,
-                "The track you selected is not available. {}",
-                placement_track.type.type_id
-            ),
             (
                 game_board.isValidLocation(placement_track_location),
                 "Your track needs to be on a location that exists"
             ),
             (
-                first_placement or hex_config.track.type.upgrades and placement_track in hex_config.track.type.upgrades,
+                placement_track in game_board.game_tracks.available_track,
+                "The track you selected is not available. {}",
+                placement_track.type.type_id
+            ),
+        ) and self.validator(  # No use continuing if the top is wrong.
+            (
+                first_placement or hex_config.track and placement_track.type.upgrades and hex_config.track.type.type_id in placement_track.type.upgrades,
                 "You cannot replace the current track with the track you selected; current: {}, yours: {} ({})",
                 "Empty" if not hex_config.track else hex_config.track.type.type_id,
                 placement_track.type.type_id,
@@ -334,8 +332,7 @@ class OperatingRound(Minigame):
             (
                 self.isValidTrackWithinMap(move, state),
                 "A tile may not be placed so that a track runs off the grid /"
-                "A tile may not terminate against the blank side of a grey hexagon /"
-                "A tile may not terminate against a solid blue hexside in a lake or river"
+                "A tile may not terminate against the blank side of a grey hexagon"
             ),
             (
                 cost <= move.public_company.cash,
@@ -374,7 +371,9 @@ class OperatingRound(Minigame):
                 "That location requires you to use a tile that has two towns"
             ),
             (
-                first_placement or self._connection_set(hex_config.track.connections()) <= self._connection_set(move.track.connections()),
+                first_placement or
+                self._connection_set(hex_config.track.connections()) <=
+                self._connection_set(move.track.connections()),
                 "Replacement tiles must maintain all previously existing route connections"
             ),
         )
