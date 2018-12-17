@@ -445,9 +445,17 @@ class TrackPlacementTests(ORBaseClass):
             mg_or.error_list,
         )
 
-
     def testInvalidTrackTooPoor(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
+        mg_or.purchaseToken(move, mgs)
+
+        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1)
+        move.public_company.cash = 15
+        self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
+        print(mg_or.error_list)
+
 
     def testInvalidTrackCityTooSmall(self):
         raise NotImplemented()
