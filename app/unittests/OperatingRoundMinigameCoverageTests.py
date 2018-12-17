@@ -239,7 +239,7 @@ class TokenPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 1)
         self.assertFalse(
-            self.board.doesPathExist(start='Montreal', end='Boston'))  # TODO: why is this erroring out? i19-3
+        self.board.doesPathExist(start='Montreal', end='Boston'))
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
 
         self.executeGenericTilePlacement(location="b18", track_id=198, track_rotation=2)
