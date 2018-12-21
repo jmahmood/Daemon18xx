@@ -31,6 +31,8 @@ class OperatingRound(Minigame):
         return True
 
     def constructTrack(self, move: OperatingRoundMove, state: MutableGameState):
+        # TODO: P1: move.track is depreciated
+
         # TODO: P4: Split this into two phases.
         #  Phase 1: Test adding this track to the company graph.
         #  Phase 2: At the end of the round, when everything is ok, add it to the graph itself.
@@ -85,7 +87,7 @@ class OperatingRound(Minigame):
         ])
 
     def atLeastOneStation(self, move: OperatingRoundMove):
-        station_nodes = set()  # TODO: P1: You can't pass through the same station twice.
+        station_nodes = set()  # TODO: P2: Create the station nodes set.
         for route in move.routes:
             stations = route.full_route.intersection(station_nodes)
             if len(stations) < 1:
@@ -93,7 +95,7 @@ class OperatingRound(Minigame):
         return True
 
     def areStationsDisjoint(self, move: OperatingRoundMove):
-        station_nodes = set()  # TODO: P1: You can't pass through the same station twice.
+        station_nodes = set()
         passed_through = set()
         for route in move.routes:
             stations = route.full_route.intersection(station_nodes)
@@ -103,7 +105,7 @@ class OperatingRound(Minigame):
         return True
 
     def areRoutesDisjoint(self, move: OperatingRoundMove):
-        city_nodes = set()  # TODO: P1: You can pass through the same city nodes but nothing else.
+        city_nodes = set()  # TODO: P2: Create the city nodes set.
         passed_through = set()
         for route in move.routes:
             #
@@ -118,7 +120,7 @@ class OperatingRound(Minigame):
         return True
 
     def atLeasttwoCities(self, move: OperatingRoundMove):
-        city_nodes = set()  # TODO: P1: You can pass through the same city nodes but nothing else.
+        city_nodes = set()  # TODO: P2: Create the city nodes set.
         for route in move.routes:
             if len(route.full_route.intersection(city_nodes)) < 2:
                 return False
@@ -204,7 +206,7 @@ class OperatingRound(Minigame):
             ),
             (
                 len(state.board.getTokens(token.city)) < state.board.maxTokens(token.city),
-                "There are no free spots to place a token: Max ()",
+                "There are no free spots to place a token: Max ({})",
                 state.board.maxTokens(token.city)
             ),
             (move.token.location == move.public_company.base or
@@ -367,7 +369,10 @@ class OperatingRound(Minigame):
                 "Replacement tiles must maintain all previously existing route connections"
             ),
         )
+
     def _connection_set(self, lst: List[List[Tuple[Position, Position]]]):
+        """We use this to create a set of comparable objects to make sure a set of
+        connections are actually a subset of another."""
         ret = set()
         for sets in lst:
             for tpl in sets:

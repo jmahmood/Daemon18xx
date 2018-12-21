@@ -21,12 +21,12 @@ class ORBaseClass(unittest.TestCase):
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
 
-    def executeGenericTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name, location, track_id, track_rotation)
+    def executeGenericTrackPlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name, location, track_id, track_rotation)
         mg_or = OperatingRound()
         mg_or.constructTrack(move, mgs)
 
-    def genericValidTilePlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
+    def genericValidTrackPlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         if location is None:
             raise AttributeError(
                 "You must set a location before doing a tile placement. There is no generic tile placement location")
@@ -243,10 +243,10 @@ class TokenPlacementTests(ORBaseClass):
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Boston'))
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
 
-        self.executeGenericTilePlacement(location="b18", track_id=198, track_rotation=2)
-        self.executeGenericTilePlacement(location="c19", track_id=9, track_rotation=1)
-        self.executeGenericTilePlacement(location="d20", track_id=198, track_rotation=1)
-        self.executeGenericTilePlacement(location="d22", track_id=9, track_rotation=0)
+        self.executeGenericTrackPlacement(location="b18", track_id=198, track_rotation=2)
+        self.executeGenericTrackPlacement(location="c19", track_id=9, track_rotation=1)
+        self.executeGenericTrackPlacement(location="d20", track_id=198, track_rotation=1)
+        self.executeGenericTrackPlacement(location="d22", track_id=9, track_rotation=0)
         self.assertTrue(self.board.doesPathExist(start='Montreal', end='Boston'))
 
         move = OperatingRoundMove()
@@ -264,19 +264,95 @@ class TokenPlacementTests(ORBaseClass):
         )
 
     def testInvalidTokenPlacementNoTokensLeft(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        valid_cities = list(c for c in self.cities if c.name != "Montreal")  # Everything except CPR's home town.
+
+        for i in range(4):
+            self.board.setToken(
+                public_company=cpr,
+                city=valid_cities[i],
+                location=valid_cities[i].location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "There are no remaining tokens for that company",
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementAlreadyHaveStation(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        montreal = list(c for c in self.cities if c.name == "Montreal")[0]  # CPR's home town.
+
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "You cannot put two tokens for the same company in one location",
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementNoConnection(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        montreal = next(c for c in self.cities if c.name == "Montreal")  # CPR's home town.
+        valid_cities = list(c for c in self.cities if c.name != "Montreal")
+
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        move.token = Token(valid_cities[0], cpr, valid_cities[0].location)
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "You cannot connect to the location to place a token",
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementNoSpaceAvailable(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        bo = next(pc1 for pc1 in self.public_companies if pc1.short_name == "B&O")
+        montreal = next(c for c in self.cities if c.name == "Montreal")  # CPR's home town.
+
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        move.token = Token(montreal, bo, montreal.location)
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "There are no free spots to place a token: Max ({})".format(1),
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementNotCity(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        montreal = next(c for c in self.cities if c.name == "Montreal")  # CPR's home town.
+
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        move.token = move._prepareToken(mgs)
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+        self.assertIn(
+            "There are no free spots to place a token: Max ({})".format(1),
+            mg_or.error_list
+        )
 
     def testInvalidTokenPlacementNoTrackNewYorkCentral(self):
         """New York Central's primary location has no pre-existing track and needs you to place one before you can
@@ -317,7 +393,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1)
+        move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=1)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
         self.assertEqual(len(mg_or.error_list), 0)
@@ -330,7 +406,7 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="b22", track_rotation=3)
+        move, mgs, pc = self.genericValidTrackPlacement(location="b22", track_rotation=3)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         error = ("Your track needs to connect to your track or it needs to be your originating city, "
                  "except in special cases (the base cities of the NYC and Erie, "
@@ -350,7 +426,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1, track_id=200)
+        move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=1, track_id=200)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         self.assertIn(
             """The track you selected is not available. {}""".format("200"),
@@ -364,7 +440,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="z99", track_rotation=1, track_id=200)
+        move, mgs, pc = self.genericValidTrackPlacement(location="z99", track_rotation=1, track_id=200)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         self.assertIn(
             """Your track needs to be on a location that exists""",
@@ -378,7 +454,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=0)
+        move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=0)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         error = ("Your track needs to connect to your track or it needs to be your originating city, "
                  "except in special cases (the base cities of the NYC and Erie, "
@@ -417,9 +493,9 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        self.executeGenericTilePlacement(location="b18", track_rotation=1)
+        self.executeGenericTrackPlacement(location="b18", track_rotation=1)
 
-        move, mgs, pc = self.genericValidTilePlacement(track_id=197, location="b18", track_rotation=1)
+        move, mgs, pc = self.genericValidTrackPlacement(track_id=197, location="b18", track_rotation=1)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
 
     def testInvalidTrackUpgrade(self):
@@ -428,9 +504,9 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        self.executeGenericTilePlacement(location="b18", track_rotation=1)
+        self.executeGenericTrackPlacement(location="b18", track_rotation=1)
 
-        move, mgs, pc = self.genericValidTilePlacement(track_id=198, location="b18", track_rotation=1)
+        move, mgs, pc = self.genericValidTrackPlacement(track_id=198, location="b18", track_rotation=1)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         self.assertIn(
             "Replacement tiles must maintain all previously existing route connections",
@@ -451,7 +527,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(mg_or.isValidTokenPlacement(move, mgs))
         mg_or.purchaseToken(move, mgs)
 
-        move, mgs, pc = self.genericValidTilePlacement(location="b18", track_rotation=1)
+        move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=1)
         move.public_company.cash = 15
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         print(mg_or.error_list)
@@ -464,7 +540,7 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=198, location="i17", track_rotation=0)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="B&O", track_id=198, location="i17", track_rotation=0)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
         self.assertTrue(self.board.doesPathExist(start='Baltimore', end='i17-3'))
@@ -472,7 +548,7 @@ class TrackPlacementTests(ORBaseClass):
         self.assertTrue(self.board.doesRouteExist(move.public_company, start='Baltimore', end='i17-3'))
         self.assertTrue(self.board.doesPathExist(start='Baltimore', end='h18-6'))
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=169, location="h18", track_rotation=5)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="B&O", track_id=169, location="h18", track_rotation=5)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         self.assertIn(
             "That location requires you to use a tile that has two cities",
@@ -487,7 +563,7 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=179, location="j14", track_rotation=2)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="B&O", track_id=179, location="j14", track_rotation=2)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         self.assertIn(
             "That location requires you to use a tile that has one city",
@@ -501,12 +577,12 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=9, location="i17", track_rotation=0)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="B&O", track_id=9, location="i17", track_rotation=0)
         self.assertTrue(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         mg_or.constructTrack(move, mgs)
         self.assertTrue(self.board.doesPathExist(start='Baltimore', end='i17-4'))
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="B&O", track_id=159, location="i19", track_rotation=5)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="B&O", track_id=159, location="i19", track_rotation=5)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         # You can't upgrade a gray but the error message should come up anyway.
 
@@ -521,7 +597,7 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
         self.assertEqual(len(self.board.findCompanyTokenCities(move.public_company)), 1)
 
-        move, mgs, pc = self.genericValidTilePlacement(company_short_name="C&O", track_id=149, location="g7", track_rotation=1)
+        move, mgs, pc = self.genericValidTrackPlacement(company_short_name="C&O", track_id=149, location="g7", track_rotation=1)
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         # You can't upgrade a gray but the error message should come up anyway.
 
