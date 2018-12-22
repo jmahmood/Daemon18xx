@@ -201,7 +201,7 @@ class Track(NamedTuple):
         for possibilities in self.type.connections:
             rotated_possibilities = []
             for position_1, position_2 in possibilities:
-                if not isinstance(position_1, Position):
+                if not isinstance(position_1, Position):  # Convert a "number" type into a position (for JSON handling)
                     position_1 = Position(position_1)
                 if not isinstance(position_2, Position):
                     position_2 = Position(position_2)

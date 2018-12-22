@@ -58,6 +58,7 @@ class ORBaseClass(unittest.TestCase):
         move.purchase_token = True
         move.public_company = pc
         move.token = Token(token_hex.cities[0], pc, pc.base)
+        move.token_placement_location = pc.base
 
         mgs = MutableGameState()
         mgs.board = self.board
@@ -186,6 +187,7 @@ class TokenPlacementTests(ORBaseClass):
         different_pc_token_hex = self.all_hextypes[different_pc.base]
 
         move.token = Token(different_pc_token_hex.cities[0], pc, different_pc_token_hex.location)
+        move.token_placement_location = different_pc_token_hex.location
 
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
@@ -200,6 +202,7 @@ class TokenPlacementTests(ORBaseClass):
         different_pc_token_hex = self.all_hextypes[different_pc.base]
 
         move.token = Token(different_pc_token_hex.cities[0], different_pc, different_pc_token_hex.location)
+        move.token_placement_location = different_pc_token_hex.location
 
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
@@ -242,11 +245,26 @@ class TokenPlacementTests(ORBaseClass):
         self.assertEqual(len(mgs.board.findCompanyTokenCities(move.public_company)), 1)
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Boston'))
         self.assertFalse(self.board.doesPathExist(start='Montreal', end='Atlantic City'))
+        self.assertTrue(self.board.doesPathExist(start='d24-1', end='Boston'))
 
         self.executeGenericTrackPlacement(location="b18", track_id=198, track_rotation=2)
+        self.board.game_map.regenerateCompanyGraph(pc)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='c19-2'))
+
         self.executeGenericTrackPlacement(location="c19", track_id=9, track_rotation=1)
+        self.board.game_map.regenerateCompanyGraph(pc)
+
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='c19-2'))
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='c19-5'))
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='d20-2'))
+
         self.executeGenericTrackPlacement(location="d20", track_id=198, track_rotation=1)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='d22-1'))
+        self.board.game_map.regenerateCompanyGraph(pc)
+
         self.executeGenericTrackPlacement(location="d22", track_id=9, track_rotation=0)
+        self.assertTrue(self.board.doesPathExist(start='Montreal', end='d22-1'))
+        self.board.game_map.regenerateCompanyGraph(pc)
         self.assertTrue(self.board.doesPathExist(start='Montreal', end='Boston'))
 
         move = OperatingRoundMove()
@@ -255,6 +273,7 @@ class TokenPlacementTests(ORBaseClass):
         move.purchase_token = True
         move.public_company = pc
         move.token = Token(token_hex.cities[0], pc, "e23")
+        move.token_placement_location = "e23"
         self.board.game_map.regenerateCompanyGraph(pc)
 
         self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
@@ -346,32 +365,83 @@ class TokenPlacementTests(ORBaseClass):
             location=montreal.location)
 
         move, mgs, pc = self.genericValidInitialTokenPlacement()
-        move.token = move._prepareToken(mgs)
+        # Where should we catch this kind of invalid request?
+
+        move.token_placement_location = "h2"
+        move._prepareToken(mgs)
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+
         self.assertIn(
-            "There are no free spots to place a token: Max ({})".format(1),
+            "There are no cities available in that location {}".format(move.token_placement_location),
             mg_or.error_list
         )
 
     def testInvalidTokenPlacementNoTrackNewYorkCentral(self):
         """New York Central's primary location has no pre-existing track and needs you to place one before you can
         place your token (I think)"""
-        raise NotImplemented()
+        # TODO: P3
+        pass
 
     def testInvalidTokenPlacementEerie(self):
         """Eerie has a special rule that prevents you from placing a tile into Buffalo or Dunkirk until it has already
         gone public w/ a token of its own"""
-        raise NotImplemented()
+        # TODO: P3
+        pass
 
     def testInvalidTokenLocationDoesntExist(self):
-        raise NotImplemented()
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        montreal = next(c for c in self.cities if c.name == "Montreal")  # CPR's home town.
 
-    def testInvalidTokenLocationIsNotCity(self):
-        raise NotImplemented()
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+        # Where should we catch this kind of invalid request?
+
+        move.token_placement_location = "a1"
+        move._prepareToken(mgs)
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+
+        self.assertIn(
+            "That is not a valid tile location {}".format(move.token_placement_location),
+            mg_or.error_list
+        )
 
     def testInvalidTokenTooPoor(self):
-        raise NotImplemented()
+
+        cpr = next(pc1 for pc1 in self.public_companies if pc1.short_name == "CPR")
+        montreal = next(c for c in self.cities if c.name == "Montreal")  # CPR's home town.
+
+        self.board.setToken(
+            public_company=cpr,
+            city=montreal,
+            location=montreal.location)
+
+
+        washington = next(c for c in self.cities if c.name == "Washington")  # Second token should cost 40 bucks.
+
+        move, mgs, pc = self.genericValidInitialTokenPlacement()
+
+        move.token_placement_location = washington.location
+        move.token_placement_city = "Washington"
+        move.token = Token(
+            city=washington,
+            public_company=cpr,
+            location=washington.location
+        )
+        move.public_company.cash = 0
+
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTokenPlacement(move, mgs))
+
+        self.assertIn(
+            "Too poor, it costs {} dollars".format(40),
+            mg_or.error_list
+        )
 
 
 class TrackPlacementTests(ORBaseClass):
@@ -455,6 +525,7 @@ class TrackPlacementTests(ORBaseClass):
         mg_or.purchaseToken(move, mgs)
 
         move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=0)
+
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
         error = ("Your track needs to connect to your track or it needs to be your originating city, "
                  "except in special cases (the base cities of the NYC and Erie, "
@@ -530,7 +601,10 @@ class TrackPlacementTests(ORBaseClass):
         move, mgs, pc = self.genericValidTrackPlacement(location="b18", track_rotation=1)
         move.public_company.cash = 15
         self.assertFalse(mg_or.isValidTrackPlacement(move, mgs), mg_or.errors())
-        print(mg_or.error_list)
+        self.assertIn(
+            "Canadian Pacific don't have enough money to build tile there",
+            mg_or.error_list
+        )
 
     def testInvalidTrackCityTooLarge(self):
         """"AKA: Placing a 1 city tile on a 2 city hex"""

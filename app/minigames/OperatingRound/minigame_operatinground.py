@@ -1,3 +1,4 @@
+import logging
 from typing import List, Union, Tuple
 
 from app.base import Token, Route, PublicCompany, PrivateCompany, err, Color, City, Town, Position
@@ -186,9 +187,29 @@ class OperatingRound(Minigame):
         company_stations = state.board.findCompanyTokenCities(move.public_company)
         all_base_cities = dict((pc.base, pc) for pc in state.public_companies)
 
-        hex_info = state.board.game_map.mapHexConfig.get(token.location)
+        hex_info = state.board.game_map.mapHexConfig.get(move.token_placement_location)
+        try:
+            token_cost = move.public_company.token[len(company_stations)]
+        except IndexError:
+            token_cost = 0
 
         return self.validator(
+            (   # Use lazy evaluation for really basic possible errors first.
+                hex_info is not None,
+                "That is not a valid tile location {}",
+                move.token_placement_location
+            ),
+        ) and self.validator(
+            (
+                token_cost < move.public_company.cash,
+                "Too poor, it costs {} dollars",
+                token_cost
+            ),
+            (
+                len(hex_info.cities) > 0,
+                "There are no cities available in that location {}",
+                move.token_placement_location
+            ),
             (
                 move.token.location == move.public_company.base or len(company_stations) > 0,
                 "Your first token needs to be in your company's base location: {}",
@@ -225,7 +246,8 @@ class OperatingRound(Minigame):
             (
                 move.token.location == move.public_company.base or
                 move.token.location not in all_base_cities or
-                move.token.location in all_base_cities.keys() and hex_info.hasStation(token.city, all_base_cities[token.location]), # If there are two stations in that city, you can take one then.
+                move.token.location in all_base_cities.keys() and hex_info.hasStation(
+                    token.city, all_base_cities[token.location]),  # If there are two stations in that city, select one
                 "Tokens may not be placed so as to block the base city of a Corporation which is not yet in operation"
             ),
 
@@ -258,12 +280,20 @@ class OperatingRound(Minigame):
         company_stations = game_board.findCompanyTokenCities(move.public_company)
         remote = move.track_placement_location
         for station in company_stations:
-            for i in range(1, 7):
-                potential_connection = "{}-{}".format(remote, i)
-                if state.board.doesRouteExist(move.public_company,
-                                              station.name,
-                                              potential_connection):
-                    return True
+            # What are the track connections?
+            for potential in move.track.connections():
+                for pair in potential:
+                    for i in pair:
+                        potential_connection = "{}-{}".format(remote, i)
+                        if state.board.doesRouteExist(move.public_company,
+                                                      station.name,
+                                                      potential_connection):
+                            # logging.warning(
+                            #     "Route exists from {} to {}".format(
+                            #         potential_connection, station.name
+                            #     )
+                            # )
+                            return True
         return False
 
     def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):

@@ -604,17 +604,23 @@ class GameBoard(object):
         if g is None:
             g = self.game_map.graph
         # start and end need to be converted to nodes.
-        start_node = next(n for n in g if n == start)
-        end_node = next(n for n in g if n == end)
+        try:
+            start_node = next(n for n in g if n == start)
+            end_node = next(n for n in g if n == end)
 
-        return nx.has_path(g, start_node, end_node)
+            return nx.has_path(g, start_node, end_node)
+        except StopIteration:
+            return False  # This is for nodes that don't exist like i19-6.
 
     def doesRouteExist(self, pc: PublicCompany, start: str, end: str):
         company_graph = self.game_map.getCompanyGraph(pc)
         return self.doesPathExist(company_graph, start, end)
 
     def doesCityRouteExist(self, pc: PublicCompany, start: Union[City, Town], end: Union[City, Town]):
-        return self.doesRouteExist(pc, start.name, end.name)
+        try:
+            return self.doesRouteExist(pc, start.name, end.name)
+        except AttributeError:
+            return False
 
     def hasExternalConnection(self, vertex_label):
         """Determines if it is facing off-board or to a gray tile (IE: violating rules of game)."""
@@ -629,8 +635,8 @@ class GameBoard(object):
         raise NotImplementedError("Add path finding to location")
 
     def hasTrack(self, location: str):
-        config = self.game_map.mapHexConfig[location]
-        return config.track is not None
+        config = self.game_map.mapHexConfig.get(location)
+        return config is not None and config.track is not None
 
     def canUpgradeTrack(self, location: str, track: Track) -> bool:
         """Simplifies process of determining if one track can be replaced with another"""
@@ -686,9 +692,13 @@ class GameBoard(object):
         raise NotImplementedError
 
     def getTokens(self, city: City) -> Set[PublicCompany]:
+        if not city:
+            return set()
         return self.game_map.mapHexConfig[city.map_hex_name].getTokens(city)
 
     def maxTokens(self, city: City) -> int:
+        if not city:
+            return 0
         return self.game_map.mapHexConfig[city.map_hex_name].maxTokens(city)
 
     def findCompanyTokenCities(self, company: PublicCompany) -> List[City]:
