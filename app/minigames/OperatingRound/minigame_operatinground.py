@@ -28,6 +28,7 @@ class OperatingRound(Minigame):
         self.purchaseToken(move, state)
         self.runRoutes(move, state)
         self.payDividends(move, state)
+        self.purchaseTrain(move, state)
 
         return True
 
@@ -68,6 +69,8 @@ class OperatingRound(Minigame):
             move.public_company.incomeToCash()
 
     def purchaseTrain(self, move: OperatingRoundMove, state: MutableGameState):
+        # Check player bankruptcy
+        #
         if move.buy_train and self.isValidTrainPurchase(move, state):
             pass
 

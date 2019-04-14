@@ -1,7 +1,7 @@
 """Basic coverage"""
 import networkx as nx
 
-from app.base import PublicCompany, Token, Track, City, Town, TrackType, PrivateCompany
+from app.base import PublicCompany, Token, Track, City, Town, TrackType, PrivateCompany, Train, TrainType
 from app.game_map import MapHexConfig, GameBoard
 from app.minigames.OperatingRound.minigame_operatinground import OperatingRound
 import unittest
@@ -21,10 +21,26 @@ class ORBaseClass(unittest.TestCase):
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
 
+    def genericValidTrainPurchase(self)  -> (
+            OperatingRoundMove, MutableGameState, PublicCompany):
+        """Create a Train Purchase Action"""
+        move = OperatingRoundMove()
+        move.buy_train = True
+
+        move.train = Train(
+            TrainType.A2TRAIN,
+            50,
+            1
+        )
+
+
+        pass
+
     def executeGenericTrackPlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         move, mgs, pc = self.genericValidTrackPlacement(company_short_name, location, track_id, track_rotation)
         mg_or = OperatingRound()
         mg_or.constructTrack(move, mgs)
+
 
     def genericValidTrackPlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         if location is None:
@@ -68,19 +84,32 @@ class ORBaseClass(unittest.TestCase):
         return move, mgs, pc
 
 
+class BankruptPlayerTrainPurchaseTests(ORBaseClass):
+    def testTrainBoughtFromOtherCompany(self):
+        raise NotImplemented()
+
+    def testForcedTrainPurchase(self):
+        raise NotImplemented
+
+
+
+class PhaseChangeTrainPurchaseTests(ORBaseClass):
+    pass
+
+
 class TrainPurchaseTests(ORBaseClass):
+    """There are some complexities w/ Train purchases; the worst revolve around the bankruptcy case.
+
+    If your company is
+        1. Bankrupt or
+        2. Have no Trains,
+
+    you should get shunted into a different TrainPurchase system.
+    """
     def testValidPurchase(self):
         raise NotImplemented()
 
     # Valid edge cases
-
-    def testValidSameCitiesDifferentRoutes(self):
-        """You can start or end in the same city; that is fine.
-        You only cannot reuse the same tracks to do so (or the same station)"""
-        raise NotImplemented()
-
-    def testTrainBoughtFromOtherCompany(self):
-        raise NotImplemented()
 
     def testDieselCostsLessWithTradein(self):
         raise NotImplemented()
@@ -93,9 +122,6 @@ class TrainPurchaseTests(ORBaseClass):
 
     def testExcessTrainsForSale(self):
         raise NotImplemented()
-
-    def testForcedTrainPurchase(self):
-        raise NotImplemented
 
     # Invalid conditions
 

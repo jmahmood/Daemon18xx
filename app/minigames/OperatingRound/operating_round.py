@@ -1,6 +1,6 @@
 from typing import List
 
-from app.base import Move, Track, Token, Route, PublicCompany, TrackType
+from app.base import Move, Track, Token, Route, PublicCompany, TrackType, Train, TrainType
 from app.state import MutableGameState
 
 
@@ -24,6 +24,10 @@ class OperatingRoundMove(Move):
         self.track_type: TrackType = None
         self.track_placement_location: str = None
         self.track_type_id: str = None
+        self.train: Train = None
+        self.train_type: TrainType = None
+        self.train_cost: int = None
+        self.train_order: int = None
 
     def backfill(self, state) -> None:
         """This can throw an error if you sent it something wrong.
