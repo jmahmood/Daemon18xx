@@ -9,7 +9,7 @@ from typing import NamedTuple, List, Set, Dict, Tuple, Union
 from app.minigames.StockRound.const import STOCK_MARKET
 
 BASE_DIR = "/home/jawaad/Daemon18xx/"
-
+BASE_DIR = "/Users/jawaad/PycharmProjects/Daemon1830/"
 DATA_DIR = os.path.join(BASE_DIR, "app/data")
 
 # type_id: [type_id....]
@@ -437,6 +437,7 @@ class PublicCompany:
         self.stock_status = StockStatus.NORMAL
 
         self.token: List[int] = []  # Cost for each subsequent token / station
+        self.trains: List[Train] = []
 
     @staticmethod
     def initiate(**kwargs):

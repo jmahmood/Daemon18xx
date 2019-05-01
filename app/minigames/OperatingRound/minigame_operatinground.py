@@ -70,25 +70,38 @@ class OperatingRound(Minigame):
 
     def purchaseTrain(self, move: OperatingRoundMove, state: MutableGameState):
         # Check player bankruptcy
-        #
-        if move.buy_train and self.isValidTrainPurchase(move, state):
-            pass
+        # TODO: How to make sure this is only executed if things are OK?
+
+        if move.buy_train:
+            move.public_company.trains.append(
+                move.train
+            )
+            state.unavailable_trains.append(move.train)
+            state.trains = list(set(state.trains) - set(state.unavailable_trains))
+
 
     def isValidPaymentOption(self, move: OperatingRoundMove, state: MutableGameState):
         # TODO: Validate the payment (to players or to company)
         return self.validate([])
 
     def isValidTrainPurchase(self, move: OperatingRoundMove, state: MutableGameState):
-        return self.validate([
-            err(
-                False,
-                "You don't have enough money"
-            ),
-            err(
-                False,
+
+        self.train = next(train for train in state.trains if train.train == move.train_type)
+
+        return self.validator( # Short circuit for screwed up situation.
+            (
+                self.train is not None,
                 "That train is not for sale"
             ),
-        ])
+        ) and self.validator(
+            (
+                move.public_company.cash > self.train.price,
+                "You don't have enough money {} (price: {})",
+                move.public_company.cash, self.train.price
+            ),
+            # You own too many trains
+            #
+        )
 
     def atLeastOneStation(self, move: OperatingRoundMove):
         station_nodes = set()  # TODO: P2: Create the station nodes set.

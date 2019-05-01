@@ -26,9 +26,9 @@ class MutableGameState:
         self.stock_round_last_buyer_seller_id: str = None
         self.players: List[Player] = None
 
-        self.trains: List[Train] = None  # A list of trains that are available
-        self.rusted_trains: List[Train] = None # Trains that have rusted
-        self.unavailable_trains: List[Train] = None # Trains that have not yet been made available
+        self.trains: List[Train] = []  # A list of trains that are available
+        self.rusted_trains: List[Train] = [] # Trains that have rusted
+        self.unavailable_trains: List[Train] = [] # Trains that have not yet been made available
 
         # [Phase:[Turn, Turn, Turn], Phase: [Turn, Turn, Turn]]
         self.operating_round_turn: int = 0  # Turns within a single operating round.

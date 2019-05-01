@@ -1,7 +1,7 @@
 import logging
 import string
 from typing import List, Dict, Tuple, Set, Union
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 import networkx as nx
 
@@ -557,7 +557,7 @@ class GameMap:
                          pos=nx.spring_layout(self.graph,
                                               iterations=2500))
 
-        plt.show()
+        #  plt.show()
 
 
 class GameTracks:

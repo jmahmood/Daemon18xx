@@ -21,20 +21,33 @@ class ORBaseClass(unittest.TestCase):
         self.all_hextypes = MapHexConfig.load()
         self.board = GameBoard.initialize()
 
-    def genericValidTrainPurchase(self)  -> (
+    def genericValidTrainPurchase(self, company_short_name="CPR",)  -> (
             OperatingRoundMove, MutableGameState, PublicCompany):
         """Create a Train Purchase Action"""
         move = OperatingRoundMove()
+        pc = next(pc1 for pc1 in self.public_companies if pc1.short_name == company_short_name)
+        move.public_company = pc
         move.buy_train = True
-
-        move.train = Train(
-            TrainType.A2TRAIN,
-            50,
-            1
-        )
+        move.train_type = TrainType.A2TRAIN
+        move.train_cost = 0  # The cost becomes the default cost.
+        move.public_company.cash = 500000
 
 
-        pass
+        mgs = MutableGameState()
+        mgs.board = self.board
+        mgs.public_companies = self.public_companies
+        mgs.private_companies = self.private_companies
+
+
+        mgs.trains = [
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1)
+        ]
+
+
+        return move, mgs, pc
+
 
     def executeGenericTrackPlacement(self, company_short_name="CPR", location=None, track_id=199, track_rotation=0):
         move, mgs, pc = self.genericValidTrackPlacement(company_short_name, location, track_id, track_rotation)
@@ -84,6 +97,7 @@ class ORBaseClass(unittest.TestCase):
         return move, mgs, pc
 
 
+
 class BankruptPlayerTrainPurchaseTests(ORBaseClass):
     def testTrainBoughtFromOtherCompany(self):
         raise NotImplemented()
@@ -106,8 +120,47 @@ class TrainPurchaseTests(ORBaseClass):
 
     you should get shunted into a different TrainPurchase system.
     """
+    def testTrainDifference(self):
+        trains = [
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1)
+        ]
+
+        buy_train = [next(t for t in trains if t.train == TrainType.A2TRAIN)]
+
+        trains = list(set(trains) - set(buy_train))
+        self.assertEqual(len(trains), 2)
+
+
+
     def testValidPurchase(self):
-        raise NotImplemented()
+        move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
+
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
+
+        move._prepareTrain(mgs)
+
+        self.assertIsNotNone(move.train)
+        self.assertNotIn(move.train, move.public_company.trains)
+        self.assertNotIn(move.train, mgs.unavailable_trains)
+        self.assertIn(move.train, mgs.trains)
+
+        mg_or.purchaseTrain(move, mgs)
+        self.assertIn(move.train, move.public_company.trains)
+        self.assertIn(move.train, mgs.unavailable_trains)
+        self.assertNotIn(move.train, mgs.trains)
+
+    # Invalid conditions
+    def testTooPoor(self):
+        move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
+        move.public_company.cash = 10
+
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
+
+
 
     # Valid edge cases
 
@@ -123,10 +176,6 @@ class TrainPurchaseTests(ORBaseClass):
     def testExcessTrainsForSale(self):
         raise NotImplemented()
 
-    # Invalid conditions
-
-    def testTooPoor(self):
-        raise NotImplemented()
 
     def testTrainNotAvailable(self):
         raise NotImplemented()

@@ -2,8 +2,6 @@ from typing import List
 
 from app.base import Move, Track, Token, Route, PublicCompany, TrackType, Train, TrainType
 from app.state import MutableGameState
-
-
 class OperatingRoundMove(Move):
     def __init__(self):
         super().__init__()
@@ -37,6 +35,13 @@ class OperatingRoundMove(Move):
         self._prepareCompany(state)
         self._prepareToken(state)
         self._prepareTrack(state)
+        self._prepareTrain(state)
+
+    def _prepareTrain(self, game_state: MutableGameState):
+        # TODO: How to handle invalid input?
+        if self.buy_train:
+            self.train = next(train for train in game_state.trains if train.train == self.train_type)
+
 
     def _prepareCompany(self, game_state: MutableGameState):
         self.public_company = next(pc for pc in game_state.public_companies
