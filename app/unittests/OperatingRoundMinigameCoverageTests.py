@@ -133,7 +133,6 @@ class TrainPurchaseTests(ORBaseClass):
         self.assertEqual(len(trains), 2)
 
 
-
     def testValidPurchase(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
 
@@ -152,6 +151,8 @@ class TrainPurchaseTests(ORBaseClass):
         self.assertIn(move.train, mgs.unavailable_trains)
         self.assertNotIn(move.train, mgs.trains)
 
+        self.assertEqual(move.public_company.cash, 500000 - 20)
+
     # Invalid conditions
     def testTooPoor(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
@@ -160,6 +161,14 @@ class TrainPurchaseTests(ORBaseClass):
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
 
+    # Invalid conditions
+    def testDoesntExist(self):
+        move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
+        move.public_company.cash = 10
+        move.train_type = 89
+
+        mg_or = OperatingRound()
+        self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
 
 
     # Valid edge cases

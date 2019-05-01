@@ -78,6 +78,7 @@ class OperatingRound(Minigame):
             )
             state.unavailable_trains.append(move.train)
             state.trains = list(set(state.trains) - set(state.unavailable_trains))
+            move.public_company.cash = move.public_company.cash - move.train.price
 
 
     def isValidPaymentOption(self, move: OperatingRoundMove, state: MutableGameState):
@@ -85,13 +86,16 @@ class OperatingRound(Minigame):
         return self.validate([])
 
     def isValidTrainPurchase(self, move: OperatingRoundMove, state: MutableGameState):
-
-        self.train = next(train for train in state.trains if train.train == move.train_type)
+        try:
+            self.train = next(train for train in state.trains if train.train == move.train_type)
+        except StopIteration:
+            self.train = None
 
         return self.validator( # Short circuit for screwed up situation.
             (
                 self.train is not None,
-                "That train is not for sale"
+                "That train is not for sale; {}",
+                move.train_type
             ),
         ) and self.validator(
             (
