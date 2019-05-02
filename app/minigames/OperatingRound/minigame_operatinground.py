@@ -498,7 +498,6 @@ class OperatingRound(Minigame):
 
     @staticmethod
     def onTurnComplete(state: MutableGameState) -> None:
-        # Check all the other companies for rusted trains
         super().onTurnComplete(state)
 
     @staticmethod

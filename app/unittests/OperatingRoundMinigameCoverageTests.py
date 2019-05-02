@@ -176,7 +176,6 @@ class TrainPurchaseTests(ORBaseClass):
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
 
-
     def testPresidentPaysToo(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
         move.public_company.cash = 10
@@ -193,7 +192,6 @@ class TrainPurchaseTests(ORBaseClass):
         self.assertEqual(move.public_company.president.cash, 0)
 
 
-    # Invalid conditions
     def testTrainNotAvailable(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
         move.public_company.cash = 10
@@ -201,6 +199,16 @@ class TrainPurchaseTests(ORBaseClass):
 
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
+
+
+    def testTrainsRust(self):
+        pass
+
+    def testPurchaseOpenMarketTrain(self):
+        pass
+
+    def testPurchaseOtherCompanyTrain(self):
+        pass
 
     #
     # # Valid edge cases
