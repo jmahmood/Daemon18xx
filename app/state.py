@@ -33,9 +33,14 @@ class MutableGameState:
         # [Phase:[Turn, Turn, Turn], Phase: [Turn, Turn, Turn]]
         self.operating_round_turn: int = 0  # Turns within a single operating round.
         self.operating_round_phase: int = 1  # Turns within a single operating round.
+        # operating_round_phase != game phase.
+
+
 
         self.total_operating_round_phases: int = 1 # How many times the operating round needs to be repeated.
         self.total_operating_rounds: int = 1
+
+        self.game_phase: int = 1  # The phase, as in 3.1 -> 3.7 in the instruction book
 
     def isAnotherCompanyWaiting(self):
         """This is used to message the player order system to see if there is

@@ -8,6 +8,7 @@ import unittest
 
 from app.minigames.OperatingRound.operating_round import OperatingRoundMove
 from app.state import MutableGameState
+from app.unittests.PrivateCompanyMinigameTests import fake_player
 
 
 class ORBaseClass(unittest.TestCase):
@@ -32,9 +33,14 @@ class ORBaseClass(unittest.TestCase):
         move.train_cost = 0  # The cost becomes the default cost.
         move.public_company.cash = 500000
 
+        MutableGameState.players = [fake_player("A", 2000), fake_player("B", 2000), fake_player("C", 3000)]
+
+        move.public_company.president = MutableGameState.players[0]
+
 
         mgs = MutableGameState()
         mgs.board = self.board
+        mgs.game_phase = 2
         mgs.public_companies = self.public_companies
         mgs.private_companies = self.private_companies
 
@@ -110,6 +116,14 @@ class BankruptPlayerTrainPurchaseTests(ORBaseClass):
 class PhaseChangeTrainPurchaseTests(ORBaseClass):
     pass
 
+    def testExcessTrainsForSale(self):
+        raise NotImplemented()
+
+
+class TrainMultiplePurchaseTests(ORBaseClass):
+    # When I developed this, I was under the mistaken impression that you could only
+    # buy one train at a time.  Whoops.
+    pass
 
 class TrainPurchaseTests(ORBaseClass):
     """There are some complexities w/ Train purchases; the worst revolve around the bankruptcy case.
@@ -157,12 +171,30 @@ class TrainPurchaseTests(ORBaseClass):
     def testTooPoor(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
         move.public_company.cash = 10
+        move.public_company.president.cash = 0
 
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
 
+
+    def testPresidentPaysToo(self):
+        move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
+        move.public_company.cash = 10
+        move.public_company.president.cash = 10
+
+        mg_or = OperatingRound()
+        self.assertTrue(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
+
+        move._prepareTrain(mgs)
+
+        mg_or.purchaseTrain(move, mgs)
+
+        self.assertEqual(move.public_company.cash, 0)
+        self.assertEqual(move.public_company.president.cash, 0)
+
+
     # Invalid conditions
-    def testDoesntExist(self):
+    def testTrainNotAvailable(self):
         move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
         move.public_company.cash = 10
         move.train_type = 89
@@ -170,27 +202,42 @@ class TrainPurchaseTests(ORBaseClass):
         mg_or = OperatingRound()
         self.assertFalse(mg_or.isValidTrainPurchase(move, mgs), mg_or.error_list)
 
-
-    # Valid edge cases
-
-    def testDieselCostsLessWithTradein(self):
-        raise NotImplemented()
-
-    def testPhaseChangeOccursWhileBuyingTrain(self):
-        raise NotImplemented()
-
-    def testCanTradeFirst4TrainForDiesel(self):
-        raise NotImplemented()
-
-    def testExcessTrainsForSale(self):
-        raise NotImplemented()
+    #
+    # # Valid edge cases
+    #
+    # def testDieselCostsLessWithTradein(self):
+    #     raise NotImplemented()
+    #
+    # def testPhaseChangeOccursWhileBuyingTrain(self):
+    #     raise NotImplemented()
+    #
+    # def testCanTradeFirst4TrainForDiesel(self):
+    #     raise NotImplemented()
 
 
-    def testTrainNotAvailable(self):
-        raise NotImplemented()
 
     def testTrainLimitExceeded(self):
-        raise NotImplemented()
+        # phase = 2
+        move, mgs, pc = self.genericValidTrainPurchase(company_short_name="B&O")
+        move.public_company.cash = 50
+        move.train_type = 2
+
+        mg_or = OperatingRound()
+
+        move.public_company.trains = [
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1),
+            Train(TrainType.A2TRAIN, 20, 1)
+        ]
+
+        self.assertFalse(mg_or.isValidTrainPurchase(move, mgs),
+                         "Company already has {} trains; it is phase {}".format(
+                            len(move.public_company.trains),
+                            mgs.game_phase
+                            )
+                         )
+
 
 
 class DividendPaymentTests(ORBaseClass):

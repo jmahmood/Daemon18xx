@@ -8,6 +8,16 @@ from app.minigames.base import Minigame, MinigameFlow
 from app.state import MutableGameState
 
 
+TRAIN_LIMITS = {
+    1 : 0,
+    2 : 4,
+    3 : 4,
+    4 : 3,
+    5 : 2,
+    6 : 2,
+    7 : 2
+}
+
 class OperatingRound(Minigame):
 
     def __init__(self):
@@ -79,6 +89,9 @@ class OperatingRound(Minigame):
             state.unavailable_trains.append(move.train)
             state.trains = list(set(state.trains) - set(state.unavailable_trains))
             move.public_company.cash = move.public_company.cash - move.train.price
+            if move.public_company.cash < 0:
+                move.public_company.president.cash += move.public_company.cash
+                move.public_company.cash = 0
 
 
     def isValidPaymentOption(self, move: OperatingRoundMove, state: MutableGameState):
@@ -99,10 +112,16 @@ class OperatingRound(Minigame):
             ),
         ) and self.validator(
             (
-                move.public_company.cash > self.train.price,
-                "You don't have enough money {} (price: {})",
-                move.public_company.cash, self.train.price
+                move.public_company.cash + move.public_company.president.cash >= self.train.price,
+                "You don't have enough money {} and {} (price: {})",
+                move.public_company.cash, move.public_company.president.cash, self.train.price
             ),
+            (
+                TRAIN_LIMITS[state.game_phase] > len(move.public_company.trains),
+                "You have too many trains ({}) for the phase ({})",
+                len(move.public_company.trains),
+                state.game_phase
+            )
             # You own too many trains
             #
         )
