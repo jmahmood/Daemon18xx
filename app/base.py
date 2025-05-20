@@ -1,3 +1,4 @@
+import os
 import uuid
 from enum import Enum
 from functools import reduce
@@ -316,7 +317,6 @@ class PrivateCompany:
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
-        import os
         data_path = os.path.join(os.path.dirname(__file__), 'data', 'private_companies')
         with open(data_path) as f:
             content = f.readlines()
