@@ -1,3 +1,4 @@
+import os
 import uuid
 from enum import Enum
 from functools import reduce
@@ -287,7 +288,7 @@ class PublicCompany:
         return self._floated
 
     def hasNoTrains(self) -> bool:
-        return len(self.trains) > 0
+        return len(self.trains) == 0
 
     def hasValidRoute(self) -> bool:
         # TODO You need to have a train if you have a valid route
@@ -316,7 +317,8 @@ class PrivateCompany:
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
-        with open('/Users/jawaad/PycharmProjects/Daemon1830/app/data/private_companies') as f:
+        data_path = os.path.join(os.path.dirname(__file__), 'data', 'private_companies')
+        with open(data_path) as f:
             content = f.readlines()
         return [PrivateCompany.initiate(*c.strip().split("|")) for c in content]
 
