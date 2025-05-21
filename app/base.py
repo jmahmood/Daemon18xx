@@ -45,15 +45,20 @@ class Color(Enum):
 
 
 class Train:
-    pass
+    def __init__(self, train_type: str, cost: int, rusts_on: str = None):
+        self.type = train_type
+        self.cost = cost
+        self.rusts_on = rusts_on
 
 
 class Route(NamedTuple):
-    pass
+    stops: List[str]
 
 
 class Token(NamedTuple):
-    pass
+    company: 'PublicCompany'
+    location: str
+    cost: int = 0
 
 
 class Track(NamedTuple):
@@ -141,17 +146,16 @@ class StockStatus(Enum):
 class GameBoard:
     def __init__(self):
         self.board = {}
+        self.tokens = {}
 
     def setTrack(self, track: Track):
         self.board[track.location] = track
-        pass
 
     def setToken(self, token: Token):
-        # TODO
-        pass
+        self.tokens.setdefault(token.location, []).append(token)
 
     def calculateRoute(self, route) -> int:
-        pass
+        return len(route.stops) * 10
 
 
 class PublicCompany:
