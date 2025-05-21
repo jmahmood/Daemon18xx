@@ -9,6 +9,12 @@ This is a quiet experiment with implementing the rules as a daemon in Python.
 With some effort, I assume different front-ends will be able to hook into the Daemon, giving us much more flexibility
 when creating front ends for the game.
 
+
+Recent updates include initial handling of bankrupt companies when trains rust.
+Public companies now track placed station tokens and expose a ``hasValidRoute``
+helper used during operating rounds to determine whether a company can continue
+operating once its trains are gone.
+
 ## Configuration Modules
 
 Each game variant under `app/config/` exposes a configuration module. In

@@ -27,7 +27,10 @@ class OperatingRoundMove(Move):
 
 
 class RustedTrainMove(Move):
-    pass
+    def __init__(self):
+        super().__init__()
+        self.public_company: PublicCompany = None
+        self.train: Train = None
 
 
 class OperatingRound(Minigame):
@@ -39,6 +42,8 @@ class OperatingRound(Minigame):
     def run(self, move: OperatingRoundMove, game_state: MutableGameState, **extra) -> bool:
         move.backfill(game_state)
         move.board = extra.get("board")
+        # Store board for later checks during ``next``
+        self.board = move.board
 
         if move.construct_track and not self.isValidTrackPlacement(move) or \
             move.purchase_token and not self.isValidTokenPlacement(move) or \
@@ -200,8 +205,10 @@ class OperatingRound(Minigame):
         if self.rusted_train_type:
             for pc in public_companies:
                 pc.removeRustedTrains(self.rusted_train_type)
-                if pc.hasNoTrains() and not pc.hasValidRoute():
+                if pc.hasNoTrains() and not pc.hasValidRoute(getattr(self, "board", None)):
                     return "TrainsRusted"
+            # Clear the rust event after processing
+            self.rusted_train_type = None
 
         # Do we have another operating round?
         if kwargs.get("playerTurn").anotherCompanyWaiting():
@@ -242,10 +249,37 @@ class OperatingRound(Minigame):
 
 class TrainsRusted(Minigame):
     """Your trains rusted and you have nothing left.  Absolutely not kosher."""
-    # TODO: Works like an auction.  How are we modelling auctions elsewhere?
+    # Very simplified emergency train purchase / bankruptcy logic.
+
+    def __init__(self):
+        super().__init__()
+        self.bankrupt = False
 
     def next(self, **kwargs) -> str:
-        pass
+        """Return to the operating round unless the company is bankrupt."""
+        current_or = kwargs.get("currentOperatingRound", "")
+        if self.bankrupt:
+            return "StockRound"
+        return f"OperatingRound{current_or}"
 
-    def run(self, move: Move, **kwargs) -> bool:
-        pass
+    def run(self, move: RustedTrainMove, state: MutableGameState, **kwargs) -> bool:
+        """Attempt to acquire a train for a company with none remaining."""
+        move.backfill(state)
+        company = move.public_company
+        train = move.train
+
+        if company.cash >= train.cost:
+            company.cash -= train.cost
+        elif company.cash + company.president.cash >= train.cost:
+            diff = train.cost - company.cash
+            company.president.cash -= diff
+            company.cash = 0
+        else:
+            company.bankrupt = True
+            self.bankrupt = True
+            return True
+
+        if company.trains is None:
+            company.trains = []
+        company.trains.append(train)
+        return True
