@@ -23,16 +23,16 @@ class StockRoundMove(Move):
     def find_public_company(self, public_company_id: str, kwargs: MutableGameState):
         return next(pc for pc in kwargs.public_companies if pc.id == public_company_id)
 
-    def backfill(self, kwargs: MutableGameState) -> None:
-        super().backfill(kwargs)
+    def backfill(self, game_state: MutableGameState) -> None:
+        super().backfill(game_state)
         if self.move_type not in [StockRoundType.PASS, StockRoundType.SELL]:
-            self.public_company = self.find_public_company(self.public_company_id, kwargs)
+            self.public_company = self.find_public_company(self.public_company_id, game_state)
 
         if self.move_type not in [StockRoundType.PASS, StockRoundType.BUY]:
             self.for_sale = []
             if self.for_sale_raw is not None:
                 for company_id, amount in self.for_sale_raw:
-                    self.for_sale.append((self.find_public_company(company_id, kwargs), amount))
+                    self.for_sale.append((self.find_public_company(company_id, game_state), amount))
 
     @staticmethod
     def fromMove(move: "Move") -> "StockRoundMove":

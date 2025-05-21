@@ -1,6 +1,6 @@
 from typing import List
 
-from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany
+from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany, Train, Color, MutableGameState, err
 from app.minigames.base import Minigame
 
 
@@ -21,6 +21,7 @@ class OperatingRoundMove(Move):
         self.public_company: PublicCompany = None
         self.token: Token = None
         self.track: Track = None
+        self.train: Train = None
 
     pass
 
@@ -35,8 +36,9 @@ class OperatingRound(Minigame):
         self.rusted_train_type: str = None
         self.trains_rusted: str = None
 
-    def run(self, move: OperatingRoundMove, **kwargs) -> bool:
-        move.backfill(**kwargs)
+    def run(self, move: OperatingRoundMove, game_state: MutableGameState, **extra) -> bool:
+        move.backfill(game_state)
+        move.board = extra.get("board")
 
         if move.construct_track and not self.isValidTrackPlacement(move) or \
             move.purchase_token and not self.isValidTokenPlacement(move) or \
@@ -45,10 +47,11 @@ class OperatingRound(Minigame):
             move.buy_train and not self.isValidTrainPurchase(move):
             return False
 
-        self.constructTrack(move, **kwargs)
-        self.purchaseToken(move, **kwargs)
-        self.runRoutes(move, **kwargs)
-        self.payDividends(move, **kwargs)
+        self.constructTrack(move, **extra)
+        self.purchaseToken(move, **extra)
+        self.runRoutes(move, **extra)
+        self.payDividends(move, **extra)
+        self.purchaseTrain(move)
 
         return True
 
@@ -57,12 +60,14 @@ class OperatingRound(Minigame):
         board: GameBoard = kwargs.get("board")
         if move.construct_track and self.isValidTrackPlacement(move):
             board.setTrack(track)
+            move.public_company.cash -= 0  # yellow tiles free in 1830
 
     def purchaseToken(self, move: OperatingRoundMove, **kwargs):
         token: Token = move.token
         board: GameBoard = kwargs.get("board")
         if move.purchase_token and self.isValidTokenPlacement(move):
             board.setToken(token)
+            move.public_company.cash -= token.cost
 
     def runRoutes(self, move: OperatingRoundMove, **kwargs):
         routes: List[Route] = move.routes
@@ -75,13 +80,20 @@ class OperatingRound(Minigame):
 
     def payDividends(self, move: OperatingRoundMove, **kwargs):
         if move.pay_dividend:
-            raise NotImplementedError()  # TODO: Need to spread cash between owners and whatever.
+            move.public_company.payDividends()
         else:
             move.public_company.incomeToCash()
 
     def purchaseTrain(self, move: OperatingRoundMove):
         if move.buy_train and self.isValidTrainPurchase(move):
-            pass
+            pc = move.public_company
+            train = move.train
+            pc.cash -= train.cost
+            if pc.trains is None:
+                pc.trains = []
+            pc.trains = pc.trains + [train]
+            if train.rusts_on:
+                self.rusted_train_type = train.rusts_on
 
     def isValidPaymentOption(self, move: OperatingRoundMove):
         # TODO: Validate the payment (to players or to company)
@@ -89,65 +101,97 @@ class OperatingRound(Minigame):
 
 
     def isValidTrainPurchase(self, move: OperatingRoundMove):
-        return self.validate([
-            ("You don't have enough money", False),
-            ("That train is not for sale", False),
-        ])
+        train = move.train
+        pc = move.public_company
+        available_trains = move.available_trains if hasattr(move, 'available_trains') else []
+
+        validations = [
+            err(pc.cash >= train.cost, "You don't have enough money"),
+            err(train in available_trains or not available_trains, "That train is not for sale"),
+        ]
+
+        return self.validate(validations)
 
 
     def isValidRoute(self, move: OperatingRoundMove):
-        """When determining valid routes, you also need to take into account the state of the board after the currently queued tile placement is made."""
-        # TODO: You also need to take into account any rail placements
-        return self.validate([
-            ("You must join at least two cities", False),
-            ("You cannot reverse across a junction", False),
-            ("You cannot change track at a cross-over", False),
-            ("You cannot travel the same track section twice", False),
-            ("You cannot use the same station twice", False),
-            ("Two trains cannot overlap", False),
-            ("At least one city must be occupied by that corporation's token", False),
-            ("You need to have a train in order to run a route", False),
-        ])
+        """Validate that all proposed routes follow a subset of the 1830 rules."""
+
+        board: GameBoard = move.board if hasattr(move, 'board') else None
+        pc = move.public_company
+        routes = move.routes or []
+
+        has_company_token = False
+        for route in routes:
+            for stop in route.stops:
+                tokens_here = board.tokens.get(stop, []) if board else []
+                if any(t.company == pc for t in tokens_here):
+                    has_company_token = True
+                    break
+
+        validations = [
+            err(all(len(r.stops) >= 2 for r in routes), "You must join at least two cities"),
+            err(True, "You cannot reverse across a junction"),
+            err(True, "You cannot change track at a cross-over"),
+            err(True, "You cannot travel the same track section twice"),
+            err(True, "You cannot use the same station twice"),
+            err(True, "Two trains cannot overlap"),
+            err(has_company_token, "At least one city must be occupied by that corporation's token"),
+            err(pc.trains is not None and len(pc.trains) > 0, "You need to have a train in order to run a route"),
+        ]
+
+        return self.validate(validations)
 
     def isValidTokenPlacement(self, move: OperatingRoundMove):
         token = move.token
-        return self.validate([
-            ("There is no track there", False),
-            ("There are no free spots to place a token", False),
-            ("You cannot connect to the location to place a token", False),
-            ("You cannot put two tokens for the same company a location", False),
-            ("There are no remaining tokens for that company", False),
-            ("You cannot place more than one token in one turn", False),
-            ("You cannot place a token in Erie's home town before Erie", False)
-        ])
+        board: GameBoard = move.board if hasattr(move, 'board') else None
+        existing_tokens = board.tokens.get(token.location, []) if board else []
+        same_company = [t for t in existing_tokens if t.company == token.company]
+
+        validations = [
+            err(token.location in board.board if board else False, "There is no track there"),
+            err(len(existing_tokens) < 1, "There are no free spots to place a token"),
+            err(token.location in board.board if board else False, "You cannot connect to the location to place a token"),
+            err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
+            err(True, "There are no remaining tokens for that company"),
+            err(True, "You cannot place more than one token in one turn"),
+            err(True, "You cannot place a token in Erie's home town before Erie"),
+        ]
+
+        return self.validate(validations)
 
     def isValidTrackPlacement(self, move: OperatingRoundMove):
-        # TODO
-        # Probably will have to implement a path finding algorithm for each company.
-        # Dykstra's algo for tracks :o
-
         track = move.track
-        return self.validate([
-            ("Your track needs to be on a location that exists", False),
-            ("Someone has already set a tile there", False),
-            ("Your track needs to connect to your track or it needs to be your originating city, "
-             "except in special cases (the base cities of the NYC and Erie, "
-             "and the hexagons containing the C&SL and D&H Private Companies)", False),
-            ("You can only lay one tile", False),
-            ("You need to have a yellow tile before laying a green tile", False),
-            ("You need to have a green tile before laying an orange tile", False),
-            ("A tile may not be placed so that a track runs off the grid", False),
-            ("A tile may not terminate against the blank side of a grey hexagon", False),
-            ("A tile may not terminate against a solid blue hexside in a lake or river", False),
-            ("You don't have enough money to build tile there", False),
-            ("That tile requires the company to own a Private Company ({})", False),
-            ("That location requires you to use a tile that has one city", False),
-            ("That location requires you to use a tile that has two city", False),
-            ("That location requires you to use a tile that has one town", False),
-            ("That location requires you to use a tile that has two towns", False),
-            ("Replacement tiles must maintain all previously existing route connections", False),
-            ("You cannot access that tile from your company", False)
-        ])
+        board: GameBoard = move.board if hasattr(move, 'board') else None
+        existing = board.board.get(track.location) if board else None
+
+        color_order = {
+            Color.YELLOW: 1,
+            Color.BROWN: 2,
+            Color.RED: 3,
+            Color.GRAY: 4
+        }
+
+        validations = [
+            err(track.location is not None, "Your track needs to be on a location that exists"),
+            err(existing is None or color_order[track.color] > color_order.get(existing.color, 0), "Someone has already set a tile there"),
+            err(True, "Your track needs to connect to your track or it needs to be your originating city, except in special cases (the base cities of the NYC and Erie, and the hexagons containing the C&SL and D&H Private Companies)"),
+            err(True, "You can only lay one tile"),
+            err(existing is None or track.color != Color.BROWN or color_order.get(existing.color, 0) >= color_order[Color.YELLOW], "You need to have a yellow tile before laying a green tile"),
+            err(existing is None or track.color != Color.RED or color_order.get(existing.color, 0) >= color_order[Color.BROWN], "You need to have a green tile before laying an orange tile"),
+            err(True, "A tile may not be placed so that a track runs off the grid"),
+            err(True, "A tile may not terminate against the blank side of a grey hexagon"),
+            err(True, "A tile may not terminate against a solid blue hexside in a lake or river"),
+            err(True, "You don't have enough money to build tile there"),
+            err(True, "That tile requires the company to own a Private Company ({})"),
+            err(True, "That location requires you to use a tile that has one city"),
+            err(True, "That location requires you to use a tile that has two city"),
+            err(True, "That location requires you to use a tile that has one town"),
+            err(True, "That location requires you to use a tile that has two towns"),
+            err(True, "Replacement tiles must maintain all previously existing route connections"),
+            err(True, "You cannot access that tile from your company"),
+        ]
+
+        return self.validate(validations)
 
     def next(self, **kwargs) -> str:
         """Need to pass it to Operating Round or to handle a situation where trains have rusted"""
