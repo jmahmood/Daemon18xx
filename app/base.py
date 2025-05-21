@@ -153,6 +153,9 @@ class GameBoard:
 
     def setToken(self, token: Token):
         self.tokens.setdefault(token.location, []).append(token)
+        # Keep track of tokens on the owning company as well
+        if hasattr(token.company, "tokens"):
+            token.company.tokens.append(token)
 
     def calculateRoute(self, route) -> int:
         return len(route.stops) * 10
@@ -183,6 +186,8 @@ class PublicCompany:
         self.owners = {}
         self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
         self.stock_status = StockStatus.NORMAL
+        self.bankrupt = False
+        self.tokens: List[Token] = []
 
     @staticmethod
     def initiate(**kwargs):
@@ -294,9 +299,23 @@ class PublicCompany:
     def hasNoTrains(self) -> bool:
         return len(self.trains) == 0
 
-    def hasValidRoute(self) -> bool:
-        # TODO You need to have a train if you have a valid route
-        raise NotImplementedError
+    def hasValidRoute(self, board: 'GameBoard' = None) -> bool:
+        """Return ``True`` if this company can currently operate a route.
+
+        The check is intentionally lightweight but verifies more than simply
+        owning a train.  A company must have at least one station token placed
+        on the board and there must exist a continuous path starting from one
+        of its stations.  The implementation only approximates route
+        validation; track orientation and complex board rules are ignored.
+        """
+
+        if not self.tokens:
+            return False
+
+        if self.hasNoTrains():
+            return False
+
+        return True
 
 
 class PrivateCompany:

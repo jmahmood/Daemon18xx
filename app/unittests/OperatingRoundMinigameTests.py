@@ -1,6 +1,11 @@
 import unittest
 from app.base import GameBoard, Track, Token, Route, PublicCompany, MutableGameState, Player, Train, Color
-from app.minigames.operating_round import OperatingRound, OperatingRoundMove
+from app.minigames.operating_round import (
+    OperatingRound,
+    OperatingRoundMove,
+    RustedTrainMove,
+    TrainsRusted,
+)
 
 
 def fake_player(id="A", cash=1000, order=0):
@@ -170,6 +175,59 @@ class OperatingRoundNextTests(unittest.TestCase):
         self.assertEqual(oround.next(**state), "OperatingRound2")
         state["currentOperatingRound"] = 2
         self.assertEqual(oround.next(**state), "StockRound")
+
+
+class TrainsRustedFlowTests(unittest.TestCase):
+    def setUp(self):
+        self.state = MutableGameState()
+        self.state.players = [fake_player("A"), fake_player("B")]
+        self.company_a = fake_company("A")
+        self.company_b = fake_company("B")
+        self.company_b.trains.append(Train("2", 80))
+        self.company_b.president = self.state.players[1]
+        self.state.public_companies = [self.company_a, self.company_b]
+
+    def test_rusted_train_purchase_and_return(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.buy_train = True
+        train = Train("3", 200, rusts_on="2")
+        move.train = train
+        move.public_company = self.company_a
+        move.available_trains = [train]
+        oround = OperatingRound()
+        oround.run(move, self.state)
+
+        nxt = {
+            "public_companies": self.state.public_companies,
+            "playerTurn": PlayerTurnStub(False),
+            "currentOperatingRound": 1,
+            "totalOperatingRounds": 2,
+        }
+        self.assertEqual(oround.next(**nxt), "TrainsRusted")
+
+        rust_move = RustedTrainMove()
+        rust_move.player_id = self.company_b.president.id
+        rust_move.public_company = self.company_b
+        rust_move.train = Train("2", 100)
+        tr = TrainsRusted()
+        self.assertTrue(tr.run(rust_move, self.state))
+        self.assertFalse(self.company_b.bankrupt)
+        self.assertEqual(tr.next(currentOperatingRound=1), "OperatingRound1")
+
+    def test_rusted_train_bankruptcy(self):
+        self.company_b.cash = 0
+        self.company_b.president = self.state.players[1]
+        self.company_b.president.cash = 10
+
+        rust_move = RustedTrainMove()
+        rust_move.player_id = self.company_b.president.id
+        rust_move.public_company = self.company_b
+        rust_move.train = Train("2", 100)
+        tr = TrainsRusted()
+        self.assertTrue(tr.run(rust_move, self.state))
+        self.assertTrue(self.company_b.bankrupt)
+        self.assertEqual(tr.next(currentOperatingRound=1), "StockRound")
 
 
 if __name__ == '__main__':
