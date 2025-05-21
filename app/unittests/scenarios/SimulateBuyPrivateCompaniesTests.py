@@ -58,7 +58,7 @@ class SimulateFullPrivateCompanyRound(unittest.TestCase):
             "Rafael"
         ]
 
-        game = Game.start(player_details)
+        game = Game.start(player_details, variant="1830")
         game.setPlayerOrder()
         game.setCurrentPlayer()
 

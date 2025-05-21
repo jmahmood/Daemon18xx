@@ -8,7 +8,7 @@ from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMov
 
 class GameStateTransitionTests(unittest.TestCase):
     def test_apply_move_returns_updated_state(self):
-        game = Game.start(["Alice", "Bob"])
+        game = Game.start(["Alice", "Bob"], variant="1830")
         game.setPlayerOrder()
         game.setCurrentPlayer()
         state = game.getState()
