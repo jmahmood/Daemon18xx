@@ -250,16 +250,16 @@ class Game:
         Bidding during private bidding, etc..."""
         self.minigame_class = minigame_class
 
-    def saveState(self) -> None:
-        # TODO: Saves State
-        """This saves the current state to a data store.  Pickle or SQL?
-        This is not necessary if you will run all the logic on the running process without quitting"""
-        pass
 
-    def notifyPlayers(self) -> None:
-        # TODO: Used for external communication to a front-end module.
-        """Sends a message to all players indicating that the state has been updated.
-        Also sends error messages if any.
+def apply_move(game: Game, move: Move) -> Game:
+    """Execute ``move`` on ``game`` and return the updated game state.
 
-        This is not necessary if we are testing the application, and can be overridden where necessary"""
-        pass
+    No external side effects such as saving or network notifications occur.  The
+    passed in ``game`` instance is mutated and returned for convenience.
+    """
+
+    if game.isValidMove(move) and game.isValidPlayer(move) and game.performedMove(move):
+        return game
+    return game
+
+
