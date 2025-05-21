@@ -12,7 +12,10 @@ def fake_player(id="A", cash=1000, order=0):
 
 
 def fake_company(name="1", cash=1000):
-    pc = PublicCompany.initiate(name=f"Company {name}", short_name=f"C{name}", id=name, cash=cash)
+    pc = PublicCompany.initiate(
+        name=f"Company {name}", short_name=f"C{name}", id=name, cash=cash,
+        tokens_available=4, token_costs=[40, 60, 80, 100]
+    )
     pc.trains = []
     pc._income = 0
     pc.owners = {}
@@ -75,13 +78,45 @@ class OperatingRoundTokenTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertTrue(oround.run(move, self.state, board=self.board))
         self.assertEqual(self.company.cash, 1000-40)
+        self.assertEqual(self.company.tokens_available, 3)
         self.assertIn(move.token, self.board.tokens["A1"])
+
+    def test_second_token_cost(self):
+        # place first token
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.purchase_token = True
+        move.token = Token(self.company, "A1", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move, self.state, board=self.board))
+
+        # prepare second location
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.purchase_token = True
+        move2.token = Token(self.company, "B1", 0)
+        move2.public_company = self.company
+        self.assertTrue(oround.run(move2, self.state, board=self.board))
+        self.assertEqual(self.company.cash, 1000 - 40 - 60)
+        self.assertEqual(self.company.tokens_available, 2)
 
     def test_invalid_token_no_track(self):
         move = OperatingRoundMove()
         move.player_id = "A"
         move.purchase_token = True
         move.token = Token(self.company, "B2", 40)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_token_no_tokens_left(self):
+        self.company.tokens_available = 0
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.purchase_token = True
+        move.token = Token(self.company, "A1", 40)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
@@ -98,7 +133,7 @@ class OperatingRoundRouteTests(unittest.TestCase):
         self.state.public_companies = [self.company]
 
     def test_run_route_and_dividend(self):
-        token = Token(self.company, "A1", 40)
+        token = Token(self.company, "A1", self.company.token_costs[0])
         self.board.setToken(token)
         move = OperatingRoundMove()
         move.player_id = "A"
@@ -111,7 +146,7 @@ class OperatingRoundRouteTests(unittest.TestCase):
         self.assertEqual(self.company.cash, 1000 + 20)  # incomeToCash adds income
 
     def test_dividend_payout(self):
-        token = Token(self.company, "A1", 40)
+        token = Token(self.company, "A1", self.company.token_costs[0])
         self.board.setToken(token)
         self.company.owners = {self.state.players[0]: 100}
         move = OperatingRoundMove()

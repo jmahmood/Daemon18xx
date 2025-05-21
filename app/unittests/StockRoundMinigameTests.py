@@ -18,7 +18,9 @@ def fake_public_company(name="1") -> PublicCompany:
         name="Fake company {}".format(name),
         short_name="FC{}".format(name),
         id=name,
-        cash=0
+        cash=0,
+        tokens_available=4,
+        token_costs=[40, 60, 80, 100]
     )
     return pc
 

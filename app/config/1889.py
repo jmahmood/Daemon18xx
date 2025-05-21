@@ -14,8 +14,10 @@ PRIVATE_COMPANIES = [
 ]
 
 PUBLIC_COMPANIES = [
-    PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR"),
-    PublicCompany.initiate(id="UR", name="Ueda Railway", short_name="UR"),
+    PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
+    PublicCompany.initiate(id="UR", name="Ueda Railway", short_name="UR",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
 ]
 
 STOCK_MARKET = []

@@ -66,8 +66,12 @@ class OperatingRound(Minigame):
         token: Token = move.token
         board: GameBoard = kwargs.get("board")
         if move.purchase_token and self.isValidTokenPlacement(move):
+            cost = move.public_company.next_token_cost()
+            token = Token(token.company, token.location, cost)
             board.setToken(token)
-            move.public_company.cash -= token.cost
+            move.public_company.cash -= cost
+            move.public_company.tokens_available -= 1
+            move.token = token
 
     def runRoutes(self, move: OperatingRoundMove, **kwargs):
         routes: List[Route] = move.routes
@@ -152,7 +156,7 @@ class OperatingRound(Minigame):
             err(len(existing_tokens) < 1, "There are no free spots to place a token"),
             err(token.location in board.board if board else False, "You cannot connect to the location to place a token"),
             err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
-            err(True, "There are no remaining tokens for that company"),
+            err(token.company.tokens_available > 0, "There are no remaining tokens for that company"),
             err(True, "You cannot place more than one token in one turn"),
             err(True, "You cannot place a token in Erie's home town before Erie"),
         ]

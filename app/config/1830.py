@@ -15,8 +15,10 @@ PRIVATE_COMPANIES = [
 ]
 
 PUBLIC_COMPANIES = [
-    PublicCompany.initiate(id="B&O", name="Baltimore & Ohio Railroad", short_name="B&O"),
-    PublicCompany.initiate(id="C&O", name="Chesapeake & Ohio Railway", short_name="C&O"),
+    PublicCompany.initiate(id="B&O", name="Baltimore & Ohio Railroad", short_name="B&O",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
+    PublicCompany.initiate(id="C&O", name="Chesapeake & Ohio Railway", short_name="C&O",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
 ]
 
 # Placeholder data for future rules

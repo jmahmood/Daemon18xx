@@ -13,8 +13,10 @@ PRIVATE_COMPANIES = [
 ]
 
 PUBLIC_COMPANIES = [
-    PublicCompany.initiate(id="NYC", name="New York Central", short_name="NYC"),
-    PublicCompany.initiate(id="GT", name="Grand Trunk", short_name="GT"),
+    PublicCompany.initiate(id="NYC", name="New York Central", short_name="NYC",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
+    PublicCompany.initiate(id="GT", name="Grand Trunk", short_name="GT",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
 ]
 
 # Placeholder data for future rules
