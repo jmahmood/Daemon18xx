@@ -188,12 +188,15 @@ class PublicCompany:
         self.stock_status = StockStatus.NORMAL
         self.bankrupt = False
         self.tokens: List[Token] = []
+        self.token_count: int = 0
 
     @staticmethod
     def initiate(**kwargs):
         x = PublicCompany()
         for k, v in kwargs.items():
             x.__dict__[k] = v
+        if 'token_count' not in kwargs:
+            x.token_count = 0
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):

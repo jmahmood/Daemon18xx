@@ -1,4 +1,4 @@
-from app.base import PrivateCompany, PublicCompany, Train
+from app.base import PrivateCompany, PublicCompany, Train, Color
 
 
 def starting_cash(num_players: int) -> int:
@@ -14,9 +14,24 @@ PRIVATE_COMPANIES = [
     PrivateCompany.initiate(6, "Baltimore & Ohio Railroad", "B&O", 220, 30, "I13/I15"),
 ]
 
+TOKEN_COUNTS = {
+    "B&O": 4,
+    "C&O": 3,
+}
+
+TRACK_LAYING_COSTS = {
+    Color.YELLOW: 0,
+    Color.BROWN: 100,
+    Color.RED: 200,
+}
+
+SPECIAL_HEX_RULES = {
+    "G15": "SVR base hex",
+}
+
 PUBLIC_COMPANIES = [
-    PublicCompany.initiate(id="B&O", name="Baltimore & Ohio Railroad", short_name="B&O"),
-    PublicCompany.initiate(id="C&O", name="Chesapeake & Ohio Railway", short_name="C&O"),
+    PublicCompany.initiate(id="B&O", name="Baltimore & Ohio Railroad", short_name="B&O", token_count=TOKEN_COUNTS["B&O"]),
+    PublicCompany.initiate(id="C&O", name="Chesapeake & Ohio Railway", short_name="C&O", token_count=TOKEN_COUNTS["C&O"]),
 ]
 
 # Placeholder data for future rules
