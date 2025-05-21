@@ -1,4 +1,4 @@
-from app.base import PrivateCompany, Train
+from app.base import PrivateCompany, PublicCompany, Train
 
 
 def starting_cash(num_players: int) -> int:
@@ -11,6 +11,11 @@ PRIVATE_COMPANIES = [
     PrivateCompany.initiate(3, "Osaka Railway", "OR", 80, 15, "Z3"),
     PrivateCompany.initiate(4, "Kyushu Steamship", "KS", 160, 20, "Z4"),
     PrivateCompany.initiate(5, "Hokkaido Coal", "HC", 200, 25, "Z5"),
+]
+
+PUBLIC_COMPANIES = [
+    PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR"),
+    PublicCompany.initiate(id="UR", name="Ueda Railway", short_name="UR"),
 ]
 
 STOCK_MARKET = []

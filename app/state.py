@@ -119,7 +119,7 @@ class Game:
         game.state = MutableGameState()
         game.state.players = players
         game.state.private_companies = config.PRIVATE_COMPANIES
-        game.state.public_companies = []
+        game.state.public_companies = config.PUBLIC_COMPANIES
 
         return game
 

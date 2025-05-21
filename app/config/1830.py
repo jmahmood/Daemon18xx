@@ -1,4 +1,4 @@
-from app.base import PrivateCompany, Train
+from app.base import PrivateCompany, PublicCompany, Train
 
 
 def starting_cash(num_players: int) -> int:
@@ -12,6 +12,11 @@ PRIVATE_COMPANIES = [
     PrivateCompany.initiate(4, "Mohawk & Hudson Railroad", "M&H", 110, 20, "D18"),
     PrivateCompany.initiate(5, "Camden & Amboy Railroad", "C&A", 160, 25, "H18"),
     PrivateCompany.initiate(6, "Baltimore & Ohio Railroad", "B&O", 220, 30, "I13/I15"),
+]
+
+PUBLIC_COMPANIES = [
+    PublicCompany.initiate(id="B&O", name="Baltimore & Ohio Railroad", short_name="B&O"),
+    PublicCompany.initiate(id="C&O", name="Chesapeake & Ohio Railway", short_name="C&O"),
 ]
 
 # Placeholder data for future rules
