@@ -414,12 +414,12 @@ class Move:
         self.player: Player = None
         self.msg = None
 
-    def backfill(self, kwargs: MutableGameState) -> None:
+    def backfill(self, game_state: MutableGameState) -> None:
         """We do not have all the context when we receive a move; we are only passed a JSON text file, not the
         objects themselves.  We receive the objects from the game object when executing the Minigame.
         We bind those objects when the minigame is run, keeping ID values to allow us to match them up to the object itself"""
 
-        for player in kwargs.players:
+        for player in game_state.players:
             if player.id == self.player_id:
                 self.player = player
                 return

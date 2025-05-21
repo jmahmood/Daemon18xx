@@ -36,8 +36,8 @@ class OperatingRound(Minigame):
         self.rusted_train_type: str = None
         self.trains_rusted: str = None
 
-    def run(self, move: OperatingRoundMove, kwargs: MutableGameState, **extra) -> bool:
-        move.backfill(kwargs)
+    def run(self, move: OperatingRoundMove, game_state: MutableGameState, **extra) -> bool:
+        move.backfill(game_state)
         move.board = extra.get("board")
 
         if move.construct_track and not self.isValidTrackPlacement(move) or \
@@ -91,7 +91,7 @@ class OperatingRound(Minigame):
             pc.cash -= train.cost
             if pc.trains is None:
                 pc.trains = []
-            pc.trains.append(train)
+            pc.trains = pc.trains + [train]
             if train.rusts_on:
                 self.rusted_train_type = train.rusts_on
 

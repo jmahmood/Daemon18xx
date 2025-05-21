@@ -32,10 +32,10 @@ class BuyPrivateCompanyMove(Move):
         self.move_type: BidType = None
         self.bid_amount: int = None
 
-    def backfill(self, kwargs: MutableGameState) -> None:
-        super().backfill(kwargs)
+    def backfill(self, game_state: MutableGameState) -> None:
+        super().backfill(game_state)
 
-        private_companies = [pc for pc in kwargs.private_companies if pc.order == self.private_company_order]
+        private_companies = [pc for pc in game_state.private_companies if pc.order == self.private_company_order]
         self.private_company = private_companies[0]
 
     @staticmethod
