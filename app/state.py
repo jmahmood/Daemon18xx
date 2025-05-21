@@ -1,5 +1,7 @@
 from typing import List
 
+from app.config import load_config
+
 import logging
 
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
@@ -90,21 +92,22 @@ class Game:
     
     """
     @staticmethod
-    def start(players: List[str]) -> "Game":
+    def start(players: List[str], variant: str = "1830") -> "Game":
+        config = load_config(variant)
         total_players = len(players)
-        cash = int(2400 / total_players)
+        cash = config.starting_cash(total_players)
         player_objects = []
         for order, player_name in enumerate(players):
             player_objects.append(
                 Player.create(player_name, cash, order)
             )
-        game = Game.initialize(player_objects)
+        game = Game.initialize(player_objects, config)
         game.setMinigame("BuyPrivateCompany")
         return game
 
 
     @staticmethod
-    def initialize(players: List[Player], saved_game: dict = None) -> "Game":
+    def initialize(players: List[Player], config, saved_game: dict = None) -> "Game":
         """
 
         :param players:
@@ -112,9 +115,10 @@ class Game:
         :return:
         """
         game = Game()
+        game.config = config
         game.state = MutableGameState()
         game.state.players = players
-        game.state.private_companies = PrivateCompany.allPrivateCompanies()
+        game.state.private_companies = config.PRIVATE_COMPANIES
         game.state.public_companies = []
 
         return game
@@ -124,6 +128,7 @@ class Game:
         self.current_player: Player = None
         self.player_order_fn_list = []
         self.errors_list = []
+        self.config = None
 
     def isOngoing(self) -> bool:
         return True

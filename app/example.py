@@ -14,7 +14,7 @@ from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMov
 def example() -> Game:
     """Run a tiny example game and return the final state."""
     players = ["Alice", "Bob"]
-    game = Game.start(players)
+    game = Game.start(players, variant="1830")
     game.setPlayerOrder()
     game.setCurrentPlayer()
 
