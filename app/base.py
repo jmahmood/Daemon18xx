@@ -191,6 +191,7 @@ class PublicCompany:
         self.bankrupt = False
         self.tokens: List[Token] = []
         self.token_count: int = 0
+        self.token_placed: bool = False
 
     @staticmethod
     def initiate(**kwargs):
@@ -203,6 +204,7 @@ class PublicCompany:
             x.token_count = len(x.token_costs)
         if 'tokens_available' not in kwargs:
             x.tokens_available = x.token_count
+        x.token_placed = False
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):

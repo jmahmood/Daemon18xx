@@ -108,6 +108,9 @@ class OperatingRoundTokenTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertTrue(oround.run(move, self.state, board=self.board))
 
+        # new operating round begins
+        OperatingRound.onStart(public_companies=[self.company], private_companies=[])
+
         # prepare second location
         self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
         move2 = OperatingRoundMove()
@@ -119,6 +122,25 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertEqual(self.company.cash, 1000 - 40 - 60)
         self.assertEqual(self.company.tokens_available, 2)
         self.assertEqual(self.company.token_count, 4)
+
+    def test_invalid_second_token_same_round(self):
+        # place first token
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.purchase_token = True
+        move.token = Token(self.company, "A1", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move, self.state, board=self.board))
+
+        # attempt second token without starting new round
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.purchase_token = True
+        move2.token = Token(self.company, "B1", 0)
+        move2.public_company = self.company
+        self.assertFalse(oround.run(move2, self.state, board=self.board))
 
     def test_invalid_token_no_track(self):
         move = OperatingRoundMove()

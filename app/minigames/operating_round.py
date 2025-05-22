@@ -77,6 +77,7 @@ class OperatingRound(Minigame):
             board.setToken(token)
             move.public_company.cash -= cost
             move.public_company.tokens_available -= 1
+            move.public_company.token_placed = True
             move.token = token
 
     def runRoutes(self, move: OperatingRoundMove, **kwargs):
@@ -174,6 +175,7 @@ class OperatingRound(Minigame):
             err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
             err(token.company.tokens_available > 0, "There are no remaining tokens for that company"),
             err(token.company.cash >= cost, "You don't have enough cash to buy a token"),
+            err(not token.company.token_placed, "You have already placed a token this round"),
         ]
 
         return self.validate(validations)
@@ -243,6 +245,10 @@ class OperatingRound(Minigame):
         private_companies: List[PrivateCompany] = kwargs.get("private_companies")
         for pc in private_companies:
             pc.distributeRevenue()
+
+        # Reset per-round flags on public companies
+        for company in kwargs.get("public_companies", []):
+            company.token_placed = False
 
         # Create a list of floated companies (?)
 
