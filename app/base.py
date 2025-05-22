@@ -33,6 +33,9 @@ class MutableGameState:
         self.stock_round_play:int = 0
         self.stock_round_count: int = 0
         self.players: List[Player] = None
+        # Track which public companies have laid track during the current
+        # operating round. Keys are company ids.
+        self.track_laid: Set[str] = set()
 
     pass
 
