@@ -29,8 +29,10 @@ SPECIAL_HEX_RULES = {
 }
 
 PUBLIC_COMPANIES = [
-    PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR", token_count=TOKEN_COUNTS["SR"]),
-    PublicCompany.initiate(id="UR", name="Ueda Railway", short_name="UR", token_count=TOKEN_COUNTS["UR"]),
+    PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
+    PublicCompany.initiate(id="UR", name="Ueda Railway", short_name="UR",
+                           tokens_available=4, token_costs=[40, 60, 80, 100]),
 ]
 
 STOCK_MARKET = []

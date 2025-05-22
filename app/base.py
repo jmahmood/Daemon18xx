@@ -181,6 +181,8 @@ class PublicCompany:
         self.id: str = None
         self.name: str = None
         self.short_name: str = None
+        self.tokens_available: int = 0
+        self.token_costs: List[int] = []
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
@@ -195,8 +197,12 @@ class PublicCompany:
         x = PublicCompany()
         for k, v in kwargs.items():
             x.__dict__[k] = v
+        if 'token_costs' not in kwargs:
+            x.token_costs = []
         if 'token_count' not in kwargs:
-            x.token_count = 0
+            x.token_count = len(x.token_costs)
+        if 'tokens_available' not in kwargs:
+            x.tokens_available = x.token_count
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
@@ -292,6 +298,12 @@ class PublicCompany:
 
     def addIncome(self, amount: int) -> None:
         self._income += amount
+
+    def next_token_cost(self) -> int:
+        index = len(self.token_costs) - self.tokens_available
+        if 0 <= index < len(self.token_costs):
+            return self.token_costs[index]
+        return 0
 
     def removeRustedTrains(self, rusted_train_type: str):
         self.trains = [train for train in self.trains if train.type != rusted_train_type]
