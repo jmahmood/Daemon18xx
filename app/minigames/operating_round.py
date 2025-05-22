@@ -131,22 +131,31 @@ class OperatingRound(Minigame):
         routes = move.routes or []
 
         has_company_token = False
+        used_stops = set()
+        invalid_track = False
+        duplicate_stop = False
         for route in routes:
+            route_seen = set()
             for stop in route.stops:
                 tokens_here = board.tokens.get(stop, []) if board else []
                 if any(t.company == pc for t in tokens_here):
                     has_company_token = True
-                    break
+
+                if board and stop not in board.board and stop not in board.tokens:
+                    invalid_track = True
+
+                if stop in route_seen or stop in used_stops:
+                    duplicate_stop = True
+                route_seen.add(stop)
+                used_stops.add(stop)
 
         validations = [
-            err(all(len(r.stops) >= 2 for r in routes), "You must join at least two cities"),
-            err(True, "You cannot reverse across a junction"),
-            err(True, "You cannot change track at a cross-over"),
-            err(True, "You cannot travel the same track section twice"),
-            err(True, "You cannot use the same station twice"),
-            err(True, "Two trains cannot overlap"),
+            err(routes != [] and all(len(r.stops) >= 2 for r in routes), "You must join at least two cities"),
+            err(not invalid_track, "Route uses track that doesn't exist"),
+            err(not duplicate_stop, "You cannot use the same station twice"),
             err(has_company_token, "At least one city must be occupied by that corporation's token"),
-            err(pc.trains is not None and len(pc.trains) > 0, "You need to have a train in order to run a route"),
+            err(pc.trains is not None and len(pc.trains) >= len(routes) and len(pc.trains) > 0,
+                "You need enough trains for the routes"),
         ]
 
         return self.validate(validations)
@@ -157,14 +166,14 @@ class OperatingRound(Minigame):
         existing_tokens = board.tokens.get(token.location, []) if board else []
         same_company = [t for t in existing_tokens if t.company == token.company]
 
+        cost = token.company.next_token_cost()
+
         validations = [
-            err(token.location in board.board if board else False, "There is no track there"),
+            err(board is not None and token.location in board.board, "There is no track there"),
             err(len(existing_tokens) < 1, "There are no free spots to place a token"),
-            err(token.location in board.board if board else False, "You cannot connect to the location to place a token"),
             err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
             err(token.company.tokens_available > 0, "There are no remaining tokens for that company"),
-            err(True, "You cannot place more than one token in one turn"),
-            err(True, "You cannot place a token in Erie's home town before Erie"),
+            err(token.company.cash >= cost, "You don't have enough cash to buy a token"),
         ]
 
         return self.validate(validations)
@@ -181,24 +190,22 @@ class OperatingRound(Minigame):
             Color.GRAY: 4
         }
 
+        has_company_token = any(
+            t.company == move.public_company
+            for tokens in board.tokens.values()
+            for t in tokens
+        ) if board else False
+
         validations = [
             err(track.location is not None, "Your track needs to be on a location that exists"),
-            err(existing is None or color_order[track.color] > color_order.get(existing.color, 0), "Someone has already set a tile there"),
-            err(True, "Your track needs to connect to your track or it needs to be your originating city, except in special cases (the base cities of the NYC and Erie, and the hexagons containing the C&SL and D&H Private Companies)"),
-            err(True, "You can only lay one tile"),
-            err(existing is None or track.color != Color.BROWN or color_order.get(existing.color, 0) >= color_order[Color.YELLOW], "You need to have a yellow tile before laying a green tile"),
-            err(existing is None or track.color != Color.RED or color_order.get(existing.color, 0) >= color_order[Color.BROWN], "You need to have a green tile before laying an orange tile"),
-            err(True, "A tile may not be placed so that a track runs off the grid"),
-            err(True, "A tile may not terminate against the blank side of a grey hexagon"),
-            err(True, "A tile may not terminate against a solid blue hexside in a lake or river"),
-            err(True, "You don't have enough money to build tile there"),
-            err(True, "That tile requires the company to own a Private Company ({})"),
-            err(True, "That location requires you to use a tile that has one city"),
-            err(True, "That location requires you to use a tile that has two city"),
-            err(True, "That location requires you to use a tile that has one town"),
-            err(True, "That location requires you to use a tile that has two towns"),
-            err(True, "Replacement tiles must maintain all previously existing route connections"),
-            err(True, "You cannot access that tile from your company"),
+            err(existing is None or color_order[track.color] > color_order.get(existing.color, 0),
+                "Someone has already set a tile there"),
+            err(existing is not None or has_company_token,
+                "You cannot access that tile from your company"),
+            err(existing is None or track.color != Color.BROWN or color_order.get(existing.color, 0) >= color_order[Color.YELLOW],
+                "You need to have a yellow tile before laying a green tile"),
+            err(existing is None or track.color != Color.RED or color_order.get(existing.color, 0) >= color_order[Color.BROWN],
+                "You need to have a green tile before laying an orange tile"),
         ]
 
         return self.validate(validations)

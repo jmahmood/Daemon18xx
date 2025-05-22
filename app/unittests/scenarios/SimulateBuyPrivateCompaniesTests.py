@@ -5,10 +5,15 @@ import unittest
 
 from app.base import Move
 from app.state import Game, PrivateCompanyInitialAuctionTurnOrder
+import importlib
+cfg1830 = importlib.import_module('app.config.1830')
 from app.unittests.scenarios.move_factory import PrivateCompanyInitialAuctionMoves
 
 
 class SimulateFullPrivateCompanyRound(unittest.TestCase):
+
+    def setUp(self):
+        importlib.reload(cfg1830)
 
     def execute_invalid_player(self, game, move: Move):
         self.assertTrue(
