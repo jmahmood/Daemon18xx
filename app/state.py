@@ -8,6 +8,7 @@ from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGa
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
+from app.minigames.StockRoundSellPrivateCompany.minigame_auction import Auction
 from app.minigames.base import Minigame
 from app.minigames.operating_round import OperatingRound
 
@@ -169,7 +170,7 @@ class Game:
             "BuyPrivateCompany": PlayerTurnOrder,
             "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
             "StockRound": PlayerTurnOrder,
-            "StockRoundSellPrivateCompany": None,
+            "StockRoundSellPrivateCompany": PlayerTurnOrder,
             "OperatingRound": None
         }
 
@@ -207,7 +208,7 @@ class Game:
             "BiddingForPrivateCompany": BiddingForPrivateCompany,
             "BuyPrivateCompany": BuyPrivateCompany,
             "StockRound": StockRound,
-            "StockRoundSellPrivateCompany": None, #TODO
+            "StockRoundSellPrivateCompany": Auction,
             "OperatingRound1": OperatingRound,  # TODO
             "OperatingRound2": OperatingRound,  # TODO
             "OperatingRound3": OperatingRound,  # TODO
