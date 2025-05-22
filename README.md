@@ -32,7 +32,9 @@ reduced.
 The total number of tokens a company begins with is stored in the
 `token_count` attribute. At the start of a game `tokens_available` will equal
 `token_count`. Purchasing station tokens decreases `tokens_available` but does
-not change `token_count`.
+not change `token_count`. Each company also tracks whether it has already placed
+a station token in the current operating round and the engine enforces the rule
+that at most one token may be placed per round.
 
 ## Changelog
 
@@ -40,4 +42,6 @@ Recent updates include initial handling of bankrupt companies when trains rust.
 Public companies now track placed station tokens and expose a ``hasValidRoute``
 helper used during operating rounds to determine whether a company can continue
 operating once its trains are gone.
+Token placement is now limited to one per operating round and the flag resets at
+the start of each round.
 
