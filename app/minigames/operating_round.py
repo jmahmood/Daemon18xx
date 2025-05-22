@@ -36,6 +36,7 @@ class RustedTrainMove(Move):
 class OperatingRound(Minigame):
 
     def __init__(self):
+        super().__init__()
         self.rusted_train_type: str = None
         self.trains_rusted: str = None
 
