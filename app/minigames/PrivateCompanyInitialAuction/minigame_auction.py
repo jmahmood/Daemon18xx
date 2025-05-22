@@ -113,6 +113,9 @@ class BiddingForPrivateCompany(Minigame):
                 return "BuyPrivateCompany"
 
             if not pc.hasOwner() and pc.hasBids():
-                return "BiddingForPrivateCompany"
+                if len(pc.player_bids) > 1:
+                    return "BiddingForPrivateCompany"
+                else:
+                    pc.acceptHighestBid()
 
         return "StockRound"

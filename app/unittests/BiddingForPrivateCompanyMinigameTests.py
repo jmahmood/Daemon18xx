@@ -100,5 +100,80 @@ class BasicInitializationTests(unittest.TestCase):
         )
 
 
+class SequentialAuctionTests(unittest.TestCase):
+    def _context_two_auctions(self):
+        context = MutableGameState()
+        context.players = [
+            fake_player("A", 2000),
+            fake_player("B", 2000),
+            fake_player("C", 2000),
+        ]
+        context.private_companies = [
+            fake_private_company(0),
+            fake_private_company(1),
+        ]
+
+        context.private_companies[0].bid(context.players[0], 255)
+        context.private_companies[0].bid(context.players[1], 260)
+
+        context.private_companies[1].bid(context.players[0], 150)
+        context.private_companies[1].bid(context.players[2], 155)
+
+        return context
+
+    def _context_single_bid_next(self):
+        context = MutableGameState()
+        context.players = [
+            fake_player("A", 2000),
+            fake_player("B", 2000),
+            fake_player("C", 2000),
+        ]
+        context.private_companies = [
+            fake_private_company(0),
+            fake_private_company(1),
+            fake_private_company(2),
+        ]
+
+        context.private_companies[0].bid(context.players[0], 255)
+        context.private_companies[0].bid(context.players[1], 260)
+
+        context.private_companies[1].bid(context.players[2], 300)
+
+        return context
+
+    def _pass_move_pc0(self):
+        move_json = {
+            "private_company_order": 0,
+            "move_type": "PASS",
+            "player_id": "A",
+            "bid_amount": 255,
+        }
+        move = Move.fromMessage(json.dumps(move_json))
+        return BuyPrivateCompanyMove.fromMove(move)
+
+    def test_next_auction_after_previous_resolved(self):
+        context = self._context_two_auctions()
+        bfpc = BiddingForPrivateCompany()
+
+        move = self._pass_move_pc0()
+        self.assertTrue(bfpc.run(move, context), bfpc.errors())
+
+        self.assertTrue(context.private_companies[0].hasOwner())
+        self.assertEqual(bfpc.next(context), "BiddingForPrivateCompany")
+
+    def test_autopurchase_single_bid_after_auction(self):
+        context = self._context_single_bid_next()
+        bfpc = BiddingForPrivateCompany()
+
+        move = self._pass_move_pc0()
+        self.assertTrue(bfpc.run(move, context), bfpc.errors())
+
+        self.assertTrue(context.private_companies[0].hasOwner())
+        self.assertEqual(bfpc.next(context), "BuyPrivateCompany")
+
+        self.assertTrue(context.private_companies[1].hasOwner())
+        self.assertEqual(context.private_companies[1].belongs_to, context.players[2])
+
+
 if __name__ == "__main__":
     unittest.main()
