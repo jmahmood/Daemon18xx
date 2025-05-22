@@ -45,6 +45,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         self.state.public_companies = [self.company]
 
     def test_valid_track_placement(self):
+        self.board.setToken(Token(self.company, "A1", 0))
         move = OperatingRoundMove()
         move.player_id = "A"
         move.construct_track = True
@@ -60,6 +61,15 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move.player_id = "A"
         move.construct_track = True
         move.track = Track("2", "2", Color.YELLOW, "A1", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_track_not_connected(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.construct_track = True
+        move.track = Track("2", "2", Color.YELLOW, "B1", 0)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
@@ -128,11 +138,22 @@ class OperatingRoundTokenTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
+    def test_invalid_token_insufficient_cash(self):
+        self.company.cash = 10
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.purchase_token = True
+        move.token = Token(self.company, "A1", 40)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
 
 class OperatingRoundRouteTests(unittest.TestCase):
     def setUp(self):
         self.board = GameBoard()
         self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "A2", 0))
         self.state = MutableGameState()
         self.state.players = [fake_player("A")]
         self.company = fake_company("A")
@@ -166,6 +187,38 @@ class OperatingRoundRouteTests(unittest.TestCase):
         oround = OperatingRound()
         oround.run(move, self.state, board=self.board)
         self.assertEqual(self.state.players[0].cash, 1000 + 20)
+
+    def test_invalid_route_no_token(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.pay_dividend = False
+        move.routes = [Route(["A1", "A2"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_route_missing_track(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "B1"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_route_too_many_routes(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "A2"]), Route(["A1", "A2"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
 
 
 class OperatingRoundTrainPurchaseTests(unittest.TestCase):
