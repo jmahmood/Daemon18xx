@@ -36,6 +36,14 @@ not change `token_count`. Each company also tracks whether it has already placed
 a station token in the current operating round and the engine enforces the rule
 that at most one token may be placed per round.
 
+## Dividend Payouts
+
+Operating round moves must explicitly state whether dividends will be paid with
+the `pay_dividend` flag. This value must be `True` or `False` and a company can
+only choose once it has calculated income by running routes. When dividends are
+distributed that income is removed from the company and credited directly to the
+players according to their share percentage.
+
 ## Changelog
 
 Recent updates include initial handling of bankrupt companies when trains rust.
