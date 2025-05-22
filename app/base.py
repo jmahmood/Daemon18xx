@@ -33,6 +33,7 @@ class MutableGameState:
         self.stock_round_play:int = 0
         self.stock_round_count: int = 0
         self.players: List[Player] = None
+        self.priority_deal_player: Player = None
 
     pass
 

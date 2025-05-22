@@ -118,6 +118,7 @@ class Game:
         game.config = config
         game.state = MutableGameState()
         game.state.players = players
+        game.state.priority_deal_player = players[0] if players else None
         game.state.private_companies = config.PRIVATE_COMPANIES
         game.state.public_companies = config.PUBLIC_COMPANIES
 
@@ -174,6 +175,12 @@ class Game:
         }
 
         player_order_generator = player_order_functions.get(self.minigame_class)(self.getState())
+
+        if self.minigame_class == "StockRound" and self.state.priority_deal_player in self.state.players:
+            players = self.state.players
+            start = players.index(self.state.priority_deal_player)
+            player_order_generator.players = players[start:] + players[:start]
+            player_order_generator.initial_player = self.state.priority_deal_player
 
         if player_order_generator.stacking_type:
             self.player_order_fn_list.append(player_order_generator)

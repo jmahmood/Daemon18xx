@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import List
+from typing import List, Optional
 
 from app.base import PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
@@ -11,6 +11,11 @@ from app.minigames.base import Minigame
 
 class StockRound(Minigame):
     """Buy / Sell Public Companies, Private Companies"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.sell_private_company_auction = False
+        self.last_deal_player: Optional[Player] = None
 
     def _buyround(self, move: StockRoundMove, kwargs: MutableGameState) -> None:
         purchase_amount = STOCK_CERTIFICATE
@@ -50,6 +55,7 @@ class StockRound(Minigame):
         self._buyround(move, kwargs)
         self._sellround(move, kwargs)
         kwargs.stock_round_play += 1
+        self.last_deal_player = move.player
         return True
 
     def _buy(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
@@ -59,6 +65,7 @@ class StockRound(Minigame):
             return False
         self._buyround(move, kwargs)
         kwargs.stock_round_play += 1
+        self.last_deal_player = move.player
         return True
 
     def _sell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
@@ -66,6 +73,7 @@ class StockRound(Minigame):
             return False
         self._sellround(move, kwargs)
         kwargs.stock_round_play += 1
+        self.last_deal_player = move.player
         return True
 
     def run(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
@@ -108,6 +116,9 @@ class StockRound(Minigame):
         if kwargs.stock_round_play % len(players) == 0 \
                 and kwargs.stock_round_play > 0 \
                 and kwargs.stock_round_passed == len(players):
+            if self.last_deal_player:
+                idx = players.index(self.last_deal_player)
+                kwargs.priority_deal_player = players[(idx + 1) % len(players)]
             return "OperatingRound1"
         return "StockRound"
 
