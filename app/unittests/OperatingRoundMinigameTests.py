@@ -75,6 +75,86 @@ class OperatingRoundTrackTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
+    def test_only_one_tile_per_round(self):
+        self.board.setToken(Token(self.company, "A1", 0))
+        move1 = OperatingRoundMove()
+        move1.player_id = "A"
+        move1.construct_track = True
+        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move1, self.state, board=self.board))
+
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.construct_track = True
+        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.public_company = self.company
+        self.assertFalse(oround.run(move2, self.state, board=self.board))
+
+    def test_track_flag_resets_on_start(self):
+        self.board.setToken(Token(self.company, "A1", 0))
+        move1 = OperatingRoundMove()
+        move1.player_id = "A"
+        move1.construct_track = True
+        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move1, self.state, board=self.board))
+
+        OperatingRound.onStart(self.state)
+
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.construct_track = True
+        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.public_company = self.company
+        self.board.setToken(Token(self.company, "A2", 0))
+        self.assertTrue(oround.run(move2, self.state, board=self.board))
+
+    def test_track_upgrade_cost_deducted(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        first = OperatingRoundMove()
+        first.player_id = "A"
+        first.construct_track = True
+        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
+
+        start_cash = self.company.cash
+
+        upgrade = OperatingRoundMove()
+        upgrade.player_id = "A"
+        upgrade.construct_track = True
+        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
+        upgrade.public_company = self.company
+        self.assertTrue(oround.run(upgrade, self.state, board=self.board, config=cfg))
+        self.assertEqual(self.company.cash, start_cash - cfg.TRACK_LAYING_COSTS[Color.BROWN])
+
+    def test_skip_track_color_invalid(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        first = OperatingRoundMove()
+        first.player_id = "A"
+        first.construct_track = True
+        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
+
+        upgrade = OperatingRoundMove()
+        upgrade.player_id = "A"
+        upgrade.construct_track = True
+        upgrade.track = Track("2", "2", Color.RED, "A1", 0)
+        upgrade.public_company = self.company
+        self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
+
 
 class OperatingRoundTokenTests(unittest.TestCase):
     def setUp(self):
@@ -108,6 +188,9 @@ class OperatingRoundTokenTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertTrue(oround.run(move, self.state, board=self.board))
 
+        # new operating round begins
+        OperatingRound.onStart(public_companies=[self.company], private_companies=[])
+
         # prepare second location
         self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
         move2 = OperatingRoundMove()
@@ -119,6 +202,25 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertEqual(self.company.cash, 1000 - 40 - 60)
         self.assertEqual(self.company.tokens_available, 2)
         self.assertEqual(self.company.token_count, 4)
+
+    def test_invalid_second_token_same_round(self):
+        # place first token
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.purchase_token = True
+        move.token = Token(self.company, "A1", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move, self.state, board=self.board))
+
+        # attempt second token without starting new round
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.purchase_token = True
+        move2.token = Token(self.company, "B1", 0)
+        move2.public_company = self.company
+        self.assertFalse(oround.run(move2, self.state, board=self.board))
 
     def test_invalid_token_no_track(self):
         move = OperatingRoundMove()
@@ -220,6 +322,50 @@ class OperatingRoundRouteTests(unittest.TestCase):
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
+
+
+class OperatingRoundPaymentOptionTests(unittest.TestCase):
+    def setUp(self):
+        self.board = GameBoard()
+        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "A2", 0))
+        self.state = MutableGameState()
+        self.state.players = [fake_player("A")]
+        self.company = fake_company("A")
+        self.state.public_companies = [self.company]
+
+    def test_invalid_payment_non_boolean(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.pay_dividend = "yes"
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_payment_no_income(self):
+        self.company._income = None
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.pay_dividend = True
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_dividend_reduces_income(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.company.owners = {self.state.players[0]: 100}
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.pay_dividend = True
+        move.routes = [Route(["A1", "A2"])]
+        move.public_company = self.company
+        self.company.trains.append(Train("2", 100))
+        oround = OperatingRound()
+        oround.run(move, self.state, board=self.board)
+        self.assertEqual(self.state.players[0].cash, 1000 + 20)
+        self.assertEqual(self.company._income, 0)
 
 
 class OperatingRoundTrainPurchaseTests(unittest.TestCase):

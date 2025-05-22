@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany, Train, Color, MutableGameState, err
 from app.minigames.base import Minigame
@@ -22,6 +22,7 @@ class OperatingRoundMove(Move):
         self.token: Token = None
         self.track: Track = None
         self.train: Train = None
+        self.config = None
 
     pass
 
@@ -43,17 +44,18 @@ class OperatingRound(Minigame):
     def run(self, move: OperatingRoundMove, game_state: MutableGameState, **extra) -> bool:
         move.backfill(game_state)
         move.board = extra.get("board")
+        move.config = extra.get("config")
         # Store board for later checks during ``next``
         self.board = move.board
 
-        if move.construct_track and not self.isValidTrackPlacement(move) or \
+        if move.construct_track and not self.isValidTrackPlacement(move, game_state) or \
             move.purchase_token and not self.isValidTokenPlacement(move) or \
             move.run_route and not self.isValidRoute(move) or \
             not self.isValidPaymentOption(move) or \
             move.buy_train and not self.isValidTrainPurchase(move):
             return False
 
-        self.constructTrack(move, **extra)
+        self.constructTrack(move, game_state, **extra)
         self.purchaseToken(move, **extra)
         self.runRoutes(move, **extra)
         self.payDividends(move, **extra)
@@ -61,12 +63,18 @@ class OperatingRound(Minigame):
 
         return True
 
-    def constructTrack(self, move: OperatingRoundMove, **kwargs):
+    def constructTrack(self, move: OperatingRoundMove, state: MutableGameState, **kwargs):
         track: Track = move.track
         board: GameBoard = kwargs.get("board")
+        config = kwargs.get("config")
         if move.construct_track and self.isValidTrackPlacement(move):
             board.setTrack(track)
-            move.public_company.cash -= 0  # yellow tiles free in 1830
+            if config is not None:
+                cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
+            else:
+                cost = 0
+            move.public_company.cash -= cost
+            state.track_laid.add(move.public_company.id)
 
     def purchaseToken(self, move: OperatingRoundMove, **kwargs):
         token: Token = move.token
@@ -77,6 +85,7 @@ class OperatingRound(Minigame):
             board.setToken(token)
             move.public_company.cash -= cost
             move.public_company.tokens_available -= 1
+            move.public_company.token_placed = True
             move.token = token
 
     def runRoutes(self, move: OperatingRoundMove, **kwargs):
@@ -106,8 +115,16 @@ class OperatingRound(Minigame):
                 self.rusted_train_type = train.rusts_on
 
     def isValidPaymentOption(self, move: OperatingRoundMove):
-        # TODO: Validate the payment (to players or to company)
-        return self.validate([])
+        pc = move.public_company
+
+        validations = [
+            err(isinstance(move.pay_dividend, bool),
+                "Dividend choice must be a boolean"),
+            err(pc._income is not None,
+                "Company must calculate income before distributing"),
+        ]
+
+        return self.validate(validations)
 
 
     def isValidTrainPurchase(self, move: OperatingRoundMove):
@@ -174,11 +191,12 @@ class OperatingRound(Minigame):
             err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
             err(token.company.tokens_available > 0, "There are no remaining tokens for that company"),
             err(token.company.cash >= cost, "You don't have enough cash to buy a token"),
+            err(not token.company.token_placed, "You have already placed a token this round"),
         ]
 
         return self.validate(validations)
 
-    def isValidTrackPlacement(self, move: OperatingRoundMove):
+    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
         track = move.track
         board: GameBoard = move.board if hasattr(move, 'board') else None
         existing = board.board.get(track.location) if board else None
@@ -196,16 +214,15 @@ class OperatingRound(Minigame):
             for t in tokens
         ) if board else False
 
+        already_laid = move.public_company.id in state.track_laid
+
         validations = [
+            err(not already_laid, "That company already laid track this round"),
             err(track.location is not None, "Your track needs to be on a location that exists"),
-            err(existing is None or color_order[track.color] > color_order.get(existing.color, 0),
-                "Someone has already set a tile there"),
+            err(existing is None or color_order[track.color] == color_order.get(existing.color, 0) + 1,
+                "Track upgrades must follow the colour progression"),
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
-            err(existing is None or track.color != Color.BROWN or color_order.get(existing.color, 0) >= color_order[Color.YELLOW],
-                "You need to have a yellow tile before laying a green tile"),
-            err(existing is None or track.color != Color.RED or color_order.get(existing.color, 0) >= color_order[Color.BROWN],
-                "You need to have a green tile before laying an orange tile"),
         ]
 
         return self.validate(validations)
@@ -238,11 +255,19 @@ class OperatingRound(Minigame):
 
 
     @staticmethod
-    def onStart(**kwargs) -> None:
+    def onStart(kwargs: MutableGameState) -> None:
         # Can non-floated companies own private companies??
-        private_companies: List[PrivateCompany] = kwargs.get("private_companies")
-        for pc in private_companies:
-            pc.distributeRevenue()
+        private_companies: List[PrivateCompany] = kwargs.private_companies
+        if private_companies:
+            for pc in private_companies:
+                pc.distributeRevenue()
+
+        # Reset track placement tracking for the new operating round
+        kwargs.track_laid = set()
+
+        # Reset per-round flags on public companies
+        for company in kwargs.get("public_companies", []):
+            company.token_placed = False
 
         # Create a list of floated companies (?)
 

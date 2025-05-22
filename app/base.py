@@ -34,6 +34,9 @@ class MutableGameState:
         self.stock_round_count: int = 0
         self.players: List[Player] = None
         self.priority_deal_player: Player = None
+        # Track which public companies have laid track during the current
+        # operating round. Keys are company ids.
+        self.track_laid: Set[str] = set()
 
     pass
 
@@ -192,6 +195,7 @@ class PublicCompany:
         self.bankrupt = False
         self.tokens: List[Token] = []
         self.token_count: int = 0
+        self.token_placed: bool = False
 
     @staticmethod
     def initiate(**kwargs):
@@ -204,6 +208,7 @@ class PublicCompany:
             x.token_count = len(x.token_costs)
         if 'tokens_available' not in kwargs:
             x.tokens_available = x.token_count
+        x.token_placed = False
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
@@ -228,15 +233,16 @@ class PublicCompany:
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
             self.priceUp(1)
-        pass
 
     def priceUp(self, spaces):
-        # TODO: Market goes up if there are no stocks left over..
-        pass
+        increment = spaces * 10
+        self.stockPrice[StockPurchaseSource.BANK] += increment
 
-    def priceDown(self, spaces):
-        # TODO: Market price tanks on news.
-        pass
+    def priceDown(self, amount):
+        decrement = (amount // STOCK_CERTIFICATE) * 10
+        self.stockPrice[StockPurchaseSource.BANK] = max(
+            0, self.stockPrice[StockPurchaseSource.BANK] - decrement
+        )
 
     def checkPresident(self):
         """Goes through owners and determines who the president is.
@@ -294,8 +300,11 @@ class PublicCompany:
             player: Player = owner
             player.cash += int(self._income * self.owners.get(player) / 100.0)
 
+        self._income = 0
+
     def incomeToCash(self):
         self.cash += self._income
+        self._income = 0
 
     def addIncome(self, amount: int) -> None:
         self._income += amount
