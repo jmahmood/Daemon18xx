@@ -411,6 +411,70 @@ class StockRoundMinigamePassTests(unittest.TestCase):
         self.assertEqual(state.stock_round_passed, self.state().stock_round_passed + 1)
 
 
+class StockRoundPriceAdjustmentTests(unittest.TestCase):
+    def sell_move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "SELL",
+            "player_id": "A",
+            "for_sale_raw": [["ABC", 10]]
+        })
+        move = Move.fromMessage(msg)
+        return StockRoundMove.fromMove(move)
+
+    def sell_state(self) -> MutableGameState:
+        game_context = MutableGameState()
+        game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        game_context.public_companies = [fake_public_company("ABC")]
+        game_context.stock_round_count = 2
+        game_context.sales = [{}, {}, {}]
+        game_context.purchases = [{}, {}, {}]
+        return game_context
+
+    def initial_setup_company(self, company, owners, initial_price):
+        company.setInitialPrice(initial_price)
+        for owner, amount in owners:
+            company.buy(owner, StockPurchaseSource.IPO, amount)
+
+    def test_price_decreases_on_sale(self):
+        move = self.sell_move()
+        state = self.sell_state()
+        self.initial_setup_company(
+            state.public_companies[0],
+            [(state.players[0], STOCK_CERTIFICATE), (state.players[1], STOCK_PRESIDENT_CERTIFICATE)],
+            72,
+        )
+        initial_bank_price = state.public_companies[0].stockPrice[StockPurchaseSource.BANK]
+        initial_ipo_price = state.public_companies[0].stockPrice[StockPurchaseSource.IPO]
+        minigame = StockRound()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+        self.assertEqual(
+            state.public_companies[0].stockPrice[StockPurchaseSource.BANK],
+            initial_bank_price - 10,
+        )
+        self.assertEqual(
+            state.public_companies[0].stockPrice[StockPurchaseSource.IPO],
+            initial_ipo_price,
+        )
+
+    def test_price_increases_when_no_stock_left(self):
+        state = self.sell_state()
+        state.public_companies = [fake_public_company("ABC")]
+        company = state.public_companies[0]
+        company.setInitialPrice(72)
+        company.buy(state.players[0], StockPurchaseSource.IPO, 100)
+        initial_bank_price = company.stockPrice[StockPurchaseSource.BANK]
+        initial_ipo_price = company.stockPrice[StockPurchaseSource.IPO]
+        company.checkPriceIncrease()
+        self.assertEqual(
+            company.stockPrice[StockPurchaseSource.BANK],
+            initial_bank_price + 10,
+        )
+        self.assertEqual(
+            company.stockPrice[StockPurchaseSource.IPO],
+            initial_ipo_price,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
 

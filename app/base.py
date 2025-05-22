@@ -227,15 +227,16 @@ class PublicCompany:
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
             self.priceUp(1)
-        pass
 
     def priceUp(self, spaces):
-        # TODO: Market goes up if there are no stocks left over..
-        pass
+        increment = spaces * 10
+        self.stockPrice[StockPurchaseSource.BANK] += increment
 
-    def priceDown(self, spaces):
-        # TODO: Market price tanks on news.
-        pass
+    def priceDown(self, amount):
+        decrement = (amount // STOCK_CERTIFICATE) * 10
+        self.stockPrice[StockPurchaseSource.BANK] = max(
+            0, self.stockPrice[StockPurchaseSource.BANK] - decrement
+        )
 
     def checkPresident(self):
         """Goes through owners and determines who the president is.
