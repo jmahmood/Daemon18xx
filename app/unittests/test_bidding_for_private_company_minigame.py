@@ -6,7 +6,7 @@ import logging
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
-from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
+from app.unittests.test_private_company_minigame import fake_player, fake_private_company
 
 logging.basicConfig(level=logging.DEBUG)
 

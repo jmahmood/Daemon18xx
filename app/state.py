@@ -117,9 +117,10 @@ class Game:
         game = Game()
         game.config = config
         game.state = MutableGameState()
+        import copy
         game.state.players = players
-        game.state.private_companies = config.PRIVATE_COMPANIES
-        game.state.public_companies = config.PUBLIC_COMPANIES
+        game.state.private_companies = copy.deepcopy(config.PRIVATE_COMPANIES)
+        game.state.public_companies = copy.deepcopy(config.PUBLIC_COMPANIES)
 
         return game
 

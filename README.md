@@ -41,3 +41,13 @@ Public companies now track placed station tokens and expose a ``hasValidRoute``
 helper used during operating rounds to determine whether a company can continue
 operating once its trains are gone.
 
+## Running Tests
+
+All unit tests live under `app/unittests/`. After cloning the repository run
+
+```bash
+python -m unittest discover
+```
+
+from the repository root to execute the entire test suite.
+

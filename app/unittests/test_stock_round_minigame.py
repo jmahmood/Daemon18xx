@@ -10,7 +10,7 @@ from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource,
     STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.StockRound.move import StockRoundMove
-from app.unittests.PrivateCompanyMinigameTests import fake_player
+from app.unittests.test_private_company_minigame import fake_player
 
 
 def fake_public_company(name="1") -> PublicCompany:
