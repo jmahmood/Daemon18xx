@@ -260,7 +260,7 @@ class StockRoundMinigameBuySellTests(unittest.TestCase):
 
         self.initial_setup_company(state.public_companies[1],
                                    [(state.players[0], STOCK_CERTIFICATE + STOCK_PRESIDENT_CERTIFICATE),], 72)
-        move.for_sale_raw[0][1] = 15
+        move.for_sale_raw = [["ABC", 15]]
         minigame = StockRound()
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn("You can only sell in units of 10 stocks (15)", minigame.errors())
