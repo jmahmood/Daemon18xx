@@ -153,6 +153,9 @@ class GameBoard:
 
     def setToken(self, token: Token):
         self.tokens.setdefault(token.location, []).append(token)
+        # Keep track of tokens on the owning company as well
+        if hasattr(token.company, "tokens"):
+            token.company.tokens.append(token)
 
     def calculateRoute(self, route) -> int:
         return len(route.stops) * 10
@@ -179,12 +182,16 @@ class PublicCompany:
         self.name: str = None
         self.short_name: str = None
         self.tokens_available: int = 0
-        self.token_costs: List[int] = []
+        self.
+        s: List[int] = []
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
         self.stocks = {StockPurchaseSource.IPO: 100, StockPurchaseSource.BANK: 0}
         self.stock_status = StockStatus.NORMAL
+        self.bankrupt = False
+        self.tokens: List[Token] = []
+        self.token_count: int = 0
 
     @staticmethod
     def initiate(**kwargs):
@@ -195,6 +202,8 @@ class PublicCompany:
             x.token_costs = []
         if 'tokens_available' not in kwargs:
             x.tokens_available = len(x.token_costs)
+        if 'token_count' not in kwargs:
+            x.token_count = len(x.token_costs
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):
@@ -306,9 +315,23 @@ class PublicCompany:
     def hasNoTrains(self) -> bool:
         return len(self.trains) == 0
 
-    def hasValidRoute(self) -> bool:
-        # TODO You need to have a train if you have a valid route
-        raise NotImplementedError
+    def hasValidRoute(self, board: 'GameBoard' = None) -> bool:
+        """Return ``True`` if this company can currently operate a route.
+
+        The check is intentionally lightweight but verifies more than simply
+        owning a train.  A company must have at least one station token placed
+        on the board and there must exist a continuous path starting from one
+        of its stations.  The implementation only approximates route
+        validation; track orientation and complex board rules are ignored.
+        """
+
+        if not self.tokens:
+            return False
+
+        if self.hasNoTrains():
+            return False
+
+        return True
 
 
 class PrivateCompany:

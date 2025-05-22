@@ -1,4 +1,4 @@
-from app.base import PrivateCompany, PublicCompany, Train
+from app.base import PrivateCompany, PublicCompany, Train, Color
 
 
 def starting_cash(num_players: int) -> int:
@@ -12,6 +12,21 @@ PRIVATE_COMPANIES = [
     PrivateCompany.initiate(4, "Kyushu Steamship", "KS", 160, 20, "Z4"),
     PrivateCompany.initiate(5, "Hokkaido Coal", "HC", 200, 25, "Z5"),
 ]
+
+TOKEN_COUNTS = {
+    "SR": 4,
+    "UR": 3,
+}
+
+TRACK_LAYING_COSTS = {
+    Color.YELLOW: 0,
+    Color.BROWN: 100,
+    Color.RED: 200,
+}
+
+SPECIAL_HEX_RULES = {
+    "Z1": "SR home hex",
+}
 
 PUBLIC_COMPANIES = [
     PublicCompany.initiate(id="SR", name="Sanyo Railway", short_name="SR",
