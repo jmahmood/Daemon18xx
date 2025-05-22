@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany, Train, Color, MutableGameState, err
 from app.minigames.base import Minigame
@@ -22,6 +22,7 @@ class OperatingRoundMove(Move):
         self.token: Token = None
         self.track: Track = None
         self.train: Train = None
+        self.config = None
 
     pass
 
@@ -43,6 +44,7 @@ class OperatingRound(Minigame):
     def run(self, move: OperatingRoundMove, game_state: MutableGameState, **extra) -> bool:
         move.backfill(game_state)
         move.board = extra.get("board")
+        move.config = extra.get("config")
         # Store board for later checks during ``next``
         self.board = move.board
 
@@ -64,10 +66,14 @@ class OperatingRound(Minigame):
     def constructTrack(self, move: OperatingRoundMove, state: MutableGameState, **kwargs):
         track: Track = move.track
         board: GameBoard = kwargs.get("board")
-        if move.construct_track and self.isValidTrackPlacement(move, state):
+        config = kwargs.get("config")
+        if move.construct_track and self.isValidTrackPlacement(move):
             board.setTrack(track)
-            move.public_company.cash -= 0  # yellow tiles free in 1830
-            # Record that this company has laid track this round
+            if config is not None:
+                cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
+            else:
+                cost = 0
+            move.public_company.cash -= cost
             state.track_laid.add(move.public_company.id)
 
     def purchaseToken(self, move: OperatingRoundMove, **kwargs):
@@ -203,14 +209,10 @@ class OperatingRound(Minigame):
         validations = [
             err(not already_laid, "That company already laid track this round"),
             err(track.location is not None, "Your track needs to be on a location that exists"),
-            err(existing is None or color_order[track.color] > color_order.get(existing.color, 0),
-                "Someone has already set a tile there"),
+            err(existing is None or color_order[track.color] == color_order.get(existing.color, 0) + 1,
+                "Track upgrades must follow the colour progression"),
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
-            err(existing is None or track.color != Color.BROWN or color_order.get(existing.color, 0) >= color_order[Color.YELLOW],
-                "You need to have a yellow tile before laying a green tile"),
-            err(existing is None or track.color != Color.RED or color_order.get(existing.color, 0) >= color_order[Color.BROWN],
-                "You need to have a green tile before laying an orange tile"),
         ]
 
         return self.validate(validations)

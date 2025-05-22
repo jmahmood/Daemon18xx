@@ -112,6 +112,49 @@ class OperatingRoundTrackTests(unittest.TestCase):
         self.board.setToken(Token(self.company, "A2", 0))
         self.assertTrue(oround.run(move2, self.state, board=self.board))
 
+    def test_track_upgrade_cost_deducted(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        first = OperatingRoundMove()
+        first.player_id = "A"
+        first.construct_track = True
+        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
+
+        start_cash = self.company.cash
+
+        upgrade = OperatingRoundMove()
+        upgrade.player_id = "A"
+        upgrade.construct_track = True
+        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
+        upgrade.public_company = self.company
+        self.assertTrue(oround.run(upgrade, self.state, board=self.board, config=cfg))
+        self.assertEqual(self.company.cash, start_cash - cfg.TRACK_LAYING_COSTS[Color.BROWN])
+
+    def test_skip_track_color_invalid(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        first = OperatingRoundMove()
+        first.player_id = "A"
+        first.construct_track = True
+        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
+
+        upgrade = OperatingRoundMove()
+        upgrade.player_id = "A"
+        upgrade.construct_track = True
+        upgrade.track = Track("2", "2", Color.RED, "A1", 0)
+        upgrade.public_company = self.company
+        self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
+
 
 class OperatingRoundTokenTests(unittest.TestCase):
     def setUp(self):
