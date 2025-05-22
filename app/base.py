@@ -182,8 +182,7 @@ class PublicCompany:
         self.name: str = None
         self.short_name: str = None
         self.tokens_available: int = 0
-        self.
-        s: List[int] = []
+        self.token_costs: List[int] = []
         self.president: Player = None
         self.stockPrice = {StockPurchaseSource.IPO: 0, StockPurchaseSource.BANK: 0}
         self.owners = {}
@@ -200,10 +199,10 @@ class PublicCompany:
             x.__dict__[k] = v
         if 'token_costs' not in kwargs:
             x.token_costs = []
-        if 'tokens_available' not in kwargs:
-            x.tokens_available = len(x.token_costs)
         if 'token_count' not in kwargs:
-            x.token_count = len(x.token_costs
+            x.token_count = len(x.token_costs)
+        if 'tokens_available' not in kwargs:
+            x.tokens_available = x.token_count
         return x
 
     def buy(self, player: Player, source: StockPurchaseSource, amount: int):

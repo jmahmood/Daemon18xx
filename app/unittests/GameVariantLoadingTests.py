@@ -15,6 +15,8 @@ class GameVariantLoadingTests(unittest.TestCase):
                          [pc.name for pc in cfg.PUBLIC_COMPANIES])
         self.assertEqual([pc.token_count for pc in game.state.public_companies],
                          [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
+        self.assertEqual([pc.tokens_available for pc in game.state.public_companies],
+                         [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
         self.assertTrue(hasattr(cfg, "TRACK_LAYING_COSTS"))
         self.assertTrue(hasattr(cfg, "SPECIAL_HEX_RULES"))
 
@@ -28,6 +30,8 @@ class GameVariantLoadingTests(unittest.TestCase):
                          [pc.name for pc in cfg.PUBLIC_COMPANIES])
         self.assertEqual([pc.token_count for pc in game.state.public_companies],
                          [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
+        self.assertEqual([pc.tokens_available for pc in game.state.public_companies],
+                         [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
         self.assertTrue(hasattr(cfg, "TRACK_LAYING_COSTS"))
         self.assertTrue(hasattr(cfg, "SPECIAL_HEX_RULES"))
 
@@ -40,6 +44,8 @@ class GameVariantLoadingTests(unittest.TestCase):
         self.assertEqual([pc.name for pc in game.state.public_companies],
                          [pc.name for pc in cfg.PUBLIC_COMPANIES])
         self.assertEqual([pc.token_count for pc in game.state.public_companies],
+                         [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
+        self.assertEqual([pc.tokens_available for pc in game.state.public_companies],
                          [pc.token_count for pc in cfg.PUBLIC_COMPANIES])
         self.assertTrue(hasattr(cfg, "TRACK_LAYING_COSTS"))
         self.assertTrue(hasattr(cfg, "SPECIAL_HEX_RULES"))
