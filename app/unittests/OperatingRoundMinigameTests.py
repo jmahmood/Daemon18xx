@@ -75,6 +75,43 @@ class OperatingRoundTrackTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
+    def test_only_one_tile_per_round(self):
+        self.board.setToken(Token(self.company, "A1", 0))
+        move1 = OperatingRoundMove()
+        move1.player_id = "A"
+        move1.construct_track = True
+        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move1, self.state, board=self.board))
+
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.construct_track = True
+        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.public_company = self.company
+        self.assertFalse(oround.run(move2, self.state, board=self.board))
+
+    def test_track_flag_resets_on_start(self):
+        self.board.setToken(Token(self.company, "A1", 0))
+        move1 = OperatingRoundMove()
+        move1.player_id = "A"
+        move1.construct_track = True
+        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move1, self.state, board=self.board))
+
+        OperatingRound.onStart(self.state)
+
+        move2 = OperatingRoundMove()
+        move2.player_id = "A"
+        move2.construct_track = True
+        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.public_company = self.company
+        self.board.setToken(Token(self.company, "A2", 0))
+        self.assertTrue(oround.run(move2, self.state, board=self.board))
+
 
 class OperatingRoundTokenTests(unittest.TestCase):
     def setUp(self):
