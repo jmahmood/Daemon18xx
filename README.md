@@ -29,6 +29,10 @@ Public companies now track how many station tokens they have left using a
 in the company configuration. When a token is purchased during an operating
 round its cost is deducted from the company's cash and the available count is
 reduced.
+The total number of tokens a company begins with is stored in the
+`token_count` attribute. At the start of a game `tokens_available` will equal
+`token_count`. Purchasing station tokens decreases `tokens_available` but does
+not change `token_count`.
 
 ## Changelog
 

@@ -85,6 +85,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertEqual(self.company.cash, 1000-40)
         self.assertEqual(self.company.tokens_available, 3)
         self.assertIn(move.token, self.board.tokens["A1"])
+        self.assertEqual(self.company.token_count, 4)
 
     def test_second_token_cost(self):
         # place first token
@@ -106,6 +107,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertTrue(oround.run(move2, self.state, board=self.board))
         self.assertEqual(self.company.cash, 1000 - 40 - 60)
         self.assertEqual(self.company.tokens_available, 2)
+        self.assertEqual(self.company.token_count, 4)
 
     def test_invalid_token_no_track(self):
         move = OperatingRoundMove()
