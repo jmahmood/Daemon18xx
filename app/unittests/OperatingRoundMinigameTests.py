@@ -30,10 +30,11 @@ def fake_company(name="1", cash=1000):
 class PlayerTurnStub:
     def __init__(self, waiting=True):
         self.waiting = waiting
+        self.restart_called_with = None
     def anotherCompanyWaiting(self):
         return self.waiting
-    def restart(self):
-        pass
+    def restart(self, current_or=None):
+        self.restart_called_with = current_or
 
 
 class OperatingRoundTrackTests(unittest.TestCase):
@@ -212,6 +213,18 @@ class OperatingRoundNextTests(unittest.TestCase):
         self.assertEqual(oround.next(**state), "OperatingRound2")
         state["currentOperatingRound"] = 2
         self.assertEqual(oround.next(**state), "StockRound")
+
+    def test_round_increment_restart(self):
+        oround = OperatingRound()
+        state = {
+            "public_companies": [],
+            "playerTurn": PlayerTurnStub(False),
+            "currentOperatingRound": 1,
+            "totalOperatingRounds": 3,
+        }
+        nxt = oround.next(**state)
+        self.assertEqual(nxt, "OperatingRound2")
+        self.assertEqual(state["playerTurn"].restart_called_with, 2)
 
 
 class TrainsRustedFlowTests(unittest.TestCase):

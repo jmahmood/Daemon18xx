@@ -221,9 +221,10 @@ class OperatingRound(Minigame):
         # Do we have another operating round?
         if not kwargs.get("playerTurn").anotherCompanyWaiting() and \
                         kwargs.get("currentOperatingRound") < kwargs.get("totalOperatingRounds"):
-            # TODO increment current operating round
-            kwargs.get("playerTurn").restart() # Should re-calculate the turn order and run a new operating round from the start.
-            return "OperatingRound{}".format(kwargs.get("currentOperatingRound") + 1)
+            current_or = kwargs.get("currentOperatingRound") + 1
+            kwargs["currentOperatingRound"] = current_or
+            kwargs.get("playerTurn").restart(current_or)  # Recalculate order for new OR
+            return "OperatingRound{}".format(current_or)
 
         return "StockRound"
 
