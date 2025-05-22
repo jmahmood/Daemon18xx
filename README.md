@@ -34,6 +34,14 @@ The total number of tokens a company begins with is stored in the
 `token_count`. Purchasing station tokens decreases `tokens_available` but does
 not change `token_count`.
 
+## Dividend Payouts
+
+Operating round moves must explicitly state whether dividends will be paid with
+the `pay_dividend` flag. This value must be `True` or `False` and a company can
+only choose once it has calculated income by running routes. When dividends are
+distributed that income is removed from the company and credited directly to the
+players according to their share percentage.
+
 ## Changelog
 
 Recent updates include initial handling of bankrupt companies when trains rust.

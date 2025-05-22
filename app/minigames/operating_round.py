@@ -106,8 +106,16 @@ class OperatingRound(Minigame):
                 self.rusted_train_type = train.rusts_on
 
     def isValidPaymentOption(self, move: OperatingRoundMove):
-        # TODO: Validate the payment (to players or to company)
-        return self.validate([])
+        pc = move.public_company
+
+        validations = [
+            err(isinstance(move.pay_dividend, bool),
+                "Dividend choice must be a boolean"),
+            err(pc._income is not None,
+                "Company must calculate income before distributing"),
+        ]
+
+        return self.validate(validations)
 
 
     def isValidTrainPurchase(self, move: OperatingRoundMove):

@@ -293,8 +293,11 @@ class PublicCompany:
             player: Player = owner
             player.cash += int(self._income * self.owners.get(player) / 100.0)
 
+        self._income = 0
+
     def incomeToCash(self):
         self.cash += self._income
+        self._income = 0
 
     def addIncome(self, amount: int) -> None:
         self._income += amount

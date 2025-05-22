@@ -222,6 +222,50 @@ class OperatingRoundRouteTests(unittest.TestCase):
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
 
+class OperatingRoundPaymentOptionTests(unittest.TestCase):
+    def setUp(self):
+        self.board = GameBoard()
+        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Track("2", "2", Color.YELLOW, "A2", 0))
+        self.state = MutableGameState()
+        self.state.players = [fake_player("A")]
+        self.company = fake_company("A")
+        self.state.public_companies = [self.company]
+
+    def test_invalid_payment_non_boolean(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.pay_dividend = "yes"
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_payment_no_income(self):
+        self.company._income = None
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.pay_dividend = True
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_dividend_reduces_income(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.company.owners = {self.state.players[0]: 100}
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.pay_dividend = True
+        move.routes = [Route(["A1", "A2"])]
+        move.public_company = self.company
+        self.company.trains.append(Train("2", 100))
+        oround = OperatingRound()
+        oround.run(move, self.state, board=self.board)
+        self.assertEqual(self.state.players[0].cash, 1000 + 20)
+        self.assertEqual(self.company._income, 0)
+
+
 class OperatingRoundTrainPurchaseTests(unittest.TestCase):
     def setUp(self):
         self.board = GameBoard()
