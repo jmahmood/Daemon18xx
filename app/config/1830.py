@@ -21,6 +21,7 @@ TOKEN_COUNTS = {
 
 TRACK_LAYING_COSTS = {
     Color.YELLOW: 0,
+    Color.GREEN: 0,
     Color.BROWN: 100,
     Color.RED: 200,
 }
