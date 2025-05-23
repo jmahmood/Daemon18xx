@@ -30,6 +30,10 @@ class Auction(Minigame):
     def validatePass(self, move: AuctionBidMove, state: MutableGameState):
         return self.validate([
             err(
+                state.stock_round_count > 1,
+                "You can't sell a private company in the first stock round."
+            ),
+            err(
                 move.player != state.auctioned_private_company.belongs_to,
                 "You can't pass (or bid) on your own company.",
                 move.private_company.name,
@@ -39,6 +43,10 @@ class Auction(Minigame):
 
     def validateBid(self, move: AuctionBidMove, state: MutableGameState):
         return self.validate([
+            err(
+                state.stock_round_count > 1,
+                "You can't sell a private company in the first stock round."
+            ),
             err(
                 move.player.hasEnoughMoney(move.amount),
                 "You cannot afford poorboi. {} (You have: {})",
@@ -55,15 +63,8 @@ class Auction(Minigame):
                 move.private_company.name,
                 state.auctioned_private_company.name
             ), err(
-                move.amount >= int(state.auctioned_private_company.cost / 2),
-                "You are paying too little.  Your bid must be 1/2 to 2 times the price of the company ({} to {}).",
-                int(move.private_company.cost / 2),
-                move.private_company.cost * 2
-            ), err(
-                move.amount <= int(state.auctioned_private_company.cost * 2),
-                "You are paying too much.  Your bid must be 1/2 to 2 times the price of the company ({} to {}).",
-                int(move.private_company.cost / 2),
-                move.private_company.cost * 2
+                move.amount >= 0,
+                "Bid must be non-negative."
             ),
 
         ]
