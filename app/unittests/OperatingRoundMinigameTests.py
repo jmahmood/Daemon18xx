@@ -155,6 +155,20 @@ class OperatingRoundTrackTests(unittest.TestCase):
         upgrade.public_company = self.company
         self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
 
+    def test_special_hex_rule_blocks_track(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        # Company has a token somewhere so connectivity check passes
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.construct_track = True
+        move.track = Track("1", "1", Color.YELLOW, "G15", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board, config=cfg))
+
 
 class OperatingRoundTokenTests(unittest.TestCase):
     def setUp(self):

@@ -52,4 +52,6 @@ helper used during operating rounds to determine whether a company can continue
 operating once its trains are gone.
 Token placement is now limited to one per operating round and the flag resets at
 the start of each round.
+Track placement now checks each variant's `SPECIAL_HEX_RULES` and rejects
+building on restricted hexes.
 

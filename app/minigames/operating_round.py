@@ -67,7 +67,7 @@ class OperatingRound(Minigame):
         track: Track = move.track
         board: GameBoard = kwargs.get("board")
         config = kwargs.get("config")
-        if move.construct_track and self.isValidTrackPlacement(move):
+        if move.construct_track and self.isValidTrackPlacement(move, state):
             board.setTrack(track)
             if config is not None:
                 cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
@@ -196,10 +196,13 @@ class OperatingRound(Minigame):
 
         return self.validate(validations)
 
-    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
+    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState = None):
+        """Validate a track placement considering the current game configuration."""
         track = move.track
         board: GameBoard = move.board if hasattr(move, 'board') else None
         existing = board.board.get(track.location) if board else None
+        config = getattr(move, 'config', None)
+        special_rules = getattr(config, 'SPECIAL_HEX_RULES', {}) if config else {}
 
         color_order = {
             Color.YELLOW: 1,
@@ -214,7 +217,7 @@ class OperatingRound(Minigame):
             for t in tokens
         ) if board else False
 
-        already_laid = move.public_company.id in state.track_laid
+        already_laid = move.public_company.id in state.track_laid if state else False
 
         validations = [
             err(not already_laid, "That company already laid track this round"),
@@ -224,6 +227,11 @@ class OperatingRound(Minigame):
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
         ]
+
+        if track.location in special_rules:
+            validations.append(
+                err(False, f"Track placement restricted on {track.location}: {special_rules[track.location]}")
+            )
 
         return self.validate(validations)
 
