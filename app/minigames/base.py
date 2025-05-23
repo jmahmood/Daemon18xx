@@ -12,19 +12,23 @@ class LifeCycle:
     """
     @staticmethod
     def onStart(kwargs: MutableGameState) -> None:
-        logging.info("Minigame started")
+        pass
+        # logging.debug("Minigame started")
 
     @staticmethod
     def onTurnStart(kwargs: MutableGameState) -> None:
-        logging.info("Minigame started")
+        pass
+        # logging.debug("Minigame started")
 
     @staticmethod
     def onComplete(kwargs: MutableGameState) -> None:
-        logging.info("Minigame complete")
+        pass
+        # logging.debug("Minigame complete")
 
     @staticmethod
     def onTurnComplete(kwargs: MutableGameState) -> None:
-        logging.info("Minigame turn complete")
+        pass
+        # logging.debug("Minigame turn complete")
 
 
 class Minigame(LifeCycle):

@@ -5,8 +5,8 @@ from app.base import Move, MutableGameState
 from app.minigames.StockRound.move import StockRoundMove
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.state import Game
-from app.unittests.PrivateCompanyMinigameTests import fake_player
-from app.unittests.StockRoundMinigameTests import fake_public_company
+from app.unittests.test_PrivateCompanyMinigame import fake_player
+from app.unittests.test_StockRoundMinigame import fake_public_company
 
 class PriorityDealTests(unittest.TestCase):
     def setup_state(self):
