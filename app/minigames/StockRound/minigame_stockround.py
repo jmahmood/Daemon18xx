@@ -168,6 +168,12 @@ class StockRound(Minigame):
                 VALID_CERTIFICATE_COUNT[number_of_total_players],
                 player_certificates),
             err(
+                move.player.hasStock(move.public_company) +
+                (STOCK_PRESIDENT_CERTIFICATE if self.isFirstPurchase(move) else STOCK_CERTIFICATE)
+                <= 60,
+                "You can't own more than 60% of a company {} {}",
+                move.public_company.id, move.public_company.name),
+            err(
                 move.public_company.hasStock(move.source, STOCK_CERTIFICATE),
                 "The company does not have enough stock in category {}",
                 move.source),
