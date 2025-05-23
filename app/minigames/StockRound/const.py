@@ -1,5 +1,8 @@
 ALL_AVAILABLE_STOCK = 100
 
+# Maximum number of shares the bank may hold for a company
+BANK_POOL_LIMIT = 50
+
 VALID_IPO_PRICES = [
     100,
     90,

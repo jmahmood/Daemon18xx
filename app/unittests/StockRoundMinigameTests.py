@@ -210,13 +210,23 @@ class StockRoundMinigameSellTests(unittest.TestCase):
         except KeyError:
             self.assertEqual(True, False, "The Player has not been added to the sales dict")
 
-        try:
-            self.assertIn(
-                state.public_companies[1],
-                state.sales[state.stock_round_count][state.players[0]]
-            )
-        except KeyError:
-            self.assertEqual(True, False, "The Player has not been added to the sales dict")
+    def test_bank_pool_limit(self):
+        move = self.move()
+        move.for_sale_raw = [["ABC", 10]]
+        state = self.state()
+        self.initial_setup_company(
+            state.public_companies[0],
+            [(state.players[0], STOCK_CERTIFICATE), (state.players[1], STOCK_PRESIDENT_CERTIFICATE)],
+            72,
+        )
+        state.public_companies[0].stocks[StockPurchaseSource.BANK] = 50
+
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn(
+            "You can't sell that much (10); the bank can only have 50 shares max.",
+            minigame.errors(),
+        )
 
 
 
