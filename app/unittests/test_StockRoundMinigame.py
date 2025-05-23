@@ -10,7 +10,7 @@ from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource,
     STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.StockRound.move import StockRoundMove
-from app.unittests.PrivateCompanyMinigameTests import fake_player
+from app.unittests.test_PrivateCompanyMinigame import fake_player
 
 
 def fake_public_company(name="1") -> PublicCompany:
@@ -210,13 +210,23 @@ class StockRoundMinigameSellTests(unittest.TestCase):
         except KeyError:
             self.assertEqual(True, False, "The Player has not been added to the sales dict")
 
-        try:
-            self.assertIn(
-                state.public_companies[1],
-                state.sales[state.stock_round_count][state.players[0]]
-            )
-        except KeyError:
-            self.assertEqual(True, False, "The Player has not been added to the sales dict")
+    def test_bank_pool_limit(self):
+        move = self.move()
+        move.for_sale_raw = [["ABC", 10]]
+        state = self.state()
+        self.initial_setup_company(
+            state.public_companies[0],
+            [(state.players[0], STOCK_CERTIFICATE), (state.players[1], STOCK_PRESIDENT_CERTIFICATE)],
+            72,
+        )
+        state.public_companies[0].stocks[StockPurchaseSource.BANK] = 50
+
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn(
+            "You can't sell that much (10); the bank can only have 50 shares max.",
+            minigame.errors(),
+        )
 
 
 
@@ -473,6 +483,61 @@ class StockRoundPriceAdjustmentTests(unittest.TestCase):
             company.stockPrice[StockPurchaseSource.IPO],
             initial_ipo_price,
         )
+
+
+class StockRoundPresidencyTests(unittest.TestCase):
+    def setup_company(self):
+        state = MutableGameState()
+        state.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        state.public_companies = [fake_public_company("ABC")]
+        company = state.public_companies[0]
+        company.setInitialPrice(72)
+        return state, company
+
+    def test_presidency_does_not_transfer_below_threshold(self):
+        state, company = self.setup_company()
+        a, b = state.players
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+        company.sell(a, STOCK_PRESIDENT_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+    def test_presidency_transfers_at_threshold(self):
+        state, company = self.setup_company()
+        a, b = state.players
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 2)
+        company.checkPresident()
+        self.assertEqual(company.president, b)
+
+    def test_presidency_transfers_to_largest_holder(self):
+        state, company = self.setup_company()
+        a, b = state.players
+        c = fake_player("C", 10000, 3)
+        state.players.append(c)
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 2)
+        company.buy(c, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 3)
+
+        company.checkPresident()
+        self.assertEqual(company.president, c)
 
 
 if __name__ == "__main__":

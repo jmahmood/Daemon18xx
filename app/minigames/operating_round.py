@@ -1,6 +1,18 @@
 from typing import List, Any
 
-from app.base import PrivateCompany, Move, GameBoard, Track, Token, Route, PublicCompany, Train, Color, MutableGameState, err
+from app.base import (
+    PrivateCompany,
+    Move,
+    GameBoard,
+    Track,
+    Token,
+    Route,
+    PublicCompany,
+    Train,
+    Color,
+    MutableGameState,
+    err,
+)
 from app.minigames.base import Minigame
 
 
@@ -16,7 +28,7 @@ class OperatingRoundMove(Move):
         self.buy_train: bool \
             = None  # Will you buy a train?
         self.pay_dividend: bool \
-            = None  # Will you pay a dividend?
+            = False  # Will you pay a dividend? Defaults to False.
         self.routes: List[Route] = None
         self.public_company: PublicCompany = None
         self.token: Token = None
@@ -67,7 +79,7 @@ class OperatingRound(Minigame):
         track: Track = move.track
         board: GameBoard = kwargs.get("board")
         config = kwargs.get("config")
-        if move.construct_track and self.isValidTrackPlacement(move):
+        if move.construct_track and self.isValidTrackPlacement(move, state):
             board.setTrack(track)
             if config is not None:
                 cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
@@ -147,12 +159,28 @@ class OperatingRound(Minigame):
         pc = move.public_company
         routes = move.routes or []
 
+        def parse_loc(loc: str) -> tuple:
+            """Return (row, col) tuple for board coordinates like 'A1'."""
+            if not loc:
+                return (0, 0)
+            row = ord(loc[0].upper())
+            try:
+                col = int(loc[1:])
+            except ValueError:
+                col = 0
+            return row, col
+
         has_company_token = False
         used_stops = set()
         invalid_track = False
         duplicate_stop = False
+        disconnected = False
+        capacities: List[int] = [int(''.join(filter(str.isdigit, t.type)) or 0) for t in (pc.trains or [])]
+        capacities.sort(reverse=True)
+        route_lengths = []
         for route in routes:
             route_seen = set()
+            route_lengths.append(len(route.stops))
             for stop in route.stops:
                 tokens_here = board.tokens.get(stop, []) if board else []
                 if any(t.company == pc for t in tokens_here):
@@ -166,13 +194,34 @@ class OperatingRound(Minigame):
                 route_seen.add(stop)
                 used_stops.add(stop)
 
+            if board and len(route.stops) >= 2:
+                for a, b in zip(route.stops, route.stops[1:]):
+                    if a not in board.board or b not in board.board:
+                        disconnected = True
+                        break
+                    r1, c1 = parse_loc(a)
+                    r2, c2 = parse_loc(b)
+                    if not ((r1 == r2 and abs(c1 - c2) == 1) or (c1 == c2 and abs(r1 - r2) == 1)):
+                        disconnected = True
+                        break
+
+        capacities_available = sorted(capacities, reverse=True)
+        lengths_sorted = sorted(route_lengths, reverse=True)
+        capacity_ok = len(lengths_sorted) <= len(capacities_available)
+        for length, cap in zip(lengths_sorted, capacities_available):
+            if length > cap:
+                capacity_ok = False
+                break
+
         validations = [
             err(routes != [] and all(len(r.stops) >= 2 for r in routes), "You must join at least two cities"),
             err(not invalid_track, "Route uses track that doesn't exist"),
             err(not duplicate_stop, "You cannot use the same station twice"),
+            err(not disconnected, "Route must be a continuous connection"),
             err(has_company_token, "At least one city must be occupied by that corporation's token"),
             err(pc.trains is not None and len(pc.trains) >= len(routes) and len(pc.trains) > 0,
                 "You need enough trains for the routes"),
+            err(capacity_ok, "Route length exceeds train capacity"),
         ]
 
         return self.validate(validations)
@@ -196,16 +245,20 @@ class OperatingRound(Minigame):
 
         return self.validate(validations)
 
-    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
+    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState = None):
+        """Validate a track placement considering the current game configuration."""
         track = move.track
         board: GameBoard = move.board if hasattr(move, 'board') else None
         existing = board.board.get(track.location) if board else None
+        config = getattr(move, 'config', None)
+        special_rules = getattr(config, 'SPECIAL_HEX_RULES', {}) if config else {}
 
         color_order = {
             Color.YELLOW: 1,
-            Color.BROWN: 2,
-            Color.RED: 3,
-            Color.GRAY: 4
+            Color.GREEN: 2,
+            Color.BROWN: 3,
+            Color.RED: 4,
+            Color.GRAY: 5
         }
 
         has_company_token = any(
@@ -214,16 +267,33 @@ class OperatingRound(Minigame):
             for t in tokens
         ) if board else False
 
-        already_laid = move.public_company.id in state.track_laid
+        already_laid = move.public_company.id in state.track_laid if state else False
+        is_upgrade = existing is not None
 
         validations = [
-            err(not already_laid, "That company already laid track this round"),
+            err(not (already_laid and not is_upgrade), "That company already laid track this round"),
             err(track.location is not None, "Your track needs to be on a location that exists"),
             err(existing is None or color_order[track.color] == color_order.get(existing.color, 0) + 1,
                 "Track upgrades must follow the colour progression"),
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
         ]
+
+        if track.location in special_rules:
+            rule = special_rules[track.location]
+            if isinstance(rule, dict):
+                message = rule.get("message", f"Track placement restricted on {track.location}")
+                if rule.get("no_lay") and existing is None:
+                    validations.append(err(False, message))
+                if rule.get("no_upgrade") and existing is not None:
+                    validations.append(err(False, message))
+                allowed_colors = rule.get("allowed_colors")
+                if allowed_colors and track.color not in allowed_colors:
+                    validations.append(err(False, message))
+            else:
+                validations.append(
+                    err(False, f"Track placement restricted on {track.location}: {rule}")
+                )
 
         return self.validate(validations)
 
@@ -255,18 +325,30 @@ class OperatingRound(Minigame):
 
 
     @staticmethod
-    def onStart(kwargs: MutableGameState) -> None:
-        # Can non-floated companies own private companies??
-        private_companies: List[PrivateCompany] = kwargs.private_companies
+    def onStart(state: MutableGameState = None, **kwargs) -> None:
+        """Prepare the game state for a new operating round."""
+        if state is None:
+            # Allow passing the state as the sole positional argument via kwargs
+            if kwargs and isinstance(next(iter(kwargs.values())), MutableGameState):
+                state = next(iter(kwargs.values()))
+                kwargs = {}
+            else:
+                state = MutableGameState()
+
+        private_companies: List[PrivateCompany] = kwargs.get(
+            "private_companies", getattr(state, "private_companies", None)
+        )
         if private_companies:
             for pc in private_companies:
                 pc.distributeRevenue()
 
         # Reset track placement tracking for the new operating round
-        kwargs.track_laid = set()
+        state.track_laid = set()
 
-        # Reset per-round flags on public companies
-        for company in kwargs.get("public_companies", []):
+        public_companies = kwargs.get(
+            "public_companies", getattr(state, "public_companies", [])
+        )
+        for company in public_companies or []:
             company.token_placed = False
 
         # Create a list of floated companies (?)

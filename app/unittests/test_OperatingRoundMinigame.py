@@ -125,12 +125,21 @@ class OperatingRoundTrackTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
 
+        green = OperatingRoundMove()
+        green.player_id = "A"
+        green.construct_track = True
+        green.track = Track("2", "2", Color.GREEN, "A1", 0)
+        green.public_company = self.company
+        self.assertTrue(oround.run(green, self.state, board=self.board, config=cfg))
+
         start_cash = self.company.cash
+
+        OperatingRound.onStart(self.state)
 
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
+        upgrade.track = Track("3", "3", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertTrue(oround.run(upgrade, self.state, board=self.board, config=cfg))
         self.assertEqual(self.company.cash, start_cash - cfg.TRACK_LAYING_COSTS[Color.BROWN])
@@ -151,9 +160,23 @@ class OperatingRoundTrackTests(unittest.TestCase):
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("2", "2", Color.RED, "A1", 0)
+        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
+
+    def test_special_hex_rule_blocks_track(self):
+        from app.config import load_config
+        cfg = load_config("1830")
+        # Company has a token somewhere so connectivity check passes
+        self.board.setToken(Token(self.company, "A1", 0))
+
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.construct_track = True
+        move.track = Track("1", "1", Color.YELLOW, "G15", 0)
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board, config=cfg))
 
 
 class OperatingRoundTokenTests(unittest.TestCase):
@@ -189,7 +212,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertTrue(oround.run(move, self.state, board=self.board))
 
         # new operating round begins
-        OperatingRound.onStart(public_companies=[self.company], private_companies=[])
+        OperatingRound.onStart(self.state)
 
         # prepare second location
         self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
@@ -323,6 +346,31 @@ class OperatingRoundRouteTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
+    def test_invalid_route_exceeds_capacity(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "A2", "A3"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_route_not_continuous(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        self.company.trains.append(Train("3", 180))
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "A3"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
 
 class OperatingRoundPaymentOptionTests(unittest.TestCase):
     def setUp(self):
@@ -366,6 +414,14 @@ class OperatingRoundPaymentOptionTests(unittest.TestCase):
         oround.run(move, self.state, board=self.board)
         self.assertEqual(self.state.players[0].cash, 1000 + 20)
         self.assertEqual(self.company._income, 0)
+
+    def test_payment_option_defaults_false(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move, self.state, board=self.board))
+        self.assertFalse(move.pay_dividend)
 
 
 class OperatingRoundTrainPurchaseTests(unittest.TestCase):

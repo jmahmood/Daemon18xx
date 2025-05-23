@@ -41,6 +41,10 @@ class AuctionDecision(Minigame):
         """
         return self.validate([
             err(
+                state.stock_round_count > 1,
+                "You can't sell a private company in the first stock round."
+            ),
+            err(
                 move.accepted_player_id in [player_id for player_id, amount in state.auction],
                 """You are accepting a bid from a player who didn't make a bid. (ID: "{}")""",
                 move.accepted_player_id
@@ -57,6 +61,10 @@ class AuctionDecision(Minigame):
 
     def validateReject(self, move: AuctionDecisionMove, state: MutableGameState):
         return self.validate([
+            err(
+                state.stock_round_count > 1,
+                "You can't sell a private company in the first stock round."
+            ),
             err(
                 move.player == move.private_company.belongs_to,
                 """You can't reject an auction if you do not own the company.""",

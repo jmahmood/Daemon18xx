@@ -11,8 +11,8 @@ from app.base import Move, MutableGameState
 from app.minigames.StockRoundSellPrivateCompany.minigame_auction import Auction
 from app.minigames.StockRoundSellPrivateCompany.minigame_decision import AuctionDecision
 from app.minigames.StockRoundSellPrivateCompany.move import AuctionDecisionMove, AuctionBidMove
-from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
-from app.unittests.StockRoundMinigameTests import fake_public_company
+from app.unittests.test_PrivateCompanyMinigame import fake_player, fake_private_company
+from app.unittests.test_StockRoundMinigame import fake_public_company
 
 
 class AuctionRejectDecisionTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class AuctionRejectDecisionTests(unittest.TestCase):
         game_context.auctioned_private_company.belongs_to = game_context.players[5]
         game_context.auction = []
 
-        game_context.stock_round_count = 1
+        game_context.stock_round_count = 2
         game_context.sales = [{},{}]
         game_context.purchases = [{},{}]
         return game_context
@@ -88,7 +88,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         game_context.auctioned_private_company.belongs_to = game_context.players[5]
         game_context.auction = []
 
-        game_context.stock_round_count = 1
+        game_context.stock_round_count = 2
         game_context.sales = [{},{}]
         game_context.purchases = [{},{}]
         return game_context
@@ -150,8 +150,7 @@ class AuctionAcceptDecisionTests(unittest.TestCase):
         self.assertEqual(state.stock_round_play, self.state().stock_round_play)
 
     def testPlayerNoFreebies(self):
-        """0$ bids are supposed to indicate a player has passed.  You can't accept those kinds of bids.
-        Other kinds of bids (less than 1/2, greater than 2x) cannot be added so we don't have to test those"""
+        """Zero-dollar bids represent a pass and may not be accepted"""
         move = self.move()
         state = self.state()
         state.auction.append(("B", 0))
@@ -185,7 +184,7 @@ class AuctionPassTests(unittest.TestCase):
         game_context.auctioned_private_company.belongs_to = game_context.players[5]
         game_context.auction = []
 
-        game_context.stock_round_count = 1
+        game_context.stock_round_count = 2
         game_context.sales = [{},{}]
         game_context.purchases = [{},{}]
         return game_context
@@ -238,13 +237,13 @@ class AuctionBidTests(unittest.TestCase):
         game_context.auctioned_private_company.belongs_to = game_context.players[5]
         game_context.auction = []
 
-        game_context.stock_round_count = 1
+        game_context.stock_round_count = 2
         game_context.sales = [{},{}]
         game_context.purchases = [{},{}]
         return game_context
 
     def testPlayerValidBid(self):
-        """Valid bid within the min / max bid values"""
+        """Valid bid succeeds when player can afford it"""
         move = self.bid(250)
         state = self.state()
 
@@ -252,7 +251,7 @@ class AuctionBidTests(unittest.TestCase):
         self.assertTrue(minigame.run(move, state), minigame.errors())
 
     def testPlayerInsufficientCashBid(self):
-        """Player don't have enough cash to bid this much."""
+        """Player doesn't have enough cash to bid this much."""
         move = self.bid(650)
         state = self.state()
 
@@ -260,6 +259,19 @@ class AuctionBidTests(unittest.TestCase):
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
             "You cannot afford poorboi. 650 (You have: 500)",
+            minigame.errors()
+        )
+
+    def testBidFirstStockRoundNotAllowed(self):
+        """Cannot sell private companies in the first stock round"""
+        move = self.bid(250)
+        state = self.state()
+        state.stock_round_count = 1
+
+        minigame = Auction()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn(
+            "You can't sell a private company in the first stock round.",
             minigame.errors()
         )
 
@@ -291,27 +303,23 @@ class AuctionBidTests(unittest.TestCase):
             minigame.errors()
         )
 
-    def testPlayerBidTooSmall(self):
+    def testPlayerSmallBidAllowed(self):
+        """Bids below face value are permitted"""
         move = self.bid(1)
         state = self.state()
 
         minigame = Auction()
-        # You can't bid on a company that is not up for auction
-        self.assertFalse(minigame.run(move, state), minigame.errors())
-        self.assertIn(
-            "You are paying too little.  Your bid must be 1/2 to 2 times the price of the company (125 to 500).",
-            minigame.errors()
-        )
+        self.assertTrue(minigame.run(move, state), minigame.errors())
 
     def testPlayerBidTooLarge(self):
+        """Bid fails if player lacks cash"""
         move = self.bid(1000)
         state = self.state()
 
         minigame = Auction()
-        # You can't bid on a company that is not up for auction
         self.assertFalse(minigame.run(move, state), minigame.errors())
         self.assertIn(
-            "You are paying too much.  Your bid must be 1/2 to 2 times the price of the company (125 to 500).",
+            "You cannot afford poorboi. 1000 (You have: 500)",
             minigame.errors()
         )
 
