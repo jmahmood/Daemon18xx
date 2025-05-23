@@ -245,25 +245,36 @@ class PublicCompany:
         )
 
     def checkPresident(self):
-        """Goes through owners and determines who the president is.
-        The minimum ownership (20%) is not enforced here."""
-        # TODO: Should this go into the minigame instead since it affects state?
-        # Or keep it here because this is repetitive logic?
-        # Ownership can technically change in an operating round (Train rusting = no money = sell stock = less money)
-        max_ownership = max(self.owners.values())
-        top_owners = [k for k, v in self.owners.items() if v == max_ownership]
-        if self.president is None or self.president not in top_owners:
-            play_order = -1 if self.president is None else self.president.order
+        """Determine if control of the company should change hands.
 
-            """
-            Go through each potential owner and calculate the distance from the previous president based on play order.
-            if I am the old president, the person closest to me in turn order would be the next president.  We
-            get this by subtracting the president's turn order from the potential president's order and finding
-            the person with minimal distance.
-           """
-            ordered_list = [(owner, owner.order - play_order) for owner in top_owners]
-            new_president = reduce(lambda x, y: x if x[1] < y[1] else y, ordered_list)
-            self.president = new_president[0]
+        The new president must own more shares than the current one and hold at
+        least 20% of the company. If multiple players tie for the highest
+        qualifying share count, the one closest to the outgoing president in
+        turn order becomes the new president."""
+
+        if not self.owners:
+            return
+
+        current_share = self.owners.get(self.president, 0) if self.president else 0
+        max_ownership = max(self.owners.values())
+
+        # No eligible replacement if nobody holds at least 20% or the current
+        # president is tied for the lead.
+        if (max_ownership <= current_share or
+                max_ownership < STOCK_PRESIDENT_CERTIFICATE):
+            return
+
+        # Collect all players with the largest share count.
+        top_owners = [p for p, v in self.owners.items() if v == max_ownership]
+
+        if len(top_owners) == 1 or self.president is None:
+            self.president = top_owners[0]
+            return
+
+        play_order = self.president.order
+        ordered_list = [(owner, owner.order - play_order) for owner in top_owners]
+        new_president = reduce(lambda x, y: x if x[1] < y[1] else y, ordered_list)
+        self.president = new_president[0]
 
     def checkFloated(self):
         if not self._floated and self.stocks[StockPurchaseSource.IPO] < STOCK_CERTIFICATE * 5:

@@ -475,6 +475,61 @@ class StockRoundPriceAdjustmentTests(unittest.TestCase):
         )
 
 
+class StockRoundPresidencyTests(unittest.TestCase):
+    def setup_company(self):
+        state = MutableGameState()
+        state.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        state.public_companies = [fake_public_company("ABC")]
+        company = state.public_companies[0]
+        company.setInitialPrice(72)
+        return state, company
+
+    def test_presidency_does_not_transfer_below_threshold(self):
+        state, company = self.setup_company()
+        a, b = state.players
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+        company.sell(a, STOCK_PRESIDENT_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+    def test_presidency_transfers_at_threshold(self):
+        state, company = self.setup_company()
+        a, b = state.players
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE)
+        company.checkPresident()
+        self.assertEqual(company.president, a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 2)
+        company.checkPresident()
+        self.assertEqual(company.president, b)
+
+    def test_presidency_transfers_to_largest_holder(self):
+        state, company = self.setup_company()
+        a, b = state.players
+        c = fake_player("C", 10000, 3)
+        state.players.append(c)
+
+        company.buy(a, StockPurchaseSource.IPO, STOCK_PRESIDENT_CERTIFICATE)
+        company.setPresident(a)
+
+        company.buy(b, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 2)
+        company.buy(c, StockPurchaseSource.IPO, STOCK_CERTIFICATE * 3)
+
+        company.checkPresident()
+        self.assertEqual(company.president, c)
+
+
 if __name__ == "__main__":
     unittest.main()
 

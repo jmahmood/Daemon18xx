@@ -53,3 +53,6 @@ operating once its trains are gone.
 Token placement is now limited to one per operating round and the flag resets at
 the start of each round.
 
+* The presidency of a public company transfers only to the largest shareholder
+  who holds at least 20% of its stock.
+
