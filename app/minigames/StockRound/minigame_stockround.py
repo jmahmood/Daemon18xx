@@ -3,7 +3,12 @@ from typing import List, Optional
 
 from app.base import PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
-from app.minigames.StockRound.const import VALID_CERTIFICATE_COUNT, VALID_IPO_PRICES, ALL_AVAILABLE_STOCK
+from app.minigames.StockRound.const import (
+    VALID_CERTIFICATE_COUNT,
+    VALID_IPO_PRICES,
+    ALL_AVAILABLE_STOCK,
+    BANK_POOL_LIMIT,
+)
 from app.minigames.StockRound.enums import StockRoundType
 from app.minigames.StockRound.move import StockRoundMove
 from app.minigames.base import Minigame
@@ -191,9 +196,11 @@ class StockRound(Minigame):
             ),
 
             err(
-                company.availableStock(StockPurchaseSource.BANK) + amount <= 60,
-                "You can't sell that much ({}); the bank can only have 50 shares max.",
-                amount
+                company.availableStock(StockPurchaseSource.BANK) + amount
+                <= BANK_POOL_LIMIT,
+                "You can't sell that much ({}); the bank can only have {} shares max.",
+                amount,
+                BANK_POOL_LIMIT,
             ),
 
             err(
