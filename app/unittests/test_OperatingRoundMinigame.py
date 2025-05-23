@@ -1,5 +1,5 @@
 import unittest
-from app.base import GameBoard, Track, Token, Route, PublicCompany, MutableGameState, Player, Train, Color
+from app.base import GameBoard, Track, Token, Route, PublicCompany, MutableGameState, Player, Train, Color, PrivateCompany
 from app.minigames.operating_round import (
     OperatingRound,
     OperatingRoundMove,
@@ -24,6 +24,19 @@ def fake_company(name="1", cash=1000):
     pc.trains = []
     pc._income = 0
     pc.owners = {}
+    return pc
+
+
+def fake_private_company(order=1, revenue=20, owner=None):
+    pc = PrivateCompany.initiate(
+        order,
+        f"Private {order}",
+        f"PR{order}",
+        0,
+        revenue,
+        "A1",
+        belongs_to=owner,
+    )
     return pc
 
 
@@ -452,6 +465,20 @@ class OperatingRoundTrainPurchaseTests(unittest.TestCase):
         self.assertEqual(len(other.trains), 2)
         other.removeRustedTrains(oround.rusted_train_type)
         self.assertEqual(len(other.trains), 0)
+
+
+class OperatingRoundOnStartTests(unittest.TestCase):
+    def setUp(self):
+        self.state = MutableGameState()
+        self.player = fake_player("A", cash=100)
+        self.state.players = [self.player]
+        self.private = fake_private_company(1, revenue=30, owner=self.player)
+        self.state.private_companies = [self.private]
+
+    def test_private_company_revenue_added(self):
+        start_cash = self.player.cash
+        OperatingRound.onStart(self.state)
+        self.assertEqual(self.player.cash, start_cash + self.private.revenue)
 
 
 class OperatingRoundNextTests(unittest.TestCase):
