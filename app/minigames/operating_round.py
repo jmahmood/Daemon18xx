@@ -252,9 +252,10 @@ class OperatingRound(Minigame):
 
         color_order = {
             Color.YELLOW: 1,
-            Color.BROWN: 2,
-            Color.RED: 3,
-            Color.GRAY: 4
+            Color.GREEN: 2,
+            Color.BROWN: 3,
+            Color.RED: 4,
+            Color.GRAY: 5
         }
 
         has_company_token = any(
