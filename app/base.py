@@ -44,8 +44,9 @@ class MutableGameState:
 class Color(Enum):
     GRAY = 1
     YELLOW = 2
-    BROWN = 3
-    RED = 4
+    GREEN = 3
+    BROWN = 4
+    RED = 5
 
 
 class Train:

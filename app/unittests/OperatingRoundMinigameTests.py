@@ -125,12 +125,19 @@ class OperatingRoundTrackTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
 
+        green = OperatingRoundMove()
+        green.player_id = "A"
+        green.construct_track = True
+        green.track = Track("2", "2", Color.GREEN, "A1", 0)
+        green.public_company = self.company
+        self.assertTrue(oround.run(green, self.state, board=self.board, config=cfg))
+
         start_cash = self.company.cash
 
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
+        upgrade.track = Track("3", "3", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertTrue(oround.run(upgrade, self.state, board=self.board, config=cfg))
         self.assertEqual(self.company.cash, start_cash - cfg.TRACK_LAYING_COSTS[Color.BROWN])
@@ -151,7 +158,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("2", "2", Color.RED, "A1", 0)
+        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
 
