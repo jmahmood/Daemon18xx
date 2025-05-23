@@ -11,8 +11,8 @@ from app.base import Move, MutableGameState
 from app.minigames.StockRoundSellPrivateCompany.minigame_auction import Auction
 from app.minigames.StockRoundSellPrivateCompany.minigame_decision import AuctionDecision
 from app.minigames.StockRoundSellPrivateCompany.move import AuctionDecisionMove, AuctionBidMove
-from app.unittests.PrivateCompanyMinigameTests import fake_player, fake_private_company
-from app.unittests.StockRoundMinigameTests import fake_public_company
+from app.unittests.test_PrivateCompanyMinigame import fake_player, fake_private_company
+from app.unittests.test_StockRoundMinigame import fake_public_company
 
 
 class AuctionRejectDecisionTests(unittest.TestCase):

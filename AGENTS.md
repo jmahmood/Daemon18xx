@@ -9,6 +9,8 @@ This repository aims to implement a stateless 18xx engine in Python that can pow
 - Implement missing rules starting with the operating round of 1830. Structure the code so variants (1846, 1889) can swap in their own configurations.
 - Expand documentation (README files) when you add or change functionality.
 - Add or update unit tests under `app/unittests/` to cover new behaviors.
+- Avoid using items outside the standard python library wherever possible
+- Keep compatibility with Python 3.8
 
 ## Pull Requests
 
@@ -16,3 +18,6 @@ This repository aims to implement a stateless 18xx engine in Python that can pow
 - Include the results of running unit tests. If tests cannot run because dependencies are missing or the environment lacks network access, note this in the PR description.
 - Ensure the working tree is clean (`git status`) before opening a PR.
 
+## Running Tests
+
+You can run tests using the command `python -m unittest discover`
