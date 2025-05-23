@@ -19,8 +19,9 @@ addition to the lists of private and public companies, the modules now provide:
   `token_count` attribute populated from this mapping.
 * `TRACK_LAYING_COSTS` – the cost in currency for laying track tiles by
   `Color`.
-* `SPECIAL_HEX_RULES` – a dictionary of hex identifiers to any special rules
-  that may apply when validating moves.
+* `SPECIAL_HEX_RULES` – a dictionary mapping hex identifiers to rule
+  dictionaries or messages. Rules can specify `no_lay`, `no_upgrade` or
+  `allowed_colors` to fine tune what track placements are allowed.
 
 ## Token Availability
 
@@ -54,6 +55,9 @@ helper used during operating rounds to determine whether a company can continue
 operating once its trains are gone.
 Token placement is now limited to one per operating round and the flag resets at
 the start of each round.
+Track placement now checks each variant's `SPECIAL_HEX_RULES`. Hex rules can
+forbid initial placement (`no_lay`), upgrades (`no_upgrade`) or limit allowed
+tile colours. Moves violating these restrictions are rejected.
 
 * Routes are now checked against the capacity of the trains assigned to a company.
 Each list of stops must form a continuous path across existing track tiles and

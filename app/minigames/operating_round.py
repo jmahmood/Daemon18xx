@@ -245,10 +245,13 @@ class OperatingRound(Minigame):
 
         return self.validate(validations)
 
-    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState):
+    def isValidTrackPlacement(self, move: OperatingRoundMove, state: MutableGameState = None):
+        """Validate a track placement considering the current game configuration."""
         track = move.track
         board: GameBoard = move.board if hasattr(move, 'board') else None
         existing = board.board.get(track.location) if board else None
+        config = getattr(move, 'config', None)
+        special_rules = getattr(config, 'SPECIAL_HEX_RULES', {}) if config else {}
 
         color_order = {
             Color.YELLOW: 1,
@@ -264,16 +267,33 @@ class OperatingRound(Minigame):
             for t in tokens
         ) if board else False
 
-        already_laid = move.public_company.id in state.track_laid
+        already_laid = move.public_company.id in state.track_laid if state else False
+        is_upgrade = existing is not None
 
         validations = [
-            err(not already_laid, "That company already laid track this round"),
+            err(not (already_laid and not is_upgrade), "That company already laid track this round"),
             err(track.location is not None, "Your track needs to be on a location that exists"),
             err(existing is None or color_order[track.color] == color_order.get(existing.color, 0) + 1,
                 "Track upgrades must follow the colour progression"),
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
         ]
+
+        if track.location in special_rules:
+            rule = special_rules[track.location]
+            if isinstance(rule, dict):
+                message = rule.get("message", f"Track placement restricted on {track.location}")
+                if rule.get("no_lay") and existing is None:
+                    validations.append(err(False, message))
+                if rule.get("no_upgrade") and existing is not None:
+                    validations.append(err(False, message))
+                allowed_colors = rule.get("allowed_colors")
+                if allowed_colors and track.color not in allowed_colors:
+                    validations.append(err(False, message))
+            else:
+                validations.append(
+                    err(False, f"Track placement restricted on {track.location}: {rule}")
+                )
 
         return self.validate(validations)
 
