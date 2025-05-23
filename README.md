@@ -40,19 +40,25 @@ that at most one token may be placed per round.
 
 Operating round moves must explicitly state whether dividends will be paid with
 the `pay_dividend` flag. This value must be `True` or `False` and a company can
-only choose once it has calculated income by running routes. When dividends are
-distributed that income is removed from the company and credited directly to the
-players according to their share percentage.
+only choose once it has calculated income by running routes. When creating an
+`OperatingRoundMove` the flag defaults to `False` so tests and simple
+integrations may omit it. When dividends are distributed that income is removed
+from the company and credited directly to the players according to their share
+percentage.
 
 ## Changelog
 
-Recent updates include initial handling of bankrupt companies when trains rust.
+* Recent updates include initial handling of bankrupt companies when trains rust.
 Public companies now track placed station tokens and expose a ``hasValidRoute``
 helper used during operating rounds to determine whether a company can continue
 operating once its trains are gone.
 Token placement is now limited to one per operating round and the flag resets at
 the start of each round.
 
+* Routes are now checked against the capacity of the trains assigned to a company.
+Each list of stops must form a continuous path across existing track tiles and
+cannot exceed the length of any available train. Invalid routes are rejected
+during the operating round.
+
 * The presidency of a public company transfers only to the largest shareholder
   who holds at least 20% of its stock.
-

@@ -134,6 +134,8 @@ class OperatingRoundTrackTests(unittest.TestCase):
 
         start_cash = self.company.cash
 
+        OperatingRound.onStart(self.state)
+
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
@@ -196,7 +198,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertTrue(oround.run(move, self.state, board=self.board))
 
         # new operating round begins
-        OperatingRound.onStart(public_companies=[self.company], private_companies=[])
+        OperatingRound.onStart(self.state)
 
         # prepare second location
         self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
@@ -330,6 +332,31 @@ class OperatingRoundRouteTests(unittest.TestCase):
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
 
+    def test_invalid_route_exceeds_capacity(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "A2", "A3"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
+    def test_invalid_route_not_continuous(self):
+        token = Token(self.company, "A1", self.company.token_costs[0])
+        self.board.setToken(token)
+        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        self.company.trains.append(Train("3", 180))
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.run_route = True
+        move.routes = [Route(["A1", "A3"])]
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertFalse(oround.run(move, self.state, board=self.board))
+
 
 class OperatingRoundPaymentOptionTests(unittest.TestCase):
     def setUp(self):
@@ -373,6 +400,14 @@ class OperatingRoundPaymentOptionTests(unittest.TestCase):
         oround.run(move, self.state, board=self.board)
         self.assertEqual(self.state.players[0].cash, 1000 + 20)
         self.assertEqual(self.company._income, 0)
+
+    def test_payment_option_defaults_false(self):
+        move = OperatingRoundMove()
+        move.player_id = "A"
+        move.public_company = self.company
+        oround = OperatingRound()
+        self.assertTrue(oround.run(move, self.state, board=self.board))
+        self.assertFalse(move.pay_dividend)
 
 
 class OperatingRoundTrainPurchaseTests(unittest.TestCase):
