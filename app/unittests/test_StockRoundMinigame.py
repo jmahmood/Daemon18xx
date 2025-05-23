@@ -126,6 +126,32 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         except KeyError:
             self.assertEqual(True, False, "The Player has not been added to the purchases dict")
 
+    def test_player_cannot_exceed_sixty_percent(self):
+        move = self.move()
+        state = self.state()
+        state.players[0].cash = 10000
+        state.public_companies[0].setInitialPrice(72)
+        state.public_companies[0].buy(state.players[0], StockPurchaseSource.IPO, 60)
+
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertEqual(state.public_companies[0].owners[state.players[0]], 60)
+        self.assertIn(
+            "You can't own more than 60% of a company ABC Fake company ABC",
+            minigame.errors(),
+        )
+
+    def test_player_can_buy_up_to_sixty_percent(self):
+        move = self.move()
+        state = self.state()
+        state.players[0].cash = 10000
+        state.public_companies[0].setInitialPrice(72)
+        state.public_companies[0].buy(state.players[0], StockPurchaseSource.IPO, 50)
+
+        minigame = StockRound()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+        self.assertEqual(state.public_companies[0].owners[state.players[0]], 60)
+
 
 class StockRoundMinigameSellTests(unittest.TestCase):
     def move(self) -> StockRoundMove:
