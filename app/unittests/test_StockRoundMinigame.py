@@ -6,7 +6,7 @@
 import json
 import unittest
 
-from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
+from app.base import Move, PublicCompany, PrivateCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.StockRound.move import StockRoundMove
@@ -151,6 +151,42 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
         self.assertEqual(state.public_companies[0].owners[state.players[0]], 60)
+
+    def test_certificate_limit_allows_final_share(self):
+        """Player at certificate limit minus one may buy one more share."""
+        move = self.move()
+        state = self.state()
+        # Add two extra players to enforce 4-player limit of 25
+        state.players.append(fake_player("C"))
+        state.players.append(fake_player("D"))
+
+        # Give current player 24 private company certificates
+        for i in range(24):
+            pc = PrivateCompany.initiate(i, f"PC{i}", f"PC{i}", 0, 0, "A1")
+            state.players[0].private_companies.add(pc)
+
+        state.public_companies[0].setInitialPrice(72)
+        state.public_companies[0].buy(state.players[1], StockPurchaseSource.IPO, 20)
+
+        minigame = StockRound()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+
+    def test_certificate_limit_blocks_president_cert(self):
+        """Buying a 20% certificate would exceed the limit and should fail."""
+        move = self.move()
+        state = self.state()
+        state.players.append(fake_player("C"))
+        state.players.append(fake_player("D"))
+
+        for i in range(24):
+            pc = PrivateCompany.initiate(i, f"PC{i}", f"PC{i}", 0, 0, "A1")
+            state.players[0].private_companies.add(pc)
+
+        # Ensure purchase is for a president's share
+        move.ipo_price = 90
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn("You have too many certificates", minigame.errors()[0])
 
 
 class StockRoundMinigameSellTests(unittest.TestCase):
@@ -582,6 +618,73 @@ class StockRoundPresidencyTests(unittest.TestCase):
 
         company.checkPresident()
         self.assertEqual(company.president, c)
+
+
+class StockRoundNoBuyAfterSellTests(unittest.TestCase):
+    def sell_move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "SELL",
+            "player_id": "A",
+            "for_sale_raw": [["ABC", 20]]
+        })
+        return StockRoundMove.fromMove(Move.fromMessage(msg))
+
+    def buy_move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "BUY",
+            "player_id": "A",
+            "public_company_id": "ABC",
+            "source": "BANK",
+            "ipo_price": 72
+        })
+        return StockRoundMove.fromMove(Move.fromMessage(msg))
+
+    def state(self) -> MutableGameState:
+        game_context = MutableGameState()
+        game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        game_context.public_companies = [fake_public_company("ABC")]
+        game_context.stock_round_count = 2
+        game_context.sales = [{}, {}, {}]
+        game_context.purchases = [{}, {}, {}]
+        return game_context
+
+    def initial_setup_company(self, company, owners, initial_price):
+        company.setInitialPrice(initial_price)
+        for owner, amount in owners:
+            company.buy(owner, StockPurchaseSource.IPO, amount)
+
+    def test_cannot_rebuy_same_round(self):
+        state = self.state()
+        self.initial_setup_company(state.public_companies[0], [
+            (state.players[0], 30), (state.players[1], 30)
+        ], 72)
+
+        sell = self.sell_move()
+        buy = self.buy_move()
+        sr = StockRound()
+        self.assertTrue(sr.run(sell, state), sr.errors())
+        self.assertFalse(sr.run(buy, state), sr.errors())
+        self.assertIn("You can't buy from a company you sold this round", sr.errors()[0])
+
+    def test_can_buy_next_round(self):
+        state = self.state()
+        self.initial_setup_company(state.public_companies[0], [
+            (state.players[0], 30), (state.players[1], 30)
+        ], 72)
+
+        sell = self.sell_move()
+        sr = StockRound()
+        self.assertTrue(sr.run(sell, state), sr.errors())
+
+        # end of stock round
+        StockRound.onComplete(state)
+        state.stock_round_count += 1
+        state.sales.append({})
+        state.purchases.append({})
+
+        buy = self.buy_move()
+        sr2 = StockRound()
+        self.assertTrue(sr2.run(buy, state), sr2.errors())
 
 
 if __name__ == "__main__":

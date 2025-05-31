@@ -98,6 +98,10 @@ class Player:
         self.cash: int = 0
         self.order: int = 0
         self.portfolio: Set['PublicCompany'] = set()
+        # Track private companies owned by this player for certificate limits
+        self.private_companies: Set['PrivateCompany'] = set()
+        # Corporations this player sold stock in during the current stock round
+        self.sold_this_round: Set['PublicCompany'] = set()
 
     @staticmethod
     def create(name, cash, order) -> "Player":
@@ -106,6 +110,8 @@ class Player:
         ret.name = name
         ret.cash = cash
         ret.order = order
+        ret.private_companies = set()
+        ret.sold_this_round = set()
         return ret
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
@@ -122,7 +128,8 @@ class Player:
             if public_company.president == self:  # President has a 20% stock certificate
                 total_stock_certificates -= 1
 
-        return total_stock_certificates
+        total_private = len(self.private_companies)
+        return total_stock_certificates + total_private
 
     def hasEnoughMoney(self, cost_of_stock: int):
         return self.cash >= cost_of_stock
@@ -360,6 +367,9 @@ class PrivateCompany:
         """Allows duck typed comparisons between objects"""
         return isinstance(o, PrivateCompany) and self.order == o.order
 
+    def __hash__(self) -> int:
+        return hash(self.order)
+
     def __init__(self):
         self.belongs_to_company: "PublicCompany" = None
         self.player_bids: List[PlayerBid] = None
@@ -446,8 +456,14 @@ class PrivateCompany:
 
     def setBelongs(self, player: Player):
         """No security at this level.  If you run this, any bid will be accepted."""
+        if self.belongs_to and hasattr(self.belongs_to, "private_companies"):
+            self.belongs_to.private_companies.discard(self)
         self.belongs_to = player
-        self.belongs_to.cash -= self.actual_cost
+        if player:
+            if not hasattr(player, "private_companies"):
+                player.private_companies = set()
+            player.private_companies.add(self)
+            self.belongs_to.cash -= self.actual_cost
 
     def setActualCost(self, actual_cost):
         self.actual_cost = actual_cost

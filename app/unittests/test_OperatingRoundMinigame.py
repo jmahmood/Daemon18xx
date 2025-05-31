@@ -13,6 +13,7 @@ def fake_player(id="A", cash=1000, order=0):
     p.id = id
     p.cash = cash
     p.order = order
+    p.sold_this_round = set()
     return p
 
 

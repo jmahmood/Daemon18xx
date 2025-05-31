@@ -46,6 +46,7 @@ class StockRound(Minigame):
             company.sell(move.player, amount)
             company.priceDown(amount)
             company.checkPresident()
+            move.player.sold_this_round.add(company)
 
             try:
                 sale_history[move.player].append(company)
@@ -134,11 +135,15 @@ class StockRound(Minigame):
     @staticmethod
     def onComplete(kwargs: MutableGameState) -> None:
         """Transitioning out of the stock round: increment stock values."""
-        super().onComplete(kwargs)
+        Minigame.onComplete(kwargs)
 
         public_companies: List[PublicCompany] = kwargs.public_companies
         for pc in public_companies:
             pc.checkPriceIncrease()
+
+        # Reset sell restrictions for next stock round
+        for player in kwargs.players:
+            player.sold_this_round = set()
 
     @staticmethod
     def onTurnComplete(kwargs: MutableGameState):
@@ -153,15 +158,15 @@ class StockRound(Minigame):
             STOCK_CERTIFICATE,
             move.ipo_price)
 
-        my_sales = kwargs.sales[kwargs.stock_round_count].get(move.player, [])
+        certs_needed = 2 if self.isFirstPurchase(move) else 1
 
         return self.validate([
             err(
-                move.public_company not in my_sales,
+                move.public_company not in move.player.sold_this_round,
                 "You can't buy from a company you sold this round {} {}",
                 move.public_company.id, move.public_company.name),
             err(
-                player_certificates + 1 <= VALID_CERTIFICATE_COUNT[number_of_total_players],
+                player_certificates + certs_needed <= VALID_CERTIFICATE_COUNT[number_of_total_players],
                 "You have too many certificates. There are {} players, and you are allowed a "
                 "total of {} certificates.  You own {} certificates and would have too many if you bought more.",
                 number_of_total_players,
