@@ -4,7 +4,7 @@ from app.base import (
     PrivateCompany,
     Move,
     GameBoard,
-    Track,
+    Tile,
     Token,
     Route,
     PublicCompany,
@@ -32,7 +32,7 @@ class OperatingRoundMove(Move):
         self.routes: List[Route] = None
         self.public_company: PublicCompany = None
         self.token: Token = None
-        self.track: Track = None
+        self.track: Tile = None
         self.train: Train = None
         self.config = None
 
@@ -76,7 +76,7 @@ class OperatingRound(Minigame):
         return True
 
     def constructTrack(self, move: OperatingRoundMove, state: MutableGameState, **kwargs):
-        track: Track = move.track
+        track: Tile = move.track
         board: GameBoard = kwargs.get("board")
         config = kwargs.get("config")
         if move.construct_track and self.isValidTrackPlacement(move, state):
@@ -92,10 +92,14 @@ class OperatingRound(Minigame):
         token: Token = move.token
         board: GameBoard = kwargs.get("board")
         if move.purchase_token and self.isValidTokenPlacement(move):
-            cost = move.public_company.next_token_cost()
-            token = Token(token.company, token.location, cost)
+            tile = board.board.get(token.location)
+            base = move.public_company.next_token_cost()
+            extra = tile.extra_slots_cost if len(tile.tokens) >= tile.slots and tile.extra_slots_cost is not None else 0
+            total = base + extra
+            board.place_token(move.public_company, token.location)
+            token = Token(token.company, token.location, total)
             board.setToken(token)
-            move.public_company.cash -= cost
+            move.public_company.cash -= total
             move.public_company.tokens_available -= 1
             move.public_company.token_placed = True
             move.token = token
@@ -229,17 +233,21 @@ class OperatingRound(Minigame):
     def isValidTokenPlacement(self, move: OperatingRoundMove):
         token = move.token
         board: GameBoard = move.board if hasattr(move, 'board') else None
-        existing_tokens = board.tokens.get(token.location, []) if board else []
-        same_company = [t for t in existing_tokens if t.company == token.company]
+        tile = board.board.get(token.location) if board else None
+        existing_tokens = tile.tokens if tile else []
+        same_company = [t for t in existing_tokens if t == token.company.id]
 
-        cost = token.company.next_token_cost()
+        base = token.company.next_token_cost()
+        extra = tile.extra_slots_cost if tile and len(existing_tokens) >= tile.slots and tile.extra_slots_cost is not None else 0
+        total_cost = base + extra
 
         validations = [
-            err(board is not None and token.location in board.board, "There is no track there"),
-            err(len(existing_tokens) < 1, "There are no free spots to place a token"),
+            err(board is not None and tile is not None, "There is no track there"),
+            err(tile is not None and (len(existing_tokens) < tile.slots or tile.extra_slots_cost is not None),
+                "There are no free spots to place a token"),
             err(len(same_company) == 0, "You cannot put two tokens for the same company a location"),
             err(token.company.tokens_available > 0, "There are no remaining tokens for that company"),
-            err(token.company.cash >= cost, "You don't have enough cash to buy a token"),
+            err(token.company.cash >= total_cost, "You don't have enough cash to buy a token"),
             err(not token.company.token_placed, "You have already placed a token this round"),
         ]
 
@@ -262,9 +270,8 @@ class OperatingRound(Minigame):
         }
 
         has_company_token = any(
-            t.company == move.public_company
+            any(t.company == move.public_company for t in tokens)
             for tokens in board.tokens.values()
-            for t in tokens
         ) if board else False
 
         already_laid = move.public_company.id in state.track_laid if state else False

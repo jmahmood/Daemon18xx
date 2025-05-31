@@ -1,5 +1,5 @@
 import unittest
-from app.base import GameBoard, Track, Token, Route, PublicCompany, MutableGameState, Player, Train, Color, PrivateCompany
+from app.base import GameBoard, Tile, Token, Route, PublicCompany, MutableGameState, Player, Train, Color, PrivateCompany
 from app.minigames.operating_round import (
     OperatingRound,
     OperatingRoundMove,
@@ -64,18 +64,18 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move = OperatingRoundMove()
         move.player_id = "A"
         move.construct_track = True
-        move.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move.track = Tile("1", "1", Color.YELLOW, "A1", 0)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertTrue(oround.run(move, self.state, board=self.board))
         self.assertIn("A1", self.board.board)
 
     def test_invalid_same_color_upgrade(self):
-        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "A1", 0))
         move = OperatingRoundMove()
         move.player_id = "A"
         move.construct_track = True
-        move.track = Track("2", "2", Color.YELLOW, "A1", 0)
+        move.track = Tile("2", "2", Color.YELLOW, "A1", 0)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
@@ -84,7 +84,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move = OperatingRoundMove()
         move.player_id = "A"
         move.construct_track = True
-        move.track = Track("2", "2", Color.YELLOW, "B1", 0)
+        move.track = Tile("2", "2", Color.YELLOW, "B1", 0)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board))
@@ -94,7 +94,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move1 = OperatingRoundMove()
         move1.player_id = "A"
         move1.construct_track = True
-        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.track = Tile("1", "1", Color.YELLOW, "A1", 0)
         move1.public_company = self.company
         oround = OperatingRound()
         self.assertTrue(oround.run(move1, self.state, board=self.board))
@@ -102,7 +102,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move2 = OperatingRoundMove()
         move2.player_id = "A"
         move2.construct_track = True
-        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.track = Tile("2", "2", Color.YELLOW, "A2", 0)
         move2.public_company = self.company
         self.assertFalse(oround.run(move2, self.state, board=self.board))
 
@@ -111,7 +111,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move1 = OperatingRoundMove()
         move1.player_id = "A"
         move1.construct_track = True
-        move1.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        move1.track = Tile("1", "1", Color.YELLOW, "A1", 0)
         move1.public_company = self.company
         oround = OperatingRound()
         self.assertTrue(oround.run(move1, self.state, board=self.board))
@@ -121,7 +121,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move2 = OperatingRoundMove()
         move2.player_id = "A"
         move2.construct_track = True
-        move2.track = Track("2", "2", Color.YELLOW, "A2", 0)
+        move2.track = Tile("2", "2", Color.YELLOW, "A2", 0)
         move2.public_company = self.company
         self.board.setToken(Token(self.company, "A2", 0))
         self.assertTrue(oround.run(move2, self.state, board=self.board))
@@ -134,7 +134,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         first = OperatingRoundMove()
         first.player_id = "A"
         first.construct_track = True
-        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.track = Tile("1", "1", Color.YELLOW, "A1", 0)
         first.public_company = self.company
         oround = OperatingRound()
         self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
@@ -142,7 +142,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         green = OperatingRoundMove()
         green.player_id = "A"
         green.construct_track = True
-        green.track = Track("2", "2", Color.GREEN, "A1", 0)
+        green.track = Tile("2", "2", Color.GREEN, "A1", 0)
         green.public_company = self.company
         self.assertTrue(oround.run(green, self.state, board=self.board, config=cfg))
 
@@ -153,7 +153,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("3", "3", Color.BROWN, "A1", 0)
+        upgrade.track = Tile("3", "3", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertTrue(oround.run(upgrade, self.state, board=self.board, config=cfg))
         self.assertEqual(self.company.cash, start_cash - cfg.TRACK_LAYING_COSTS[Color.BROWN])
@@ -166,7 +166,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         first = OperatingRoundMove()
         first.player_id = "A"
         first.construct_track = True
-        first.track = Track("1", "1", Color.YELLOW, "A1", 0)
+        first.track = Tile("1", "1", Color.YELLOW, "A1", 0)
         first.public_company = self.company
         oround = OperatingRound()
         self.assertTrue(oround.run(first, self.state, board=self.board, config=cfg))
@@ -174,7 +174,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         upgrade = OperatingRoundMove()
         upgrade.player_id = "A"
         upgrade.construct_track = True
-        upgrade.track = Track("2", "2", Color.BROWN, "A1", 0)
+        upgrade.track = Tile("2", "2", Color.BROWN, "A1", 0)
         upgrade.public_company = self.company
         self.assertFalse(oround.run(upgrade, self.state, board=self.board, config=cfg))
 
@@ -187,7 +187,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
         move = OperatingRoundMove()
         move.player_id = "A"
         move.construct_track = True
-        move.track = Track("1", "1", Color.YELLOW, "G15", 0)
+        move.track = Tile("1", "1", Color.YELLOW, "G15", 0)
         move.public_company = self.company
         oround = OperatingRound()
         self.assertFalse(oround.run(move, self.state, board=self.board, config=cfg))
@@ -196,7 +196,7 @@ class OperatingRoundTrackTests(unittest.TestCase):
 class OperatingRoundTokenTests(unittest.TestCase):
     def setUp(self):
         self.board = GameBoard()
-        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "A1", 0))
         self.state = MutableGameState()
         self.state.players = [fake_player("A")]
         self.company = fake_company("A")
@@ -229,7 +229,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         OperatingRound.onStart(self.state)
 
         # prepare second location
-        self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
+        self.board.setTrack(Tile("2", "2", Color.YELLOW, "B1", 0))
         move2 = OperatingRoundMove()
         move2.player_id = "A"
         move2.purchase_token = True
@@ -251,7 +251,7 @@ class OperatingRoundTokenTests(unittest.TestCase):
         self.assertTrue(oround.run(move, self.state, board=self.board))
 
         # attempt second token without starting new round
-        self.board.setTrack(Track("2", "2", Color.YELLOW, "B1", 0))
+        self.board.setTrack(Tile("2", "2", Color.YELLOW, "B1", 0))
         move2 = OperatingRoundMove()
         move2.player_id = "A"
         move2.purchase_token = True
@@ -292,8 +292,8 @@ class OperatingRoundTokenTests(unittest.TestCase):
 class OperatingRoundRouteTests(unittest.TestCase):
     def setUp(self):
         self.board = GameBoard()
-        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
-        self.board.setTrack(Track("2", "2", Color.YELLOW, "A2", 0))
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Tile("2", "2", Color.YELLOW, "A2", 0))
         self.state = MutableGameState()
         self.state.players = [fake_player("A")]
         self.company = fake_company("A")
@@ -363,7 +363,7 @@ class OperatingRoundRouteTests(unittest.TestCase):
     def test_invalid_route_exceeds_capacity(self):
         token = Token(self.company, "A1", self.company.token_costs[0])
         self.board.setToken(token)
-        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        self.board.setTrack(Tile("3", "3", Color.YELLOW, "A3", 0))
         move = OperatingRoundMove()
         move.player_id = "A"
         move.run_route = True
@@ -375,7 +375,7 @@ class OperatingRoundRouteTests(unittest.TestCase):
     def test_invalid_route_not_continuous(self):
         token = Token(self.company, "A1", self.company.token_costs[0])
         self.board.setToken(token)
-        self.board.setTrack(Track("3", "3", Color.YELLOW, "A3", 0))
+        self.board.setTrack(Tile("3", "3", Color.YELLOW, "A3", 0))
         self.company.trains.append(Train("3", 180))
         move = OperatingRoundMove()
         move.player_id = "A"
@@ -389,8 +389,8 @@ class OperatingRoundRouteTests(unittest.TestCase):
 class OperatingRoundPaymentOptionTests(unittest.TestCase):
     def setUp(self):
         self.board = GameBoard()
-        self.board.setTrack(Track("1", "1", Color.YELLOW, "A1", 0))
-        self.board.setTrack(Track("2", "2", Color.YELLOW, "A2", 0))
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "A1", 0))
+        self.board.setTrack(Tile("2", "2", Color.YELLOW, "A2", 0))
         self.state = MutableGameState()
         self.state.players = [fake_player("A")]
         self.company = fake_company("A")
@@ -561,6 +561,69 @@ class TrainsRustedFlowTests(unittest.TestCase):
         self.assertTrue(tr.run(rust_move, self.state))
         self.assertTrue(self.company_b.bankrupt)
         self.assertEqual(tr.next(currentOperatingRound=1), "StockRound")
+
+
+class CitySlotLogicTests(unittest.TestCase):
+    def setUp(self):
+        self.board = GameBoard()
+        self.state = MutableGameState()
+        self.state.players = [fake_player("A"), fake_player("B"), fake_player("C")]
+        self.company_a = fake_company("A")
+        self.company_b = fake_company("B")
+        self.company_c = fake_company("C")
+        self.state.public_companies = [self.company_a, self.company_b, self.company_c]
+
+    def test_slot_limit(self):
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "Z1", 0, slots=2))
+        oround = OperatingRound()
+
+        m1 = OperatingRoundMove()
+        m1.player_id = "A"
+        m1.purchase_token = True
+        m1.token = Token(self.company_a, "Z1", 0)
+        m1.public_company = self.company_a
+        self.assertTrue(oround.run(m1, self.state, board=self.board))
+
+        m2 = OperatingRoundMove()
+        m2.player_id = "B"
+        m2.purchase_token = True
+        m2.token = Token(self.company_b, "Z1", 0)
+        m2.public_company = self.company_b
+        self.assertTrue(oround.run(m2, self.state, board=self.board))
+
+        m3 = OperatingRoundMove()
+        m3.player_id = "C"
+        m3.purchase_token = True
+        m3.token = Token(self.company_c, "Z1", 0)
+        m3.public_company = self.company_c
+        self.assertFalse(oround.run(m3, self.state, board=self.board))
+
+    def test_optional_extra_slot_cost(self):
+        self.board.setTrack(Tile("1", "1", Color.YELLOW, "NY", 0, slots=2, extra_slots_cost=40))
+        oround = OperatingRound()
+
+        m1 = OperatingRoundMove()
+        m1.player_id = "A"
+        m1.purchase_token = True
+        m1.token = Token(self.company_a, "NY", 0)
+        m1.public_company = self.company_a
+        self.assertTrue(oround.run(m1, self.state, board=self.board))
+
+        m2 = OperatingRoundMove()
+        m2.player_id = "B"
+        m2.purchase_token = True
+        m2.token = Token(self.company_b, "NY", 0)
+        m2.public_company = self.company_b
+        self.assertTrue(oround.run(m2, self.state, board=self.board))
+
+        start_cash = self.company_c.cash
+        m3 = OperatingRoundMove()
+        m3.player_id = "C"
+        m3.purchase_token = True
+        m3.token = Token(self.company_c, "NY", 0)
+        m3.public_company = self.company_c
+        self.assertTrue(oround.run(m3, self.state, board=self.board))
+        self.assertEqual(self.company_c.cash, start_cash - (self.company_c.token_costs[0] + 40))
 
 
 if __name__ == '__main__':

@@ -2,7 +2,8 @@ import os
 import uuid
 from enum import Enum
 from functools import reduce
-from typing import NamedTuple, List, Set, Dict, Tuple
+from typing import NamedTuple, List, Set, Dict, Tuple, Optional
+from dataclasses import dataclass, field
 
 import logging
 
@@ -66,12 +67,16 @@ class Token(NamedTuple):
     cost: int = 0
 
 
-class Track(NamedTuple):
+@dataclass
+class Tile:
     id: str
     id_v2: str
     color: Color
     location: str
     rotation: int
+    slots: int = 1
+    tokens: List[str] = field(default_factory=list)
+    extra_slots_cost: Optional[int] = None
 
 
 class StockMarket:
@@ -160,14 +165,29 @@ class GameBoard:
         self.board = {}
         self.tokens = {}
 
-    def setTrack(self, track: Track):
+    def setTrack(self, track: Tile):
         self.board[track.location] = track
+
+    def place_token(self, corp: 'PublicCompany', hex_id: str) -> bool:
+        tile = self.board.get(hex_id)
+        if tile is None:
+            return False
+        occupied = len(tile.tokens)
+        if occupied < tile.slots:
+            tile.tokens.append(corp.id)
+            return True
+        if occupied >= tile.slots and tile.extra_slots_cost is not None:
+            tile.tokens.append(corp.id)
+            return True
+        return False
 
     def setToken(self, token: Token):
         self.tokens.setdefault(token.location, []).append(token)
-        # Keep track of tokens on the owning company as well
         if hasattr(token.company, "tokens"):
             token.company.tokens.append(token)
+        tile = self.board.get(token.location)
+        if tile is not None and token.company.id not in tile.tokens:
+            tile.tokens.append(token.company.id)
 
     def calculateRoute(self, route) -> int:
         return len(route.stops) * 10
