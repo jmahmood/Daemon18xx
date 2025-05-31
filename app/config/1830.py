@@ -1,4 +1,13 @@
-from app.base import PrivateCompany, PublicCompany, Train, Color
+from app.base import (
+    PrivateCompany,
+    PublicCompany,
+    Train,
+    Color,
+    Cell,
+    StockMarket,
+    Band,
+    Direction,
+)
 
 
 def starting_cash(num_players: int) -> int:
@@ -37,8 +46,22 @@ PUBLIC_COMPANIES = [
                            tokens_available=4, token_costs=[40, 60, 80, 100]),
 ]
 
-# Placeholder data for future rules
-STOCK_MARKET = []
+# Simplified 12x5 stock market grid with a few coloured cells
+STOCK_MARKET_GRID: list[list[Cell]] = []
+for r in range(5):
+    row = []
+    for c in range(12):
+        band = Band.WHITE
+        arrow = None
+        if (r, c) == (2, 2):
+            band = Band.YELLOW
+        if (r, c) == (1, 1):
+            band = Band.BROWN
+            arrow = Direction.UP_RIGHT
+        row.append(Cell(10 * (c + 1), band, arrow))
+    STOCK_MARKET_GRID.append(row)
+
+STOCK_MARKET = StockMarket(STOCK_MARKET_GRID)
 TRAINS = [Train("2", 80, rusts_on="4"), Train("3", 180, rusts_on="5")]
 OPERATING_ROUNDS = 2
 

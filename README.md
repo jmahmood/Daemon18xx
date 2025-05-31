@@ -72,3 +72,7 @@ during the operating round.
 
 * If you sell shares of a company during a stock round, you cannot buy shares in
   that same company again until the next stock round begins.
+* Stock prices now move on a 12×5 grid. Each space has a band colour and
+  optional arrows. Dividends move the marker right (or up-right in brown),
+  withholds move left and share sales push the price down. Reaching the board
+  edge simply stops further movement in that direction.

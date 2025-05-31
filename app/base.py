@@ -74,9 +74,104 @@ class Track(NamedTuple):
     rotation: int
 
 
+class Direction(Enum):
+    LEFT = 1
+    RIGHT = 2
+    UP = 3
+    DOWN = 4
+    UP_RIGHT = 5
+    DOWN_LEFT = 6
+
+
+class Band(Enum):
+    WHITE = 1
+    YELLOW = 2
+    BROWN = 3
+
+
+class Cell(NamedTuple):
+    price: int
+    band: Band
+    arrow: Direction = None
+
+
 class StockMarket:
-    """This class holds information about different ordering on the stock market itself"""
-    pass
+    """Represents the 12×5 stock market grid."""
+
+    def __init__(self, grid: List[List[Cell]]):
+        self.grid = grid
+
+    def cell(self, row: int, col: int) -> Cell:
+        return self.grid[row][col]
+
+    def max_col(self) -> int:
+        return len(self.grid[0]) - 1
+
+    def max_row(self) -> int:
+        return len(self.grid) - 1
+
+    def in_bounds(self, row: int, col: int) -> bool:
+        return 0 <= row <= self.max_row() and 0 <= col <= self.max_col()
+
+    def next_coord(self, row: int, col: int, direction: Direction) -> Tuple[int, int]:
+        if direction == Direction.UP:
+            return row - 1, col
+        if direction == Direction.DOWN:
+            return row + 1, col
+        if direction == Direction.LEFT:
+            return row, col - 1
+        if direction == Direction.RIGHT:
+            return row, col + 1
+        if direction == Direction.UP_RIGHT:
+            return row - 1, col + 1
+        if direction == Direction.DOWN_LEFT:
+            return row + 1, col - 1
+        return row, col
+
+    def move_marker(self, company: "PublicCompany", direction: Direction, steps: int = 1) -> None:
+        row, col = company.stock_pos
+        for _ in range(steps):
+            nr, nc = self.next_coord(row, col, direction)
+            if not self.in_bounds(nr, nc):
+                break
+            row, col = nr, nc
+        company.stock_pos = (row, col)
+        company.update_price_from_pos()
+
+    def on_sale(self, company: "PublicCompany", percentage: int) -> None:
+        steps = percentage // 10
+        if steps > 0:
+            self.move_marker(company, Direction.DOWN, steps)
+
+    def on_withhold(self, company: "PublicCompany", receiverless: bool = False) -> None:
+        cell = self.cell(*company.stock_pos)
+        direction = cell.arrow if cell.arrow == Direction.DOWN_LEFT else Direction.LEFT
+        self.move_marker(company, direction)
+        if receiverless:
+            self.move_marker(company, Direction.DOWN)
+
+    def on_payout(self, company: "PublicCompany") -> None:
+        cell = self.cell(*company.stock_pos)
+        if cell.arrow:
+            direction = cell.arrow
+        else:
+            if cell.band == Band.YELLOW:
+                return
+            direction = Direction.UP_RIGHT if cell.band == Band.BROWN else Direction.RIGHT
+        self.move_marker(company, direction)
+
+    def on_sold_out(self, company: "PublicCompany") -> None:
+        if company.stock_pos[0] > 0:
+            self.move_marker(company, Direction.UP)
+
+    def sort_companies(self, companies: List["PublicCompany"]) -> List["PublicCompany"]:
+        return sorted(
+            companies,
+            key=lambda c: (
+                -self.cell(*c.stock_pos).price,
+                c.stock_pos[0]
+            ),
+        )
 
 
 class Player:
@@ -204,6 +299,8 @@ class PublicCompany:
         self.tokens: List[Token] = []
         self.token_count: int = 0
         self.token_placed: bool = False
+        self.stock_market: StockMarket = None
+        self.stock_pos: Tuple[int, int] = (0, 0)
 
     @staticmethod
     def initiate(**kwargs):
@@ -238,19 +335,40 @@ class PublicCompany:
         # Player has to get paid for this, this is not handled by this class.
         self.stocks[StockPurchaseSource.BANK] += amount
 
+    def attach_market(self, market: StockMarket, row: int = 0, col: int = 0) -> None:
+        self.stock_market = market
+        self.stock_pos = (row, col)
+        self.update_price_from_pos()
+
+    def update_price_from_pos(self) -> None:
+        if self.stock_market:
+            value = self.stock_market.cell(*self.stock_pos).price
+            self.stockPrice[StockPurchaseSource.BANK] = value
+            self.stockPrice[StockPurchaseSource.IPO] = value
+
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
-            self.priceUp(1)
+            if self.stock_market:
+                self.stock_market.on_sold_out(self)
+            else:
+                self.priceUp(1)
 
     def priceUp(self, spaces):
-        increment = spaces * 10
-        self.stockPrice[StockPurchaseSource.BANK] += increment
+        if self.stock_market:
+            for _ in range(spaces):
+                self.stock_market.move_marker(self, Direction.RIGHT)
+        else:
+            increment = spaces * 10
+            self.stockPrice[StockPurchaseSource.BANK] += increment
 
     def priceDown(self, amount):
-        decrement = (amount // STOCK_CERTIFICATE) * 10
-        self.stockPrice[StockPurchaseSource.BANK] = max(
-            0, self.stockPrice[StockPurchaseSource.BANK] - decrement
-        )
+        if self.stock_market:
+            self.stock_market.on_sale(self, amount)
+        else:
+            decrement = (amount // STOCK_CERTIFICATE) * 10
+            self.stockPrice[StockPurchaseSource.BANK] = max(
+                0, self.stockPrice[StockPurchaseSource.BANK] - decrement
+            )
 
     def checkPresident(self):
         """Determine if control of the company should change hands.
@@ -320,10 +438,14 @@ class PublicCompany:
             player.cash += int(self._income * self.owners.get(player) / 100.0)
 
         self._income = 0
+        if self.stock_market:
+            self.stock_market.on_payout(self)
 
     def incomeToCash(self):
         self.cash += self._income
         self._income = 0
+        if self.stock_market:
+            self.stock_market.on_withhold(self, self.president is None)
 
     def addIncome(self, amount: int) -> None:
         self._income += amount
