@@ -27,6 +27,7 @@ def fake_player(id="A", cash=500, order=1):
     player.cash = cash
     player.order = order
     player.private_companies = set()
+    player.sold_this_round = set()
     return player
 
 

@@ -100,6 +100,8 @@ class Player:
         self.portfolio: Set['PublicCompany'] = set()
         # Track private companies owned by this player for certificate limits
         self.private_companies: Set['PrivateCompany'] = set()
+        # Corporations this player sold stock in during the current stock round
+        self.sold_this_round: Set['PublicCompany'] = set()
 
     @staticmethod
     def create(name, cash, order) -> "Player":
@@ -109,6 +111,7 @@ class Player:
         ret.cash = cash
         ret.order = order
         ret.private_companies = set()
+        ret.sold_this_round = set()
         return ret
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):

@@ -620,6 +620,73 @@ class StockRoundPresidencyTests(unittest.TestCase):
         self.assertEqual(company.president, c)
 
 
+class StockRoundNoBuyAfterSellTests(unittest.TestCase):
+    def sell_move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "SELL",
+            "player_id": "A",
+            "for_sale_raw": [["ABC", 20]]
+        })
+        return StockRoundMove.fromMove(Move.fromMessage(msg))
+
+    def buy_move(self) -> StockRoundMove:
+        msg = json.dumps({
+            "move_type": "BUY",
+            "player_id": "A",
+            "public_company_id": "ABC",
+            "source": "BANK",
+            "ipo_price": 72
+        })
+        return StockRoundMove.fromMove(Move.fromMessage(msg))
+
+    def state(self) -> MutableGameState:
+        game_context = MutableGameState()
+        game_context.players = [fake_player("A", 10000, 1), fake_player("B", 10000, 2)]
+        game_context.public_companies = [fake_public_company("ABC")]
+        game_context.stock_round_count = 2
+        game_context.sales = [{}, {}, {}]
+        game_context.purchases = [{}, {}, {}]
+        return game_context
+
+    def initial_setup_company(self, company, owners, initial_price):
+        company.setInitialPrice(initial_price)
+        for owner, amount in owners:
+            company.buy(owner, StockPurchaseSource.IPO, amount)
+
+    def test_cannot_rebuy_same_round(self):
+        state = self.state()
+        self.initial_setup_company(state.public_companies[0], [
+            (state.players[0], 30), (state.players[1], 30)
+        ], 72)
+
+        sell = self.sell_move()
+        buy = self.buy_move()
+        sr = StockRound()
+        self.assertTrue(sr.run(sell, state), sr.errors())
+        self.assertFalse(sr.run(buy, state), sr.errors())
+        self.assertIn("You can't buy from a company you sold this round", sr.errors()[0])
+
+    def test_can_buy_next_round(self):
+        state = self.state()
+        self.initial_setup_company(state.public_companies[0], [
+            (state.players[0], 30), (state.players[1], 30)
+        ], 72)
+
+        sell = self.sell_move()
+        sr = StockRound()
+        self.assertTrue(sr.run(sell, state), sr.errors())
+
+        # end of stock round
+        StockRound.onComplete(state)
+        state.stock_round_count += 1
+        state.sales.append({})
+        state.purchases.append({})
+
+        buy = self.buy_move()
+        sr2 = StockRound()
+        self.assertTrue(sr2.run(buy, state), sr2.errors())
+
+
 if __name__ == "__main__":
     unittest.main()
 
