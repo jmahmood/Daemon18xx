@@ -159,6 +159,7 @@ class StockRound(Minigame):
             move.ipo_price)
 
         certs_needed = 2 if self.isFirstPurchase(move) else 1
+        my_sales = kwargs.sales[kwargs.stock_round_count].get(move.player, [])
 
         return self.validate([
             err(

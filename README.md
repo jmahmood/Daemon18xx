@@ -69,5 +69,6 @@ during the operating round.
 * Certificate limits now follow the 1830 rules. The maximum number of
   certificates depends on player count and includes both private and public
   holdings.
+
 * If you sell shares of a company during a stock round, you cannot buy shares in
   that same company again until the next stock round begins.
