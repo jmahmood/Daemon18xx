@@ -148,12 +148,14 @@ class StockMarket:
         if steps > 0:
             self.move_marker(company, Direction.DOWN, steps)
 
-    def on_withhold(self, company: "PublicCompany", receiverless: bool = False) -> None:
+    def on_withhold(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
         direction = cell.arrow if cell.arrow == Direction.DOWN_LEFT else Direction.LEFT
         self.move_marker(company, direction)
-        if receiverless:
-            self.move_marker(company, Direction.DOWN)
+
+    def move(self, company: "PublicCompany", direction: Direction) -> None:
+        """Move ``company`` one step in ``direction`` respecting board edges."""
+        self.move_marker(company, direction)
 
     def on_payout(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
@@ -453,19 +455,28 @@ class PublicCompany:
         return set([owner for owner, amount in self.owners.items() if amount >= 20])
 
     def payDividends(self):
-        for owner in self.owners.keys():
+        """Distribute ``_income`` according to share ownership."""
+        for owner, percent in self.owners.items():
             player: Player = owner
-            player.cash += int(self._income * self.owners.get(player) / 100.0)
+            player.cash += int(self._income * percent / 100.0)
+
+        # Unsold IPO shares pay into the company's treasury
+        self.cash += int(self._income * self.stocks[StockPurchaseSource.IPO] / 100.0)
+
+        receiverless = self.outstanding_shares == 0
 
         self._income = 0
         if self.stock_market:
-            self.stock_market.on_payout(self)
+            if receiverless:
+                self.stock_market.on_withhold(self)
+            else:
+                self.stock_market.on_payout(self)
 
     def incomeToCash(self):
         self.cash += self._income
         self._income = 0
         if self.stock_market:
-            self.stock_market.on_withhold(self, self.president is None)
+            self.stock_market.on_withhold(self)
 
     def addIncome(self, amount: int) -> None:
         self._income += amount
@@ -484,6 +495,11 @@ class PublicCompany:
 
     def hasNoTrains(self) -> bool:
         return len(self.trains) == 0
+
+    @property
+    def outstanding_shares(self) -> int:
+        """Total shares held by all players."""
+        return sum(self.owners.values())
 
     def hasValidRoute(self, board: 'GameBoard' = None) -> bool:
         """Return ``True`` if this company can currently operate a route.

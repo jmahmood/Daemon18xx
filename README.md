@@ -45,7 +45,11 @@ only choose once it has calculated income by running routes. When creating an
 `OperatingRoundMove` the flag defaults to `False` so tests and simple
 integrations may omit it. When dividends are distributed that income is removed
 from the company and credited directly to the players according to their share
-percentage.
+percentage. Any portion corresponding to unsold IPO shares is added to the
+company's treasury instead. Shares sitting in the bank pool do not pay anyone.
+If no players hold stock in the company at all, a dividend choice is treated as
+a withhold: the revenue goes to the company and the stock marker moves left (or
+down-left on arrow spaces).
 
 ## Changelog
 

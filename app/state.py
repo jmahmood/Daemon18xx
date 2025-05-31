@@ -4,7 +4,7 @@ from app.config import load_config
 
 import logging
 
-from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState
+from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState, StockPurchaseSource
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
@@ -131,9 +131,42 @@ class Game:
         self.player_order_fn_list = []
         self.errors_list = []
         self.config = None
+        self.operating_order: List[str] = []
+        self.last_operating_order: List[str] = []
 
     def isOngoing(self) -> bool:
         return True
+
+    def sort_operating_order(self) -> List[str]:
+        """Sort floated, non-bankrupt companies for the next operating round."""
+        market = getattr(self.config, "STOCK_MARKET", None)
+        companies = [
+            c for c in (self.state.public_companies or [])
+            if c.isFloated() and not c.bankrupt
+        ]
+        def prior_index(cid: str) -> int:
+            return self.last_operating_order.index(cid) if cid in self.last_operating_order else 0
+
+        if market:
+            companies.sort(
+                key=lambda c: (
+                    -market.cell(*c.stock_pos).price,
+                    c.stock_pos[0],
+                    prior_index(c.id)
+                )
+            )
+        else:
+            companies.sort(
+                key=lambda c: (
+                    -c.stockPrice[StockPurchaseSource.BANK],
+                    c.stock_pos[0],
+                    prior_index(c.id)
+                )
+            )
+
+        self.operating_order = [c.id for c in companies]
+        self.last_operating_order = list(self.operating_order)
+        return self.operating_order
 
     def isValidMove(self, move: Move) -> bool:
         """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
