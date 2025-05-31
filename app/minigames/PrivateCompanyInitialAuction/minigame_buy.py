@@ -6,6 +6,7 @@ from app.base import Move, PrivateCompany, err
 from app.base import MutableGameState
 from app.minigames.PrivateCompanyInitialAuction.enums import BidType
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
+from app.minigames.StockRound.const import VALID_CERTIFICATE_COUNT
 from app.minigames.base import Minigame
 
 
@@ -39,6 +40,15 @@ class BuyPrivateCompany(Minigame):
                 move.player.hasEnoughMoney(cost_of_private_company),
                 "You cannot afford poorboi. {} (You have: {})",
                 cost_of_private_company, move.player.cash
+            ),
+
+            err(
+                move.player.getCertificateCount() + 1 <=
+                VALID_CERTIFICATE_COUNT[len(kwargs.players)],
+                "You have too many certificates. There are {} players, and you are allowed a total of {} certificates.  You own {} certificates and would have too many if you bought more.",
+                len(kwargs.players),
+                VALID_CERTIFICATE_COUNT[len(kwargs.players)],
+                move.player.getCertificateCount(),
             ),
 
             err(

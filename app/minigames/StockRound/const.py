@@ -15,8 +15,8 @@ VALID_IPO_PRICES = [
 # player: # of certs they can hold.
 VALID_CERTIFICATE_COUNT = {
     2: 28,
-    3: 20,
-    4: 16,
-    5: 13,
-    6: 11
+    3: 28,
+    4: 25,
+    5: 23,
+    6: 16
 }
