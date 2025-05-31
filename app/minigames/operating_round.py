@@ -358,6 +358,10 @@ class OperatingRound(Minigame):
         for company in public_companies or []:
             company.token_placed = False
 
+        game = kwargs.get("game")
+        if game is not None:
+            game.sort_operating_order()
+
         # Create a list of floated companies (?)
 
     @staticmethod
