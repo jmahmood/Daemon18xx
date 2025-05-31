@@ -18,7 +18,12 @@ class AuctionDecision(Minigame):
             if not self.validateAccept(move, state):
                 return False
 
+            old_owner = move.private_company.belongs_to
             move.private_company.belongs_to = move.accepted_player
+            if old_owner and hasattr(old_owner, "private_companies"):
+                old_owner.private_companies.discard(move.private_company)
+            if hasattr(move.accepted_player, "private_companies"):
+                move.accepted_player.private_companies.add(move.private_company)
             move.accepted_player.cash -= move.accepted_amount
             move.player.cash += move.accepted_amount
             state.stock_round_play += 1

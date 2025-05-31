@@ -66,3 +66,6 @@ during the operating round.
 
 * The presidency of a public company transfers only to the largest shareholder
   who holds at least 20% of its stock.
+* Certificate limits now follow the 1830 rules. The maximum number of
+  certificates depends on player count and includes both private and public
+  holdings.

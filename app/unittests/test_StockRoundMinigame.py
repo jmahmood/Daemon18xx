@@ -6,7 +6,7 @@
 import json
 import unittest
 
-from app.base import Move, PublicCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
+from app.base import Move, PublicCompany, PrivateCompany, MutableGameState, StockPurchaseSource, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
 from app.minigames.StockRound.minigame_stockround import StockRound
 from app.minigames.StockRound.move import StockRoundMove
@@ -151,6 +151,42 @@ class StockRoundMinigameBuyTests(unittest.TestCase):
         minigame = StockRound()
         self.assertTrue(minigame.run(move, state), minigame.errors())
         self.assertEqual(state.public_companies[0].owners[state.players[0]], 60)
+
+    def test_certificate_limit_allows_final_share(self):
+        """Player at certificate limit minus one may buy one more share."""
+        move = self.move()
+        state = self.state()
+        # Add two extra players to enforce 4-player limit of 25
+        state.players.append(fake_player("C"))
+        state.players.append(fake_player("D"))
+
+        # Give current player 24 private company certificates
+        for i in range(24):
+            pc = PrivateCompany.initiate(i, f"PC{i}", f"PC{i}", 0, 0, "A1")
+            state.players[0].private_companies.add(pc)
+
+        state.public_companies[0].setInitialPrice(72)
+        state.public_companies[0].buy(state.players[1], StockPurchaseSource.IPO, 20)
+
+        minigame = StockRound()
+        self.assertTrue(minigame.run(move, state), minigame.errors())
+
+    def test_certificate_limit_blocks_president_cert(self):
+        """Buying a 20% certificate would exceed the limit and should fail."""
+        move = self.move()
+        state = self.state()
+        state.players.append(fake_player("C"))
+        state.players.append(fake_player("D"))
+
+        for i in range(24):
+            pc = PrivateCompany.initiate(i, f"PC{i}", f"PC{i}", 0, 0, "A1")
+            state.players[0].private_companies.add(pc)
+
+        # Ensure purchase is for a president's share
+        move.ipo_price = 90
+        minigame = StockRound()
+        self.assertFalse(minigame.run(move, state), minigame.errors())
+        self.assertIn("You have too many certificates", minigame.errors()[0])
 
 
 class StockRoundMinigameSellTests(unittest.TestCase):

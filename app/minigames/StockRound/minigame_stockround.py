@@ -153,6 +153,8 @@ class StockRound(Minigame):
             STOCK_CERTIFICATE,
             move.ipo_price)
 
+        certs_needed = 2 if self.isFirstPurchase(move) else 1
+
         my_sales = kwargs.sales[kwargs.stock_round_count].get(move.player, [])
 
         return self.validate([
@@ -161,7 +163,7 @@ class StockRound(Minigame):
                 "You can't buy from a company you sold this round {} {}",
                 move.public_company.id, move.public_company.name),
             err(
-                player_certificates + 1 <= VALID_CERTIFICATE_COUNT[number_of_total_players],
+                player_certificates + certs_needed <= VALID_CERTIFICATE_COUNT[number_of_total_players],
                 "You have too many certificates. There are {} players, and you are allowed a "
                 "total of {} certificates.  You own {} certificates and would have too many if you bought more.",
                 number_of_total_players,
