@@ -4,7 +4,6 @@
  */
 
 import { io, Socket } from 'socket.io-client';
-import type { GameState, PlayerAction, AuthType } from '../types';
 
 export type EventCallback = (data: any) => void;
 
@@ -72,7 +71,7 @@ class SocketService {
       this.emit('game_state_update', data);
     });
 
-    this.socket.on('player_action', (data: PlayerAction) => {
+    this.socket.on('player_action', (data: any) => {
       this.emit('player_action', data);
     });
 

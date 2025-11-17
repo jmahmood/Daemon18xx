@@ -19,7 +19,6 @@ export class App {
   private appContainer: HTMLElement;
   private authState: AuthState = { authenticated: false };
   private gameState: GameState | null = null;
-  private currentTab: string = 'map';
   private gameLobby: GameLobby | null = null;
 
   // UI Components
@@ -379,8 +378,6 @@ export class App {
   }
 
   private switchTab(tabName: string) {
-    this.currentTab = tabName;
-
     // Update tab buttons
     document.querySelectorAll('.tab').forEach(tab => {
       tab.classList.toggle('active', (tab as HTMLElement).dataset.tab === tabName);
