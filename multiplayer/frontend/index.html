@@ -177,6 +177,61 @@
       padding: 8px;
       font-size: 13px;
     }
+
+    /* Auction Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 8px;
+      font-size: 12px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+
+    .buy-btn {
+      background: var(--success-color);
+    }
+
+    .buy-btn:hover:not(:disabled) {
+      background: #2fb04a;
+    }
+
+    .pass-btn {
+      background: var(--text-secondary);
+    }
+
+    .pass-btn:hover {
+      background: #8f8f8f;
+    }
+
+    .bid-btn {
+      background: var(--warning-color);
+    }
+
+    .bid-btn:hover:not(:disabled) {
+      background: #e08700;
+    }
+
+    .current-company {
+      border-color: var(--warning-color) !important;
+      box-shadow: 0 0 15px rgba(255, 149, 0, 0.3);
+    }
+
+    .current-badge {
+      background: var(--warning-color);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>

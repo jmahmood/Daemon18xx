@@ -42,7 +42,7 @@ export class App {
     this.actionTicker = new ActionTicker();
     this.playerList = new PlayerList();
     this.privateAuction = new PrivateCompanyAuction({
-      onBuyCompany: (companyName: string) => this.handleBuyCompany(companyName)
+      onMakeMove: (moveData: any) => this.handleMakeMove(moveData)
     });
   }
 
@@ -411,6 +411,14 @@ export class App {
     // Update header
     this.header.update(this.gameState);
 
+    // Find and set current player ID for auction
+    if (this.myPlayerName && this.gameState.players) {
+      const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
+      if (myPlayer) {
+        this.privateAuction.setCurrentPlayer(myPlayer.id);
+      }
+    }
+
     // Update private company auction
     this.privateAuction.updateGameState(this.gameState);
 
@@ -432,15 +440,11 @@ export class App {
     this.playerList.update(players);
   }
 
-  private handleBuyCompany(companyName: string) {
-    console.log(`🏢 Attempting to buy company: ${companyName}`);
+  private handleMakeMove(moveData: any) {
+    console.log(`🎯 Making move:`, moveData);
 
-    // TODO: Send move to server
-    // For now, just log it
-    alert(`Buying ${companyName} - move handling not yet implemented`);
-
-    // Example of what this should do:
-    // socketService.makeMove('buy_private', { company: companyName });
+    // Send move to server via Socket.IO
+    socketService.makeMove('BuyPrivateCompanyMove', moveData);
   }
 
   private showLoading(message: string) {
