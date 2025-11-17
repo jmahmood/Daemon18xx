@@ -50,6 +50,14 @@ class Color(Enum):
     RED = 5
 
 
+class TerrainType(Enum):
+    """Terrain types that affect track laying costs."""
+    NORMAL = 1      # Standard terrain, no modifier
+    MOUNTAIN = 2    # Mountain terrain (cost multiplier)
+    BRIDGE = 3      # Bridge/water crossing (cost multiplier)
+    TUNNEL = 4      # Tunnel through mountain (cost multiplier)
+
+
 class Train:
     def __init__(self, train_type: str, cost: int, rusts_on: str = None):
         self.type = train_type
@@ -77,6 +85,13 @@ class Tile:
     slots: int = 1
     tokens: List[str] = field(default_factory=list)
     extra_slots_cost: Optional[int] = None
+    terrain: 'TerrainType' = None  # Terrain type affecting placement cost
+
+    def __post_init__(self):
+        """Ensure terrain defaults to NORMAL if not specified."""
+        if self.terrain is None:
+            from app.base import TerrainType
+            self.terrain = TerrainType.NORMAL
 
 
 class Direction(Enum):

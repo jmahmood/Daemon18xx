@@ -7,6 +7,7 @@ from app.base import (
     StockMarket,
     Band,
     Direction,
+    TerrainType,
 )
 
 
@@ -53,6 +54,14 @@ TRACK_LAYING_COSTS = {
     Color.GREEN: 0,
     Color.BROWN: 80,  # 1846 uses $80 for brown
     Color.RED: 0,  # No red tiles in 1846
+}
+
+# 1846 terrain multipliers (Tunnel Blasting Company reduces these)
+TERRAIN_MULTIPLIERS = {
+    TerrainType.NORMAL: 1.0,
+    TerrainType.MOUNTAIN: 2.0,   # Mountains cost double
+    TerrainType.BRIDGE: 1.5,     # Bridges cost 1.5x in 1846
+    TerrainType.TUNNEL: 2.0,     # Tunnels cost double
 }
 
 SPECIAL_HEX_RULES = {

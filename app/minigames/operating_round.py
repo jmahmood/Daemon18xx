@@ -82,7 +82,17 @@ class OperatingRound(Minigame):
         if move.construct_track and self.isValidTrackPlacement(move, state):
             board.setTrack(track)
             if config is not None:
-                cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
+                # Base cost from tile color
+                base_cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
+
+                # Terrain multiplier (default 1.0 for normal terrain)
+                terrain_multipliers = getattr(config, 'TERRAIN_MULTIPLIERS', {})
+                from app.base import TerrainType
+                terrain_type = track.terrain if track.terrain else TerrainType.NORMAL
+                multiplier = terrain_multipliers.get(terrain_type, 1.0)
+
+                # Calculate final cost
+                cost = int(base_cost * multiplier)
             else:
                 cost = 0
             move.public_company.cash -= cost

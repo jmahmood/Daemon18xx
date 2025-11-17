@@ -7,6 +7,7 @@ from app.base import (
     StockMarket,
     Band,
     Direction,
+    TerrainType,
 )
 
 
@@ -44,6 +45,16 @@ TRACK_LAYING_COSTS = {
     Color.GREEN: 0,
     Color.BROWN: 0,  # Brown tile upgrades are free in 1889
     Color.RED: 0,
+}
+
+# 1889 terrain multipliers (Sumitomo Mines Railway can ignore mountain costs)
+# Note: Since track laying is free in 1889, multipliers have no effect unless
+# future expansion adds terrain costs
+TERRAIN_MULTIPLIERS = {
+    TerrainType.NORMAL: 1.0,
+    TerrainType.MOUNTAIN: 2.0,   # Mountains would cost double if base cost > 0
+    TerrainType.BRIDGE: 1.5,     # Bridges would cost 1.5x if base cost > 0
+    TerrainType.TUNNEL: 2.0,     # Tunnels would cost double if base cost > 0
 }
 
 SPECIAL_HEX_RULES = {

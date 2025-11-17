@@ -7,6 +7,7 @@ from app.base import (
     StockMarket,
     Band,
     Direction,
+    TerrainType,
 )
 
 
@@ -33,6 +34,15 @@ TRACK_LAYING_COSTS = {
     Color.GREEN: 0,
     Color.BROWN: 100,
     Color.RED: 200,
+}
+
+# Terrain cost multipliers (applied to base track laying costs)
+# 1.0 = normal cost, 2.0 = double cost, etc.
+TERRAIN_MULTIPLIERS = {
+    TerrainType.NORMAL: 1.0,
+    TerrainType.MOUNTAIN: 2.0,  # Mountains cost double
+    TerrainType.BRIDGE: 2.0,    # Bridges cost double
+    TerrainType.TUNNEL: 2.0,    # Tunnels cost double
 }
 
 SPECIAL_HEX_RULES = {
