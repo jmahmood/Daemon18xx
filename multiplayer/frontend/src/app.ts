@@ -384,6 +384,7 @@ export class App {
     const auctionPanel = document.createElement('div');
     auctionPanel.className = 'tab-panel active';
     auctionPanel.dataset.tab = 'auction';
+    auctionPanel.id = 'auction-panel';
     auctionPanel.appendChild(this.privateAuction.render());
 
     // Map tab
@@ -443,9 +444,10 @@ export class App {
 
     // Check if phase has changed to something other than private auction
     const phase = this.gameState.phase;
+    const auctionPanel = document.getElementById('auction-panel');
+
     if (phase === 'StockRound') {
       // Show message that stock round has started
-      const auctionPanel = document.querySelector('[data-tab="auction"]');
       if (auctionPanel) {
         auctionPanel.innerHTML = `
           <div style="padding: 40px; text-align: center;">
@@ -459,6 +461,7 @@ export class App {
           </div>
         `;
       }
+      // Don't update auction component
     } else if (phase === 'BuyPrivateCompany' || phase === 'BiddingForPrivateCompany') {
       // Update private company auction UI
       if (this.myPlayerName && this.gameState.players) {
