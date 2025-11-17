@@ -207,7 +207,16 @@ class OperatingRound(Minigame):
 
 
     def isValidRoute(self, move: OperatingRoundMove):
-        """Validate that all proposed routes follow a subset of the 1830 rules."""
+        """Validate that all proposed routes follow enhanced 18XX rules.
+
+        Validation includes:
+        - Route connectivity (adjacency)
+        - Track existence
+        - Token requirements
+        - Train capacity matching
+        - No duplicate stops
+        - Minimum 2 cities per route
+        """
 
         board: GameBoard = move.board if hasattr(move, 'board') else None
         pc = move.public_company
@@ -224,41 +233,62 @@ class OperatingRound(Minigame):
                 col = 0
             return row, col
 
+        def is_adjacent(loc1: str, loc2: str) -> bool:
+            """Check if two hexes are adjacent (orthogonal neighbors)."""
+            r1, c1 = parse_loc(loc1)
+            r2, c2 = parse_loc(loc2)
+            # Orthogonal adjacency (horizontal or vertical)
+            return (r1 == r2 and abs(c1 - c2) == 1) or (c1 == c2 and abs(r1 - r2) == 1)
+
         has_company_token = False
         used_stops = set()
         invalid_track = False
         duplicate_stop = False
         disconnected = False
+        empty_route = False
+
         capacities: List[int] = [int(''.join(filter(str.isdigit, t.type)) or 0) for t in (pc.trains or [])]
         capacities.sort(reverse=True)
         route_lengths = []
+
         for route in routes:
             route_seen = set()
-            route_lengths.append(len(route.stops))
-            for stop in route.stops:
+            route_stops = route.stops
+
+            # Check for empty routes
+            if not route_stops or len(route_stops) < 2:
+                empty_route = True
+                continue
+
+            route_lengths.append(len(route_stops))
+
+            for stop in route_stops:
+                # Check for company tokens
                 tokens_here = board.tokens.get(stop, []) if board else []
                 if any(t.company == pc for t in tokens_here):
                     has_company_token = True
 
+                # Check track exists
                 if board and stop not in board.board and stop not in board.tokens:
                     invalid_track = True
 
+                # Check for duplicates
                 if stop in route_seen or stop in used_stops:
                     duplicate_stop = True
                 route_seen.add(stop)
                 used_stops.add(stop)
 
-            if board and len(route.stops) >= 2:
-                for a, b in zip(route.stops, route.stops[1:]):
+            # Check connectivity between consecutive stops
+            if board and len(route_stops) >= 2:
+                for a, b in zip(route_stops, route_stops[1:]):
                     if a not in board.board or b not in board.board:
                         disconnected = True
                         break
-                    r1, c1 = parse_loc(a)
-                    r2, c2 = parse_loc(b)
-                    if not ((r1 == r2 and abs(c1 - c2) == 1) or (c1 == c2 and abs(r1 - r2) == 1)):
+                    if not is_adjacent(a, b):
                         disconnected = True
                         break
 
+        # Validate train capacity matching
         capacities_available = sorted(capacities, reverse=True)
         lengths_sorted = sorted(route_lengths, reverse=True)
         capacity_ok = len(lengths_sorted) <= len(capacities_available)
@@ -268,7 +298,8 @@ class OperatingRound(Minigame):
                 break
 
         validations = [
-            err(routes != [] and all(len(r.stops) >= 2 for r in routes), "You must join at least two cities"),
+            err(routes != [], "At least one route must be specified"),
+            err(not empty_route, "You must join at least two cities"),
             err(not invalid_track, "Route uses track that doesn't exist"),
             err(not duplicate_stop, "You cannot use the same station twice"),
             err(not disconnected, "Route must be a continuous connection"),
