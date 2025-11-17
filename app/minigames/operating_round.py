@@ -69,11 +69,11 @@ class OperatingRound(Minigame):
 
         self.constructTrack(move, game_state, **extra)
         self.purchaseToken(move, **extra)
-        self.runRoutes(move, **extra)
+        self.runRoutes(move, state=game_state, **extra)
         # Only handle dividends if routes were run
         if move.run_route:
             self.payDividends(move, **extra)
-        self.purchaseTrain(move)
+        self.purchaseTrain(move, state=game_state)
 
         return True
 
@@ -89,12 +89,28 @@ class OperatingRound(Minigame):
 
                 # Terrain multiplier (default 1.0 for normal terrain)
                 terrain_multipliers = getattr(config, 'TERRAIN_MULTIPLIERS', {})
-                from app.base import TerrainType
+                from app.base import TerrainType, PowerType
                 terrain_type = track.terrain if track.terrain else TerrainType.NORMAL
                 multiplier = terrain_multipliers.get(terrain_type, 1.0)
 
-                # Calculate final cost
+                # Calculate cost with terrain
                 cost = int(base_cost * multiplier)
+
+                # Apply private company special powers
+                # Check for FreeTrackPower
+                for pc in state.private_companies or []:
+                    if pc.belongs_to_company == move.public_company:
+                        for power in pc.get_powers_by_type(PowerType.FREE_TRACK):
+                            discount_mult = power.get_discount_multiplier(track.color)
+                            cost = int(cost * discount_mult)
+
+                        # Check for TerrainDiscountPower
+                        for power in pc.get_powers_by_type(PowerType.TERRAIN_DISCOUNT):
+                            if power.applies_to_terrain(terrain_type):
+                                # Remove terrain portion of cost
+                                terrain_cost = int(base_cost * (multiplier - 1.0))
+                                terrain_discount = int(terrain_cost * power.discount_percent)
+                                cost -= terrain_discount
             else:
                 cost = 0
             move.public_company.cash -= cost
@@ -120,10 +136,22 @@ class OperatingRound(Minigame):
         routes: List[Route] = move.routes
         board: GameBoard = kwargs.get("board")
         public_company = move.public_company
+        state: MutableGameState = kwargs.get("state")
 
         if move.run_route and self.isValidRoute(move):
             for route in routes:
-                public_company.addIncome(board.calculateRoute(route))
+                base_revenue = board.calculateRoute(route)
+
+                # Apply revenue bonus powers from private companies
+                from app.base import PowerType
+                revenue = base_revenue
+                if state and state.private_companies:
+                    for pc in state.private_companies:
+                        if pc.belongs_to_company == public_company:
+                            for power in pc.get_powers_by_type(PowerType.REVENUE_BONUS):
+                                revenue = power.apply_bonus(revenue)
+
+                public_company.addIncome(revenue)
 
     def payDividends(self, move: OperatingRoundMove, **kwargs):
         if move.pay_dividend:
@@ -131,11 +159,21 @@ class OperatingRound(Minigame):
         else:
             move.public_company.incomeToCash()
 
-    def purchaseTrain(self, move: OperatingRoundMove):
+    def purchaseTrain(self, move: OperatingRoundMove, state: MutableGameState = None):
         if move.buy_train and self.isValidTrainPurchase(move):
             pc = move.public_company
             train = move.train
-            pc.cash -= train.cost
+            cost = train.cost
+
+            # Apply train discount powers from private companies
+            from app.base import PowerType
+            if state and state.private_companies:
+                for private_co in state.private_companies:
+                    if private_co.belongs_to_company == pc:
+                        for power in private_co.get_powers_by_type(PowerType.TRAIN_DISCOUNT):
+                            cost = power.apply_discount(cost)
+
+            pc.cash -= cost
             if pc.trains is None:
                 pc.trains = []
             pc.trains = pc.trains + [train]

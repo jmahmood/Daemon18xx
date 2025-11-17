@@ -52,10 +52,130 @@ class Color(Enum):
 
 class TerrainType(Enum):
     """Terrain types that affect track laying costs."""
-    NORMAL = 1      # Standard terrain, no modifier
-    MOUNTAIN = 2    # Mountain terrain (cost multiplier)
-    BRIDGE = 3      # Bridge/water crossing (cost multiplier)
-    TUNNEL = 4      # Tunnel through mountain (cost multiplier)
+    NORMAL = 1
+    MOUNTAIN = 2
+    BRIDGE = 3
+    TUNNEL = 4
+
+
+class PowerType(Enum):
+    """Types of special powers that private companies can grant."""
+    EXTRA_TOKEN = 1        # Additional token placement
+    REVENUE_BONUS = 2      # Bonus revenue on routes
+    FREE_TRACK = 3         # Free or discounted track laying
+    TERRAIN_DISCOUNT = 4   # Ignore or reduce terrain costs
+    TRAIN_DISCOUNT = 5     # Discount on train purchases
+
+
+@dataclass
+class SpecialPower:
+    """Base class for private company special powers."""
+    power_type: PowerType
+    description: str
+    active: bool = True
+    expires_on_use: bool = False  # Power consumed after one use
+    uses_remaining: int = None    # None = unlimited uses
+
+    def can_use(self) -> bool:
+        """Check if this power can still be used."""
+        if not self.active:
+            return False
+        if self.uses_remaining is not None:
+            return self.uses_remaining > 0
+        return True
+
+    def use(self) -> bool:
+        """Use the power. Returns True if successful."""
+        if not self.can_use():
+            return False
+
+        if self.uses_remaining is not None:
+            self.uses_remaining -= 1
+
+        if self.expires_on_use:
+            self.active = False
+
+        return True
+
+    def deactivate(self) -> None:
+        """Permanently deactivate this power."""
+        self.active = False
+
+
+@dataclass
+class ExtraTokenPower(SpecialPower):
+    """Grants additional token placement(s)."""
+    token_count: int = 1  # Number of extra tokens
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.EXTRA_TOKEN
+
+
+@dataclass
+class RevenueBonusPower(SpecialPower):
+    """Adds bonus revenue to routes."""
+    bonus_amount: int = 0  # Fixed bonus per route
+    bonus_multiplier: float = 1.0  # Multiplier (e.g., 1.2 for +20%)
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.REVENUE_BONUS
+
+    def apply_bonus(self, base_revenue: int) -> int:
+        """Calculate total revenue with bonus applied."""
+        return int(base_revenue * self.bonus_multiplier) + self.bonus_amount
+
+
+@dataclass
+class FreeTrackPower(SpecialPower):
+    """Grants free or discounted track laying."""
+    discount_percent: float = 1.0  # 1.0 = free, 0.5 = half price
+    tile_colors: List[Color] = None  # None = all colors
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.FREE_TRACK
+
+    def get_discount_multiplier(self, tile_color: Color = None) -> float:
+        """Get the discount multiplier for a given tile color."""
+        if self.tile_colors is None or tile_color in self.tile_colors:
+            return 1.0 - self.discount_percent
+        return 1.0  # No discount
+
+
+@dataclass
+class TerrainDiscountPower(SpecialPower):
+    """Reduces or eliminates terrain costs."""
+    terrain_types: List[TerrainType] = None  # None = all terrain
+    discount_percent: float = 1.0  # 1.0 = ignore terrain, 0.5 = half cost
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.TERRAIN_DISCOUNT
+
+    def applies_to_terrain(self, terrain: TerrainType) -> bool:
+        """Check if this power applies to the given terrain type."""
+        if self.terrain_types is None:
+            return True
+        return terrain in self.terrain_types
+
+
+@dataclass
+class TrainDiscountPower(SpecialPower):
+    """Provides discount on train purchases."""
+    discount_amount: int = 0  # Fixed discount
+    discount_percent: float = 0.0  # Percentage discount (0.2 = 20% off)
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.TRAIN_DISCOUNT
+
+    def apply_discount(self, train_cost: int) -> int:
+        """Calculate discounted train cost."""
+        discounted = int(train_cost * (1.0 - self.discount_percent))
+        discounted -= self.discount_amount
+        return max(0, discounted)
 
 
 class Train:
@@ -634,6 +754,7 @@ class PrivateCompany:
         self.passed_by: List[Player] = None
         # ^-- This is a list of people who have passed on a private company in a bidding round.
         self.pass_count = None
+        self.special_powers: List[SpecialPower] = []  # Special powers granted by this private company
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
@@ -653,7 +774,8 @@ class PrivateCompany:
                  actual_cost: int = None,
                  player_bids: List[PlayerBid] = None,
                  passed_by: List[Player] = None,
-                 pass_count: int = 0) -> "PrivateCompany":
+                 pass_count: int = 0,
+                 special_powers: List[SpecialPower] = None) -> "PrivateCompany":
         pc = PrivateCompany()
         pc.order = order
         pc.name = name
@@ -666,8 +788,17 @@ class PrivateCompany:
         pc.player_bids = [] if player_bids is None else player_bids
         pc.passed_by = [] if passed_by is None else passed_by
         pc.pass_count = pass_count
+        pc.special_powers = special_powers if special_powers is not None else []
 
         return pc
+
+    def get_powers_by_type(self, power_type: PowerType) -> List[SpecialPower]:
+        """Get all active powers of a specific type."""
+        return [p for p in self.special_powers if p.power_type == power_type and p.can_use()]
+
+    def has_active_power(self, power_type: PowerType) -> bool:
+        """Check if this private company has any active powers of the given type."""
+        return len(self.get_powers_by_type(power_type)) > 0
 
     def hasOwner(self) -> bool:
         return self.belongs_to is not None
