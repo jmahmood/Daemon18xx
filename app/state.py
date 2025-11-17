@@ -1,10 +1,11 @@
 from typing import List
 
 from app.config import load_config
-
-import logging
+from app.logging_config import get_logger, PerformanceTimer
 
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState, StockPurchaseSource
+
+logger = get_logger(__name__)
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
@@ -138,6 +139,11 @@ class Game:
     """
     @staticmethod
     def start(players: List[str], variant: str = "1830") -> "Game":
+        logger.info(
+            f"Starting new game",
+            extra={'variant': variant, 'player_count': len(players), 'players': players}
+        )
+
         config = load_config(variant)
         total_players = len(players)
         cash = config.starting_cash(total_players)
@@ -146,8 +152,20 @@ class Game:
             player_objects.append(
                 Player.create(player_name, cash, order)
             )
+
+        logger.debug(
+            f"Created {len(player_objects)} players with ${cash} each",
+            extra={'starting_cash': cash}
+        )
+
         game = Game.initialize(player_objects, config)
         game.setMinigame("BuyPrivateCompany")
+
+        logger.info(
+            f"Game initialized",
+            extra={'variant': variant, 'initial_phase': 'BuyPrivateCompany'}
+        )
+
         return game
 
 
@@ -328,11 +346,11 @@ class Game:
             try:
                 self.player_order_fn_list.pop()
             except IndexError:
-                logging.warning("No old player order function available")
+                logger.warning("No old player order function available")
 
             if len(self.player_order_fn_list) > 0 and \
                             self.get_player_order_fn().__class__.__name__ == player_order_generator.__class__.__name__:
-                logging.warning("keeping old player order generator")
+                logger.warning("keeping old player order generator")
             else:
                 self.player_order_fn_list = [player_order_generator]
 
@@ -366,15 +384,44 @@ class Game:
         :param move:
         :return:
         """
+        logger.debug(
+            f"Executing move",
+            extra={
+                'player_id': move.player_id,
+                'move_type': move.__class__.__name__,
+                'current_phase': self.minigame_class
+            }
+        )
+
         minigame = self.getMinigame()
         minigame.onTurnStart(self.getState())
-        success = minigame.run(move, self.getState())
+
+        with PerformanceTimer(logger, f"Move execution ({move.__class__.__name__})",
+                             player_id=move.player_id, phase=self.minigame_class):
+            success = minigame.run(move, self.getState())
 
         if success:
+            logger.info(
+                f"Move executed successfully",
+                extra={
+                    'player_id': move.player_id,
+                    'move_type': move.__class__.__name__,
+                    'phase': self.minigame_class
+                }
+            )
+
             if self.minigame_class != minigame.next(self.getState()):
                 """When the minigame changes, you need to switch the player order usually."""
+                old_phase = self.minigame_class
+                new_phase = minigame.next(self.getState())
+
+                logger.info(
+                    f"Phase transition",
+                    extra={'from_phase': old_phase, 'to_phase': new_phase}
+                )
+
                 minigame.onComplete(self.getState())
-                self.setMinigame(minigame.next(self.getState()))
+                self.setMinigame(new_phase)
                 self.setPlayerOrder()
                 self.getMinigame().onStart(self.getState())
             else:
@@ -383,7 +430,16 @@ class Game:
             self.setCurrentPlayer()
 
         else:
-            self.setError(minigame.errors())
+            errors = minigame.errors()
+            logger.warning(
+                f"Move validation failed",
+                extra={
+                    'player_id': move.player_id,
+                    'move_type': move.__class__.__name__,
+                    'errors': errors
+                }
+            )
+            self.setError(errors)
 
         return success
 
