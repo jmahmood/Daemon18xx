@@ -11,6 +11,21 @@ STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
 
 
+@dataclass
+class PriceHistoryEntry:
+    """Records a single stock price change event.
+
+    Used for historical tracking, debugging, and frontend visualization.
+    Enables price charts, audit trails, and game replay.
+    """
+    round_number: int  # Which game round this occurred
+    old_price: int  # Price before change
+    new_price: int  # Price after change
+    reason: str  # Why the price changed (e.g., "Stock sold", "Dividend paid", "Withheld")
+    player_id: Optional[str] = None  # Player who triggered the change (if applicable)
+    timestamp: Optional[str] = None  # ISO timestamp for audit trail
+
+
 def err(validate: bool, error_msg: str, *format_error_msg_params):
     if not validate:
         return error_msg.format(*format_error_msg_params)
@@ -298,7 +313,7 @@ class StockMarket:
             return row + 1, col - 1
         return row, col
 
-    def move_marker(self, company: "PublicCompany", direction: Direction, steps: int = 1) -> None:
+    def move_marker(self, company: "PublicCompany", direction: Direction, steps: int = 1, reason: str = "Market movement") -> None:
         row, col = company.stock_pos
         for _ in range(steps):
             nr, nc = self.next_coord(row, col, direction)
@@ -306,21 +321,22 @@ class StockMarket:
                 break
             row, col = nr, nc
         company.stock_pos = (row, col)
-        company.update_price_from_pos()
+        company.update_price_from_pos(reason)
 
     def on_sale(self, company: "PublicCompany", percentage: int) -> None:
         steps = percentage // 10
         if steps > 0:
-            self.move_marker(company, Direction.DOWN, steps)
+            shares_sold = percentage // 10
+            self.move_marker(company, Direction.DOWN, steps, f"Stock sold ({shares_sold}% of company)")
 
     def on_withhold(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
         direction = cell.arrow if cell.arrow == Direction.DOWN_LEFT else Direction.LEFT
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Revenue withheld")
 
     def move(self, company: "PublicCompany", direction: Direction) -> None:
         """Move ``company`` one step in ``direction`` respecting board edges."""
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Manual market movement")
 
     def on_payout(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
@@ -330,11 +346,11 @@ class StockMarket:
             if cell.band == Band.YELLOW:
                 return
             direction = Direction.UP_RIGHT if cell.band == Band.BROWN else Direction.RIGHT
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Dividend paid")
 
     def on_sold_out(self, company: "PublicCompany") -> None:
         if company.stock_pos[0] > 0:
-            self.move_marker(company, Direction.UP)
+            self.move_marker(company, Direction.UP, 1, "Stock sold out")
 
     def sort_companies(self, companies: List["PublicCompany"]) -> List["PublicCompany"]:
         return sorted(
@@ -564,6 +580,7 @@ class PublicCompany:
         self.stock_market: StockMarket = None
         self.stock_pos: Tuple[int, int] = (0, 0)
         self.loans: List[Loan] = []  # Outstanding loans
+        self.price_history: List[PriceHistoryEntry] = []  # Historical price changes
 
     @staticmethod
     def initiate(**kwargs):
@@ -601,13 +618,18 @@ class PublicCompany:
     def attach_market(self, market: StockMarket, row: int = 0, col: int = 0) -> None:
         self.stock_market = market
         self.stock_pos = (row, col)
-        self.update_price_from_pos()
+        self.update_price_from_pos("Initial market price")
 
-    def update_price_from_pos(self) -> None:
+    def update_price_from_pos(self, reason: str = "Market movement") -> None:
         if self.stock_market:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             value = self.stock_market.cell(*self.stock_pos).price
             self.stockPrice[StockPurchaseSource.BANK] = value
             self.stockPrice[StockPurchaseSource.IPO] = value
+
+            # Record price change if it actually changed
+            if old_price != value:
+                self.record_price_change(old_price, value, reason)
 
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
@@ -616,22 +638,30 @@ class PublicCompany:
             else:
                 self.priceUp(1)
 
-    def priceUp(self, spaces):
+    def priceUp(self, spaces, reason: str = "Price increase"):
         if self.stock_market:
             for _ in range(spaces):
-                self.stock_market.move_marker(self, Direction.RIGHT)
+                self.stock_market.move_marker(self, Direction.RIGHT, 1, reason)
         else:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             increment = spaces * 10
             self.stockPrice[StockPurchaseSource.BANK] += increment
+            new_price = self.stockPrice[StockPurchaseSource.BANK]
+            self.record_price_change(old_price, new_price, f"{reason} ({spaces} spaces)")
 
     def priceDown(self, amount):
         if self.stock_market:
             self.stock_market.on_sale(self, amount)
         else:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             decrement = (amount // STOCK_CERTIFICATE) * 10
             self.stockPrice[StockPurchaseSource.BANK] = max(
                 0, self.stockPrice[StockPurchaseSource.BANK] - decrement
             )
+            new_price = self.stockPrice[StockPurchaseSource.BANK]
+            if old_price != new_price:
+                shares_sold = amount // STOCK_CERTIFICATE
+                self.record_price_change(old_price, new_price, f"Stock sold ({shares_sold} shares)")
 
     def checkPresident(self):
         """Determine if control of the company should change hands.
@@ -805,6 +835,62 @@ class PublicCompany:
         # Minimum payment is typically 10% of total debt per round
         min_payment = int(self.total_debt() * 0.1)
         return self.cash >= min_payment
+
+    def record_price_change(
+        self,
+        old_price: int,
+        new_price: int,
+        reason: str,
+        round_number: int = 0,
+        player_id: Optional[str] = None
+    ) -> None:
+        """Record a stock price change in the history.
+
+        Args:
+            old_price: Price before the change
+            new_price: Price after the change
+            reason: Why the price changed (e.g., "Stock sold", "Dividend paid")
+            round_number: Which game round this occurred (default 0 if not tracked)
+            player_id: Player who triggered the change (optional)
+        """
+        from datetime import datetime
+        entry = PriceHistoryEntry(
+            round_number=round_number,
+            old_price=old_price,
+            new_price=new_price,
+            reason=reason,
+            player_id=player_id,
+            timestamp=datetime.now().isoformat()
+        )
+        self.price_history.append(entry)
+
+    def get_price_history(
+        self,
+        limit: Optional[int] = None,
+        since_round: Optional[int] = None
+    ) -> List[PriceHistoryEntry]:
+        """Query the price history with optional filtering.
+
+        Args:
+            limit: Maximum number of entries to return (most recent first)
+            since_round: Only return entries from this round onwards
+
+        Returns:
+            List of PriceHistoryEntry objects
+        """
+        history = self.price_history
+
+        if since_round is not None:
+            history = [e for e in history if e.round_number >= since_round]
+
+        if limit is not None:
+            history = history[-limit:]
+
+        return history
+
+    def get_current_price(self) -> int:
+        """Get the current stock price (from BANK source)."""
+        return self.stockPrice[StockPurchaseSource.BANK]
 
 
 class PrivateCompany:
