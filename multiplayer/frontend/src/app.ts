@@ -14,6 +14,7 @@ import { ActionTicker } from './components/ActionTicker';
 import { PlayerList } from './components/PlayerList';
 import { LobbyModal } from './components/LobbyModal';
 import { GameLobby } from './components/GameLobby';
+import { PrivateCompanyAuction } from './components/PrivateCompanyAuction';
 
 export class App {
   private appContainer: HTMLElement;
@@ -27,6 +28,7 @@ export class App {
   private hexMap: HexMap;
   private actionTicker: ActionTicker;
   private playerList: PlayerList;
+  private privateAuction: PrivateCompanyAuction;
   private lobbyModal: LobbyModal | null = null;
 
   constructor() {
@@ -38,6 +40,9 @@ export class App {
     this.hexMap = new HexMap();
     this.actionTicker = new ActionTicker();
     this.playerList = new PlayerList();
+    this.privateAuction = new PrivateCompanyAuction({
+      onBuyCompany: (companyName: string) => this.handleBuyCompany(companyName)
+    });
   }
 
   async initialize() {
@@ -332,9 +337,10 @@ export class App {
     const tabsNav = document.createElement('div');
     tabsNav.className = 'tabs';
     tabsNav.innerHTML = `
-      <div class="tab active" data-tab="map">Map</div>
-      <div class="tab" data-tab="market">Stock Market</div>
-      <div class="tab" data-tab="companies">Companies</div>
+      <div class="tab active" data-tab="auction">🏢 Auction</div>
+      <div class="tab" data-tab="map">🗺️ Map</div>
+      <div class="tab" data-tab="market">📈 Stock Market</div>
+      <div class="tab" data-tab="companies">🏭 Companies</div>
     `;
 
     mainContent.appendChild(tabsNav);
@@ -343,9 +349,15 @@ export class App {
     const tabContent = document.createElement('div');
     tabContent.className = 'tab-content';
 
+    // Auction tab (active by default)
+    const auctionPanel = document.createElement('div');
+    auctionPanel.className = 'tab-panel active';
+    auctionPanel.dataset.tab = 'auction';
+    auctionPanel.appendChild(this.privateAuction.render());
+
     // Map tab
     const mapPanel = document.createElement('div');
-    mapPanel.className = 'tab-panel active';
+    mapPanel.className = 'tab-panel';
     mapPanel.dataset.tab = 'map';
     mapPanel.appendChild(this.hexMap.render());
 
@@ -361,6 +373,7 @@ export class App {
     companiesPanel.dataset.tab = 'companies';
     companiesPanel.innerHTML = '<div class="company-grid" id="company-grid"></div>';
 
+    tabContent.appendChild(auctionPanel);
     tabContent.appendChild(mapPanel);
     tabContent.appendChild(marketPanel);
     tabContent.appendChild(companiesPanel);
@@ -397,6 +410,9 @@ export class App {
     // Update header
     this.header.update(this.gameState);
 
+    // Update private company auction
+    this.privateAuction.updateGameState(this.gameState);
+
     // Update stock market
     if (this.gameState.stock_market) {
       this.stockMarket.update(this.gameState.stock_market);
@@ -413,6 +429,17 @@ export class App {
 
   private updatePlayerList(players: any[]) {
     this.playerList.update(players);
+  }
+
+  private handleBuyCompany(companyName: string) {
+    console.log(`🏢 Attempting to buy company: ${companyName}`);
+
+    // TODO: Send move to server
+    // For now, just log it
+    alert(`Buying ${companyName} - move handling not yet implemented`);
+
+    // Example of what this should do:
+    // socketService.makeMove('buy_private', { company: companyName });
   }
 
   private showLoading(message: string) {
