@@ -94,10 +94,20 @@ class Database:
             """, (room_code, variant, "waiting", creator_token, spectator_token, max_players))
 
             game_id = cursor.lastrowid
-            await db.commit()
 
-        # Generate player tokens
-        player_tokens = [generate_token() for _ in range(max_players)]
+            # Generate and pre-register player tokens
+            player_tokens = []
+            for i in range(max_players):
+                token = generate_token()
+                player_tokens.append(token)
+
+                # Pre-create player records with tokens (no name yet = pending)
+                await db.execute("""
+                    INSERT INTO players (game_id, player_name, player_token, player_order, is_spectator)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (game_id, f"Player {i+1} (pending)", token, i, 0))
+
+            await db.commit()
 
         return {
             "game_id": game_id,
@@ -135,6 +145,21 @@ class Database:
                 return dict(row)
             return None
 
+    async def update_player_name(
+        self,
+        player_token: str,
+        player_name: str
+    ) -> bool:
+        """Update a player's name (when they join with a pre-registered token)"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE players
+                SET player_name = ?, last_seen_at = CURRENT_TIMESTAMP
+                WHERE player_token = ?
+            """, (player_name, player_token))
+            await db.commit()
+            return True
+
     async def add_player(
         self,
         game_id: int,
@@ -142,7 +167,7 @@ class Database:
         player_token: str,
         is_spectator: bool = False
     ) -> int:
-        """Add a player to a game"""
+        """Add a player to a game (for spectators or additional players)"""
         async with aiosqlite.connect(self.db_path) as db:
             # Get current player count to assign order
             cursor = await db.execute("""

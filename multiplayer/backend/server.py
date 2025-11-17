@@ -6,6 +6,7 @@ import sys
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
+from datetime import datetime
 
 # Add parent directory to path to import Daemon18xx
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -163,7 +164,7 @@ async def authenticate(sid, data):
         connected_clients[sid]["auth_type"] = auth_result["type"]
 
         # Join room for broadcasts
-        sio.enter_room(sid, room_code)
+        await sio.enter_room(sid, room_code)
 
         # If player, store player info
         if auth_result["type"] == "player":
@@ -200,8 +201,8 @@ async def authenticate(sid, data):
 @sio.event
 async def join_game(sid, data):
     """
-    Join a game as a player
-    Expected data: {"player_name": "Alice", "token": "..."}
+    Set player name (players are pre-registered with tokens)
+    Expected data: {"player_name": "Alice"}
     """
     try:
         if sid not in connected_clients or not connected_clients[sid].get("authenticated"):
@@ -209,32 +210,47 @@ async def join_game(sid, data):
             return
 
         client = connected_clients[sid]
+
+        # Only players can set names (not creator or spectator)
+        if client["auth_type"] != "player":
+            await sio.emit("error", {"message": "Only players can set names"}, room=sid)
+            return
+
         game_id = client["game_id"]
         player_name = data.get("player_name")
         token = client["token"]
 
-        # Check if already joined
-        existing_player = await db.get_player_by_token(token)
-        if existing_player:
-            await sio.emit("error", {"message": "Already joined"}, room=sid)
+        if not player_name or not player_name.strip():
+            await sio.emit("error", {"message": "Player name required"}, room=sid)
             return
 
-        # Add player to database
-        await db.add_player(game_id, player_name, token, is_spectator=False)
+        # Check if name already set (not pending)
+        player = await db.get_player_by_token(token)
+        if player and not player["player_name"].endswith("(pending)"):
+            # Name already set, just update it
+            pass
+
+        # Update player name in database
+        await db.update_player_name(token, player_name.strip())
 
         # Update client info
-        connected_clients[sid]["player_name"] = player_name
+        connected_clients[sid]["player_name"] = player_name.strip()
+
+        # Refresh player info
+        player = await db.get_player_by_token(token)
+        if player:
+            connected_clients[sid]["player_id"] = player["id"]
 
         # Get updated player list
         players = await db.get_players_in_game(game_id)
 
         # Broadcast to room
         await sio.emit("player_joined", {
-            "player_name": player_name,
+            "player_name": player_name.strip(),
             "players": players
         }, room=client["room_code"])
 
-        print(f"✅ Player joined: {player_name}")
+        print(f"✅ Player set name: {player_name}")
 
     except Exception as e:
         print(f"❌ Join game error: {e}")
