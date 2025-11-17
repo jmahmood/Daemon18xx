@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.state import Game
 from app.config import load_config
+from app.base import StockPurchaseSource
 
 
 def serialize_game(game: Game) -> str:
@@ -120,6 +121,11 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'name': p.name,
                 'cash': p.cash,
                 'order': p.order,
+                'certificates': p.getCertificateCount() if hasattr(p, 'getCertificateCount') else 0,
+                'holdings': {
+                    company.short_name: company.owners.get(p, 0)
+                    for company in p.portfolio
+                } if hasattr(p, 'portfolio') else {}
             }
             for p in game.state.players
         ]
@@ -172,10 +178,19 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'name': c.name,
                 'short_name': c.short_name,
                 'floated': c.isFloated(),
-                'outstanding_shares': getattr(c, 'outstanding_shares', 0),
-                'stock_pos': getattr(c, 'stock_pos', (0, 0)),
-                'cash': getattr(c, 'cash', None),
+                'ipo_price': c.stockPrice.get(StockPurchaseSource.IPO, 0) if hasattr(c, 'stockPrice') else 0,
+                'market_price': c.stockPrice.get(StockPurchaseSource.BANK, 0) if hasattr(c, 'stockPrice') else 0,
+                'ipo_shares': c.stocks.get(StockPurchaseSource.IPO, 0) if hasattr(c, 'stocks') else 0,
+                'bank_shares': c.stocks.get(StockPurchaseSource.BANK, 0) if hasattr(c, 'stocks') else 0,
                 'president': c.president.name if hasattr(c, 'president') and c.president else None,
+                'president_id': c.president.id if hasattr(c, 'president') and c.president else None,
+                'cash': getattr(c, 'cash', 0),
+                'stock_position': getattr(c, 'stock_pos', (0, 0)),
+                'shareholders': {
+                    player.name: amount
+                    for player, amount in (c.owners.items() if hasattr(c, 'owners') else {})
+                },
+                'outstanding_shares': getattr(c, 'outstanding_shares', 0),
                 'bankrupt': getattr(c, 'bankrupt', False),
             }
             for c in game.state.public_companies
