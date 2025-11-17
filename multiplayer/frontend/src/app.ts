@@ -237,16 +237,35 @@ export class App {
       this.authState.authenticated = true;
       this.authState.authType = data.auth_type;
 
-      // If player, prompt for name first
+      // If player, check if they already have a name
       if (data.auth_type === 'player') {
-        this.promptForPlayerName();
+        if (data.player && data.player.has_name) {
+          // Player already has a name - restore it and go to lobby/game
+          this.myPlayerName = data.player.name;
+          this.header.setPlayerName(data.player.name);
+
+          // Check game status
+          if (data.game.status === 'in_progress') {
+            // Game already started - go straight to game UI
+            this.showLoading('Loading game...');
+            socketService.requestGameState();
+          } else {
+            // Still in lobby
+            this.showGameLobby(data.game);
+          }
+        } else {
+          // Player doesn't have a name yet - prompt for it
+          this.promptForPlayerName();
+        }
       } else {
         // Creator or spectator - show lobby
         this.showGameLobby(data.game);
       }
 
-      // Request current game state
-      socketService.requestGameState();
+      // Request current game state if not already done
+      if (data.auth_type !== 'player' || (data.player && data.player.has_name && data.game.status !== 'in_progress')) {
+        socketService.requestGameState();
+      }
     });
 
     // Game events
@@ -263,6 +282,12 @@ export class App {
     socketService.on('game_state_update', (data) => {
       console.log('📊 Game state updated');
       this.gameState = data.game_state;
+
+      // If we received game state but don't have game UI built yet, build it
+      if (data.game_state && !document.getElementById('game-header')) {
+        this.buildMainUI();
+      }
+
       this.updateUI();
     });
 
@@ -525,6 +550,7 @@ export class App {
       const name = input.value.trim();
       if (name) {
         this.myPlayerName = name; // Remember this player's name
+        this.header.setPlayerName(name); // Set in header
         socketService.joinGame(name);
         this.showLoading('Joining game lobby...');
       }

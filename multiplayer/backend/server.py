@@ -176,11 +176,22 @@ async def authenticate(sid, data):
             await db.update_player_last_seen(player["player_token"])
 
         # Send authentication success
-        await sio.emit("authenticated", {
+        auth_response = {
             "success": True,
             "auth_type": auth_result["type"],
             "game": game
-        }, room=sid)
+        }
+
+        # Include player info if player
+        if auth_result["type"] == "player":
+            player = auth_result["player"]
+            auth_response["player"] = {
+                "id": player["id"],
+                "name": player["player_name"],
+                "has_name": not player["player_name"].endswith("(pending)")
+            }
+
+        await sio.emit("authenticated", auth_response, room=sid)
 
         # Send current game state if exists
         if game["id"] in game_states:

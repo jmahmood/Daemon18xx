@@ -35,7 +35,12 @@ export interface GameState {
   players: Player[];
   companies?: Company[];
   stock_market?: StockMarketCell[][];
-  current_player?: string;
+  current_player?: {
+    id: string;
+    name: string;
+  };
+  private_companies?: any[];
+  public_companies?: any[];
   raw?: any;
 }
 
