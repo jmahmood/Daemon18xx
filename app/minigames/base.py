@@ -1,8 +1,9 @@
 from typing import List, Tuple, NamedTuple
 
-import logging
-
+from app.logging_config import get_logger
 from app.base import Move, MutableGameState
+
+logger = get_logger(__name__)
 
 
 class LifeCycle:
@@ -12,23 +13,19 @@ class LifeCycle:
     """
     @staticmethod
     def onStart(kwargs: MutableGameState) -> None:
-        pass
-        # logging.debug("Minigame started")
+        logger.debug("Minigame phase started")
 
     @staticmethod
     def onTurnStart(kwargs: MutableGameState) -> None:
-        pass
-        # logging.debug("Minigame started")
+        logger.debug("Minigame turn started")
 
     @staticmethod
     def onComplete(kwargs: MutableGameState) -> None:
-        pass
-        # logging.debug("Minigame complete")
+        logger.debug("Minigame phase completed")
 
     @staticmethod
     def onTurnComplete(kwargs: MutableGameState) -> None:
-        pass
-        # logging.debug("Minigame turn complete")
+        logger.debug("Minigame turn completed")
 
 
 class Minigame(LifeCycle):
@@ -44,6 +41,13 @@ class Minigame(LifeCycle):
                  possible_errors: List[str]):
         # Clear previous errors before validating a new set of rules
         self.error_list = [err for err in possible_errors if err is not None]
+
+        if self.error_list:
+            logger.debug(
+                f"Validation failed with {len(self.error_list)} error(s)",
+                extra={'errors': self.error_list}
+            )
+
         return len(self.error_list) == 0
 
     def run(self, move: Move, state: MutableGameState) -> bool:

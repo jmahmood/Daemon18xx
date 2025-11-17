@@ -11,6 +11,21 @@ STOCK_PRESIDENT_CERTIFICATE = 20
 STOCK_CERTIFICATE = 10
 
 
+@dataclass
+class PriceHistoryEntry:
+    """Records a single stock price change event.
+
+    Used for historical tracking, debugging, and frontend visualization.
+    Enables price charts, audit trails, and game replay.
+    """
+    round_number: int  # Which game round this occurred
+    old_price: int  # Price before change
+    new_price: int  # Price after change
+    reason: str  # Why the price changed (e.g., "Stock sold", "Dividend paid", "Withheld")
+    player_id: Optional[str] = None  # Player who triggered the change (if applicable)
+    timestamp: Optional[str] = None  # ISO timestamp for audit trail
+
+
 def err(validate: bool, error_msg: str, *format_error_msg_params):
     if not validate:
         return error_msg.format(*format_error_msg_params)
@@ -50,6 +65,134 @@ class Color(Enum):
     RED = 5
 
 
+class TerrainType(Enum):
+    """Terrain types that affect track laying costs."""
+    NORMAL = 1
+    MOUNTAIN = 2
+    BRIDGE = 3
+    TUNNEL = 4
+
+
+class PowerType(Enum):
+    """Types of special powers that private companies can grant."""
+    EXTRA_TOKEN = 1        # Additional token placement
+    REVENUE_BONUS = 2      # Bonus revenue on routes
+    FREE_TRACK = 3         # Free or discounted track laying
+    TERRAIN_DISCOUNT = 4   # Ignore or reduce terrain costs
+    TRAIN_DISCOUNT = 5     # Discount on train purchases
+
+
+@dataclass
+class SpecialPower:
+    """Base class for private company special powers."""
+    power_type: PowerType
+    description: str
+    active: bool = True
+    expires_on_use: bool = False  # Power consumed after one use
+    uses_remaining: int = None    # None = unlimited uses
+
+    def can_use(self) -> bool:
+        """Check if this power can still be used."""
+        if not self.active:
+            return False
+        if self.uses_remaining is not None:
+            return self.uses_remaining > 0
+        return True
+
+    def use(self) -> bool:
+        """Use the power. Returns True if successful."""
+        if not self.can_use():
+            return False
+
+        if self.uses_remaining is not None:
+            self.uses_remaining -= 1
+
+        if self.expires_on_use:
+            self.active = False
+
+        return True
+
+    def deactivate(self) -> None:
+        """Permanently deactivate this power."""
+        self.active = False
+
+
+@dataclass
+class ExtraTokenPower(SpecialPower):
+    """Grants additional token placement(s)."""
+    token_count: int = 1  # Number of extra tokens
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.EXTRA_TOKEN
+
+
+@dataclass
+class RevenueBonusPower(SpecialPower):
+    """Adds bonus revenue to routes."""
+    bonus_amount: int = 0  # Fixed bonus per route
+    bonus_multiplier: float = 1.0  # Multiplier (e.g., 1.2 for +20%)
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.REVENUE_BONUS
+
+    def apply_bonus(self, base_revenue: int) -> int:
+        """Calculate total revenue with bonus applied."""
+        return int(base_revenue * self.bonus_multiplier) + self.bonus_amount
+
+
+@dataclass
+class FreeTrackPower(SpecialPower):
+    """Grants free or discounted track laying."""
+    discount_percent: float = 1.0  # 1.0 = free, 0.5 = half price
+    tile_colors: List[Color] = None  # None = all colors
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.FREE_TRACK
+
+    def get_discount_multiplier(self, tile_color: Color = None) -> float:
+        """Get the discount multiplier for a given tile color."""
+        if self.tile_colors is None or tile_color in self.tile_colors:
+            return 1.0 - self.discount_percent
+        return 1.0  # No discount
+
+
+@dataclass
+class TerrainDiscountPower(SpecialPower):
+    """Reduces or eliminates terrain costs."""
+    terrain_types: List[TerrainType] = None  # None = all terrain
+    discount_percent: float = 1.0  # 1.0 = ignore terrain, 0.5 = half cost
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.TERRAIN_DISCOUNT
+
+    def applies_to_terrain(self, terrain: TerrainType) -> bool:
+        """Check if this power applies to the given terrain type."""
+        if self.terrain_types is None:
+            return True
+        return terrain in self.terrain_types
+
+
+@dataclass
+class TrainDiscountPower(SpecialPower):
+    """Provides discount on train purchases."""
+    discount_amount: int = 0  # Fixed discount
+    discount_percent: float = 0.0  # Percentage discount (0.2 = 20% off)
+
+    def __post_init__(self):
+        if self.power_type is None:
+            self.power_type = PowerType.TRAIN_DISCOUNT
+
+    def apply_discount(self, train_cost: int) -> int:
+        """Calculate discounted train cost."""
+        discounted = int(train_cost * (1.0 - self.discount_percent))
+        discounted -= self.discount_amount
+        return max(0, discounted)
+
+
 class Train:
     def __init__(self, train_type: str, cost: int, rusts_on: str = None):
         self.type = train_type
@@ -77,6 +220,43 @@ class Tile:
     slots: int = 1
     tokens: List[str] = field(default_factory=list)
     extra_slots_cost: Optional[int] = None
+    terrain: 'TerrainType' = None  # Terrain type affecting placement cost
+
+    def __post_init__(self):
+        """Ensure terrain defaults to NORMAL if not specified."""
+        if self.terrain is None:
+            from app.base import TerrainType
+            self.terrain = TerrainType.NORMAL
+
+
+@dataclass
+class Loan:
+    """Represents a loan taken by a company from its president or the bank.
+
+    Loans accrue interest each operating round and must be repaid. If a company
+    defaults on its loans, consequences include forced share sales, presidency
+    transfer, and potentially receivership.
+    """
+    id: str
+    principal: int  # Original loan amount
+    balance: int  # Current outstanding balance
+    interest_rate: float  # Interest rate per operating round (e.g., 0.05 for 5%)
+    lender: 'Player'  # Who provided the loan (usually president)
+    round_taken: int  # Which operating round the loan was taken
+
+    def accrue_interest(self) -> None:
+        """Apply interest to the loan balance."""
+        self.balance = int(self.balance * (1 + self.interest_rate))
+
+    def make_payment(self, amount: int) -> int:
+        """Make a payment towards the loan. Returns actual amount paid."""
+        actual_payment = min(amount, self.balance)
+        self.balance -= actual_payment
+        return actual_payment
+
+    def is_paid_off(self) -> bool:
+        """Check if loan is fully repaid."""
+        return self.balance <= 0
 
 
 class Direction(Enum):
@@ -133,7 +313,7 @@ class StockMarket:
             return row + 1, col - 1
         return row, col
 
-    def move_marker(self, company: "PublicCompany", direction: Direction, steps: int = 1) -> None:
+    def move_marker(self, company: "PublicCompany", direction: Direction, steps: int = 1, reason: str = "Market movement") -> None:
         row, col = company.stock_pos
         for _ in range(steps):
             nr, nc = self.next_coord(row, col, direction)
@@ -141,21 +321,22 @@ class StockMarket:
                 break
             row, col = nr, nc
         company.stock_pos = (row, col)
-        company.update_price_from_pos()
+        company.update_price_from_pos(reason)
 
     def on_sale(self, company: "PublicCompany", percentage: int) -> None:
         steps = percentage // 10
         if steps > 0:
-            self.move_marker(company, Direction.DOWN, steps)
+            shares_sold = percentage // 10
+            self.move_marker(company, Direction.DOWN, steps, f"Stock sold ({shares_sold}% of company)")
 
     def on_withhold(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
         direction = cell.arrow if cell.arrow == Direction.DOWN_LEFT else Direction.LEFT
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Revenue withheld")
 
     def move(self, company: "PublicCompany", direction: Direction) -> None:
         """Move ``company`` one step in ``direction`` respecting board edges."""
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Manual market movement")
 
     def on_payout(self, company: "PublicCompany") -> None:
         cell = self.cell(*company.stock_pos)
@@ -165,11 +346,11 @@ class StockMarket:
             if cell.band == Band.YELLOW:
                 return
             direction = Direction.UP_RIGHT if cell.band == Band.BROWN else Direction.RIGHT
-        self.move_marker(company, direction)
+        self.move_marker(company, direction, 1, "Dividend paid")
 
     def on_sold_out(self, company: "PublicCompany") -> None:
         if company.stock_pos[0] > 0:
-            self.move_marker(company, Direction.UP)
+            self.move_marker(company, Direction.UP, 1, "Stock sold out")
 
     def sort_companies(self, companies: List["PublicCompany"]) -> List["PublicCompany"]:
         return sorted(
@@ -182,8 +363,71 @@ class StockMarket:
 
 
 class Player:
-    """This is the individual player.
-    Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
+    """Individual player in the game.
+
+    OBJECT RELATIONSHIPS (PR #11 - Cross-Linking Patterns):
+    -------------------------------------------------------
+    Players have bidirectional relationships with game entities. This is intentional
+    and enables efficient queries without complex joins or searches.
+
+    PLAYER ←→ PUBLICCOMPANY:
+    - Player.portfolio: Set[PublicCompany] - Companies player owns shares in
+    - PublicCompany.owners: Dict[Player, int] - % ownership per player
+    - PublicCompany.president: Player - Current president
+
+    PLAYER ←→ PRIVATECOMPANY:
+    - Player.private_companies: Set[PrivateCompany] - Private companies owned
+    - PrivateCompany.belongs_to: Player - Owner of the private company
+
+    RATIONALE FOR BIDIRECTIONAL REFERENCES:
+    ---------------------------------------
+    1. **Performance**: O(1) access to related entities without searching
+    2. **Convenience**: Easy to query "which companies does player own?" and
+       "who owns this company?"
+    3. **Consistency**: Updates must maintain both sides of relationship
+
+    MANAGING RELATIONSHIPS:
+    ----------------------
+    Use helper methods to maintain consistency:
+    - PublicCompany.buy() / sell() - Update both owners dict and player portfolio
+    - PublicCompany.grantStock() - Add to owners dict
+    - PrivateCompany.setBelongs() - Update both belongs_to and player.private_companies
+    - PublicCompany.checkPresident() - Update president reference
+
+    ALTERNATIVE APPROACHES CONSIDERED:
+    ---------------------------------
+    - **Unidirectional (owners only)**: Simpler but requires O(n) searches for
+      "what does player own?"
+    - **Separate ownership table**: More database-like but overhead for simple game
+    - **Weak references**: Complex lifetime management, not worth the complexity
+
+    LIFECYCLE NOTES:
+    ---------------
+    - Objects created via factory methods (Player.create(), PublicCompany.initiate())
+    - Relationships established via game logic (stock purchases, sales)
+    - No explicit cleanup needed - Python GC handles it
+    - For serialization, use object IDs and reconstruct relationships on load
+
+    TODO RESOLVED (was line 385):
+    ----------------------------
+    Cross-linking is intentional and beneficial. Key pattern:
+    - Use helper methods to update both sides atomically
+    - Document ownership semantics clearly
+    - Test relationship consistency in edge cases
+
+    Example of proper relationship management:
+        >>> company.buy(player, StockPurchaseSource.IPO, 20)
+        # This updates:
+        # - company.owners[player] += 20
+        # - player.portfolio.add(company)
+        # - player.cash -= cost
+        # All in one atomic operation
+
+    SECURITY NOTE:
+    -------------
+    There is no authorization at this level. Authentication/permissions should be
+    handled at the API/frontend layer. This class represents the game character.
+    """
 
     def __hash__(self) -> int:
         return int("".join(str(ord(char)) for char in self.id))
@@ -217,8 +461,20 @@ class Player:
         return ret
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
-        """TODO: Is there a way to avoid cross-linking between Player and Public Company?
-        Wouldn't that cause problems when trying to calculate a player's total wealth?"""
+        """Add company to player's portfolio and deduct cost.
+
+        This maintains the bidirectional Player ←→ PublicCompany relationship.
+        See class docstring for relationship management patterns.
+
+        Args:
+            company: PublicCompany to add to portfolio
+            amount: Percentage of company being purchased (10, 20, etc.)
+            price: Price per share
+
+        Note:
+            This should typically be called via PublicCompany.buy() which updates
+            both sides of the relationship atomically.
+        """
         self.portfolio.add(company)
         self.cash = self.cash - amount  / STOCK_CERTIFICATE * price
 
@@ -323,6 +579,8 @@ class PublicCompany:
         self.token_placed: bool = False
         self.stock_market: StockMarket = None
         self.stock_pos: Tuple[int, int] = (0, 0)
+        self.loans: List[Loan] = []  # Outstanding loans
+        self.price_history: List[PriceHistoryEntry] = []  # Historical price changes
 
     @staticmethod
     def initiate(**kwargs):
@@ -360,13 +618,18 @@ class PublicCompany:
     def attach_market(self, market: StockMarket, row: int = 0, col: int = 0) -> None:
         self.stock_market = market
         self.stock_pos = (row, col)
-        self.update_price_from_pos()
+        self.update_price_from_pos("Initial market price")
 
-    def update_price_from_pos(self) -> None:
+    def update_price_from_pos(self, reason: str = "Market movement") -> None:
         if self.stock_market:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             value = self.stock_market.cell(*self.stock_pos).price
             self.stockPrice[StockPurchaseSource.BANK] = value
             self.stockPrice[StockPurchaseSource.IPO] = value
+
+            # Record price change if it actually changed
+            if old_price != value:
+                self.record_price_change(old_price, value, reason)
 
     def checkPriceIncrease(self):
         if self.stocks[StockPurchaseSource.IPO] == 0 and self.stocks[StockPurchaseSource.BANK] == 0:
@@ -375,22 +638,30 @@ class PublicCompany:
             else:
                 self.priceUp(1)
 
-    def priceUp(self, spaces):
+    def priceUp(self, spaces, reason: str = "Price increase"):
         if self.stock_market:
             for _ in range(spaces):
-                self.stock_market.move_marker(self, Direction.RIGHT)
+                self.stock_market.move_marker(self, Direction.RIGHT, 1, reason)
         else:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             increment = spaces * 10
             self.stockPrice[StockPurchaseSource.BANK] += increment
+            new_price = self.stockPrice[StockPurchaseSource.BANK]
+            self.record_price_change(old_price, new_price, f"{reason} ({spaces} spaces)")
 
     def priceDown(self, amount):
         if self.stock_market:
             self.stock_market.on_sale(self, amount)
         else:
+            old_price = self.stockPrice[StockPurchaseSource.BANK]
             decrement = (amount // STOCK_CERTIFICATE) * 10
             self.stockPrice[StockPurchaseSource.BANK] = max(
                 0, self.stockPrice[StockPurchaseSource.BANK] - decrement
             )
+            new_price = self.stockPrice[StockPurchaseSource.BANK]
+            if old_price != new_price:
+                shares_sold = amount // STOCK_CERTIFICATE
+                self.record_price_change(old_price, new_price, f"Stock sold ({shares_sold} shares)")
 
     def checkPresident(self):
         """Determine if control of the company should change hands.
@@ -519,6 +790,108 @@ class PublicCompany:
 
         return True
 
+    def take_loan(self, amount: int, lender: Player, interest_rate: float, current_round: int) -> Loan:
+        """Take a loan from a player (usually president) or the bank."""
+        import uuid
+        loan = Loan(
+            id=str(uuid.uuid4()),
+            principal=amount,
+            balance=amount,
+            interest_rate=interest_rate,
+            lender=lender,
+            round_taken=current_round
+        )
+        self.loans.append(loan)
+        self.cash += amount
+        lender.cash -= amount
+        return loan
+
+    def repay_loan(self, loan: Loan, amount: int) -> int:
+        """Repay a loan (or part of it). Returns the actual amount repaid."""
+        if loan not in self.loans:
+            return 0
+
+        actual_payment = loan.make_payment(amount)
+        self.cash -= actual_payment
+        loan.lender.cash += actual_payment
+
+        # Remove loan if fully paid off
+        if loan.is_paid_off():
+            self.loans.remove(loan)
+
+        return actual_payment
+
+    def accrue_loan_interest(self) -> None:
+        """Apply interest to all outstanding loans."""
+        for loan in self.loans:
+            loan.accrue_interest()
+
+    def total_debt(self) -> int:
+        """Calculate total outstanding debt."""
+        return sum(loan.balance for loan in self.loans)
+
+    def can_service_debt(self) -> bool:
+        """Check if company has enough cash to cover minimum debt payments."""
+        # Minimum payment is typically 10% of total debt per round
+        min_payment = int(self.total_debt() * 0.1)
+        return self.cash >= min_payment
+
+    def record_price_change(
+        self,
+        old_price: int,
+        new_price: int,
+        reason: str,
+        round_number: int = 0,
+        player_id: Optional[str] = None
+    ) -> None:
+        """Record a stock price change in the history.
+
+        Args:
+            old_price: Price before the change
+            new_price: Price after the change
+            reason: Why the price changed (e.g., "Stock sold", "Dividend paid")
+            round_number: Which game round this occurred (default 0 if not tracked)
+            player_id: Player who triggered the change (optional)
+        """
+        from datetime import datetime
+        entry = PriceHistoryEntry(
+            round_number=round_number,
+            old_price=old_price,
+            new_price=new_price,
+            reason=reason,
+            player_id=player_id,
+            timestamp=datetime.now().isoformat()
+        )
+        self.price_history.append(entry)
+
+    def get_price_history(
+        self,
+        limit: Optional[int] = None,
+        since_round: Optional[int] = None
+    ) -> List[PriceHistoryEntry]:
+        """Query the price history with optional filtering.
+
+        Args:
+            limit: Maximum number of entries to return (most recent first)
+            since_round: Only return entries from this round onwards
+
+        Returns:
+            List of PriceHistoryEntry objects
+        """
+        history = self.price_history
+
+        if since_round is not None:
+            history = [e for e in history if e.round_number >= since_round]
+
+        if limit is not None:
+            history = history[-limit:]
+
+        return history
+
+    def get_current_price(self) -> int:
+        """Get the current stock price (from BANK source)."""
+        return self.stockPrice[StockPurchaseSource.BANK]
+
 
 class PrivateCompany:
     def __eq__(self, o: "PrivateCompany") -> bool:
@@ -542,6 +915,7 @@ class PrivateCompany:
         self.passed_by: List[Player] = None
         # ^-- This is a list of people who have passed on a private company in a bidding round.
         self.pass_count = None
+        self.special_powers: List[SpecialPower] = []  # Special powers granted by this private company
 
     @staticmethod
     def allPrivateCompanies() -> List["PrivateCompany"]:
@@ -561,7 +935,8 @@ class PrivateCompany:
                  actual_cost: int = None,
                  player_bids: List[PlayerBid] = None,
                  passed_by: List[Player] = None,
-                 pass_count: int = 0) -> "PrivateCompany":
+                 pass_count: int = 0,
+                 special_powers: List[SpecialPower] = None) -> "PrivateCompany":
         pc = PrivateCompany()
         pc.order = order
         pc.name = name
@@ -574,8 +949,17 @@ class PrivateCompany:
         pc.player_bids = [] if player_bids is None else player_bids
         pc.passed_by = [] if passed_by is None else passed_by
         pc.pass_count = pass_count
+        pc.special_powers = special_powers if special_powers is not None else []
 
         return pc
+
+    def get_powers_by_type(self, power_type: PowerType) -> List[SpecialPower]:
+        """Get all active powers of a specific type."""
+        return [p for p in self.special_powers if p.power_type == power_type and p.can_use()]
+
+    def has_active_power(self, power_type: PowerType) -> bool:
+        """Check if this private company has any active powers of the given type."""
+        return len(self.get_powers_by_type(power_type)) > 0
 
     def hasOwner(self) -> bool:
         return self.belongs_to is not None

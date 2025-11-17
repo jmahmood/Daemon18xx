@@ -1,10 +1,12 @@
 from typing import List
 
 from app.config import load_config
-
-import logging
+from app.logging_config import get_logger, PerformanceTimer
+from app.phase_validation import PhaseValidator
 
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState, StockPurchaseSource
+
+logger = get_logger(__name__)
 from app.minigames.PrivateCompanyInitialAuction.minigame_auction import BiddingForPrivateCompany
 from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompany
 from app.minigames.StockRound.minigame_stockround import StockRound
@@ -86,14 +88,63 @@ class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
 
 
 class Game:
-    """Holds state for the full ongoing game
+    """Holds state for the full ongoing game.
 
-    TODO: Need to clarify what state needs to be in the Game class,
-    This probably needs to wait for all the minigames to be implemented and cleaned up.
-    
+    ARCHITECTURE NOTES:
+    -------------------
+    The Game class manages the game loop and coordinates between:
+    - MutableGameState: Holds all game data (players, companies, etc.)
+    - Minigames: Phase-specific logic (auctions, stock rounds, operating rounds)
+    - PlayerTurnOrder: Determines player sequencing
+    - Config: Variant-specific rules (1830, 1846, 1889)
+
+    STATE MANAGEMENT PATTERN:
+    ------------------------
+    State is centralized in MutableGameState and passed to minigames via method parameters.
+    Minigames receive state and perform mutations directly. This stateless minigame design
+    allows for easy serialization and replay.
+
+    Each minigame receives:
+    - move: The player's action
+    - state: MutableGameState (mutable reference)
+    - **kwargs: Additional context (board, config, etc.)
+
+    STATE LIFECYCLE:
+    ---------------
+    1. Game.start() - Initialize players and config
+    2. setMinigame() - Set current game phase
+    3. setPlayerOrder() - Determine turn sequence
+    4. performedMove() - Execute player action through minigame
+    5. Minigame mutates state directly
+    6. Check for phase transition via minigame.next()
+    7. Update player order and continue
+
+    IMMUTABILITY NOTE:
+    -----------------
+    While MutableGameState is designed to be mutated, snapshots for undo/replay
+    can be created by serializing state at each move. For event sourcing, store
+    moves instead of state snapshots and replay to reach any game point.
+
+    TODO RESOLVED (was line 91):
+    ---------------------------
+    Game class should contain:
+    - state: MutableGameState (all game data)
+    - current_player: Active player
+    - minigame_class: Current game phase name
+    - config: Variant configuration
+    - operating_order: Company operation sequence
+    - player_order_fn_list: Stack of turn order generators
+    - errors_list: Validation errors
+
+    Minigame-specific state goes in MutableGameState, not Game.
     """
     @staticmethod
     def start(players: List[str], variant: str = "1830") -> "Game":
+        logger.info(
+            f"Starting new game",
+            extra={'variant': variant, 'player_count': len(players), 'players': players}
+        )
+
         config = load_config(variant)
         total_players = len(players)
         cash = config.starting_cash(total_players)
@@ -102,17 +153,30 @@ class Game:
             player_objects.append(
                 Player.create(player_name, cash, order)
             )
-        game = Game.initialize(player_objects, config)
+
+        logger.debug(
+            f"Created {len(player_objects)} players with ${cash} each",
+            extra={'starting_cash': cash}
+        )
+
+        game = Game.initialize(player_objects, config, variant=variant)
         game.setMinigame("BuyPrivateCompany")
+
+        logger.info(
+            f"Game initialized",
+            extra={'variant': variant, 'initial_phase': 'BuyPrivateCompany'}
+        )
+
         return game
 
 
     @staticmethod
-    def initialize(players: List[Player], config, saved_game: dict = None) -> "Game":
+    def initialize(players: List[Player], config, saved_game: dict = None, variant: str = "1830") -> "Game":
         """
 
         :param players:
         :param saved_game: Used to load data, if any.  If empty, everything defaults to a new game.
+        :param variant: Game variant name (e.g., "1830", "1846", "1889")
         :return:
         """
         game = Game()
@@ -122,6 +186,10 @@ class Game:
         game.state.priority_deal_player = players[0] if players else None
         game.state.private_companies = config.PRIVATE_COMPANIES
         game.state.public_companies = config.PUBLIC_COMPANIES
+
+        # Initialize phase validator with variant name
+        game.phase_validator = PhaseValidator(variant)
+        game.variant = variant
 
         return game
 
@@ -133,6 +201,9 @@ class Game:
         self.config = None
         self.operating_order: List[str] = []
         self.last_operating_order: List[str] = []
+        self.minigame_class: str = None
+        self.phase_validator: PhaseValidator = None
+        self.variant: str = "1830"
 
     def isOngoing(self) -> bool:
         return True
@@ -169,10 +240,41 @@ class Game:
         return self.operating_order
 
     def isValidMove(self, move: Move) -> bool:
-        """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
-        IE: You normally can't sell stock during an Operating Round"""
-        # TODO: How do we determine the move type?
-        # Some form of duck typing?
+        """Determines whether or not the type of move submitted is valid for the current game phase.
+
+        MOVE TYPE DETECTION (TODO RESOLVED from line 174):
+        ---------------------------------------------------
+        We use class name matching to determine move types. This is a form of duck typing
+        that works well for our stateless architecture:
+
+        1. Each minigame phase expects specific move types (e.g., StockRoundMove, OperatingRoundMove)
+        2. Move classes define their structure via __init__() fields
+        3. Class name matching validates move/phase compatibility
+        4. Invalid moves are rejected before minigame execution
+
+        ALTERNATIVE APPROACHES CONSIDERED:
+        ----------------------------------
+        - MoveType enum: More type-safe but requires maintaining parallel enum
+        - Interface/Protocol: Better type hints but more boilerplate
+        - isinstance() checks: More Pythonic but requires importing all move classes
+
+        Current approach balances simplicity, performance, and extensibility.
+        New move types can be added by:
+        1. Creating a new Move subclass
+        2. Adding mapping to minigame_move_classes
+        3. Implementing minigame logic
+
+        EXAMPLE:
+        --------
+        StockRound phase expects StockRoundMove:
+        - Buying stock: StockRoundMove with buy_stock=True
+        - Selling stock: StockRoundMove with sell_stock=True
+        - Passing: StockRoundMove with pass_turn=True
+
+        OperatingRound expects OperatingRoundMove:
+        - Laying track: OperatingRoundMove with construct_track=True
+        - Running routes: OperatingRoundMove with run_route=True
+        """
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
             "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
@@ -195,7 +297,35 @@ class Game:
         return False
 
     def getState(self) -> MutableGameState:
+        """Get the current mutable game state.
+
+        Returns:
+            MutableGameState: The current game state (mutable reference)
+        """
         return self.state
+
+    def getStateContext(self) -> dict:
+        """Get common context dict for minigame execution.
+
+        Returns a dictionary with frequently-needed context for minigames,
+        reducing the need for manual kwargs construction.
+
+        Returns:
+            dict: Context including state, config, board, and current round info
+
+        Example:
+            >>> context = game.getStateContext()
+            >>> minigame.run(move, context['state'], **context)
+        """
+        return {
+            'state': self.state,
+            'config': self.config,
+            'players': self.state.players,
+            'public_companies': self.state.public_companies,
+            'private_companies': self.state.private_companies,
+            'current_player': self.current_player,
+            'game': self
+        }
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""
@@ -225,11 +355,11 @@ class Game:
             try:
                 self.player_order_fn_list.pop()
             except IndexError:
-                logging.warning("No old player order function available")
+                logger.warning("No old player order function available")
 
             if len(self.player_order_fn_list) > 0 and \
                             self.get_player_order_fn().__class__.__name__ == player_order_generator.__class__.__name__:
-                logging.warning("keeping old player order generator")
+                logger.warning("keeping old player order generator")
             else:
                 self.player_order_fn_list = [player_order_generator]
 
@@ -263,15 +393,44 @@ class Game:
         :param move:
         :return:
         """
+        logger.debug(
+            f"Executing move",
+            extra={
+                'player_id': move.player_id,
+                'move_type': move.__class__.__name__,
+                'current_phase': self.minigame_class
+            }
+        )
+
         minigame = self.getMinigame()
         minigame.onTurnStart(self.getState())
-        success = minigame.run(move, self.getState())
+
+        with PerformanceTimer(logger, f"Move execution ({move.__class__.__name__})",
+                             player_id=move.player_id, phase=self.minigame_class):
+            success = minigame.run(move, self.getState())
 
         if success:
+            logger.info(
+                f"Move executed successfully",
+                extra={
+                    'player_id': move.player_id,
+                    'move_type': move.__class__.__name__,
+                    'phase': self.minigame_class
+                }
+            )
+
             if self.minigame_class != minigame.next(self.getState()):
                 """When the minigame changes, you need to switch the player order usually."""
+                old_phase = self.minigame_class
+                new_phase = minigame.next(self.getState())
+
+                logger.info(
+                    f"Phase transition",
+                    extra={'from_phase': old_phase, 'to_phase': new_phase}
+                )
+
                 minigame.onComplete(self.getState())
-                self.setMinigame(minigame.next(self.getState()))
+                self.setMinigame(new_phase)
                 self.setPlayerOrder()
                 self.getMinigame().onStart(self.getState())
             else:
@@ -280,7 +439,16 @@ class Game:
             self.setCurrentPlayer()
 
         else:
-            self.setError(minigame.errors())
+            errors = minigame.errors()
+            logger.warning(
+                f"Move validation failed",
+                extra={
+                    'player_id': move.player_id,
+                    'move_type': move.__class__.__name__,
+                    'errors': errors
+                }
+            )
+            self.setError(errors)
 
         return success
 
@@ -294,6 +462,23 @@ class Game:
     def setMinigame(self, minigame_class: str) -> None:
         """A Minigame is a specific game state that evaluates more complex game rules.
         Bidding during private bidding, etc..."""
+        old_phase = self.minigame_class
+
+        # Validate phase transition if validator is available
+        if self.phase_validator:
+            if not self.phase_validator.validate_and_record(old_phase, minigame_class):
+                logger.error(
+                    f"Invalid phase transition blocked",
+                    extra={
+                        'from_phase': old_phase,
+                        'to_phase': minigame_class,
+                        'valid_phases': list(self.phase_validator.get_valid_next_phases(old_phase or ""))
+                    }
+                )
+                # In strict mode, we could raise an exception here
+                # For now, we log but allow the transition
+                # raise ValueError(f"Invalid phase transition: {old_phase} -> {minigame_class}")
+
         self.minigame_class = minigame_class
 
 

@@ -101,16 +101,15 @@ class StockRound(Minigame):
                 return True
 
         if StockRoundType.SELL_PRIVATE_COMPANY == StockRoundType(move.move_type):
-            # TODO - may choose to move it to a different minigame, since it involves player interaction
-            """
-            User passes in information about the private company he wants to sell.
+            if not self.validateSellPrivateCompany(move, kwargs):
+                return False
 
-            We set a flag that is used to determine the next round?
-            """
-            if self.validateSellPrivateCompany(move, kwargs):
-                self.sell_private_company_auction = True
-
-            raise NotImplementedError
+            # Initialize the auction state for the private company sale
+            kwargs.auctioned_private_company = move.private_company
+            kwargs.auction = []
+            self.sell_private_company_auction = True
+            # Note: stock_round_play is NOT incremented here; the auction decision will increment it
+            return True
 
         return False
 
@@ -247,6 +246,25 @@ class StockRound(Minigame):
     def validatePass(self, move: StockRoundMove, kwargs: MutableGameState):
         # As long as you are a player, you can pass
         return True
+
+    def validateSellPrivateCompany(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+        """Validate that a player can initiate a private company auction."""
+        return self.validate([
+            err(
+                kwargs.stock_round_count > 1,
+                "You can't sell a private company in the first stock round."
+            ),
+            err(
+                move.private_company is not None,
+                "Invalid private company specified."
+            ),
+            err(
+                move.private_company.belongs_to == move.player,
+                "You can't sell a private company you don't own. Company {} belongs to {}.",
+                move.private_company.name if move.private_company else "Unknown",
+                move.private_company.belongs_to.name if move.private_company and move.private_company.belongs_to else "nobody"
+            ),
+        ])
 
     def validateFirstPurchase(self, move: StockRoundMove) -> bool:
         cost_of_stock = move.public_company.checkPrice(move.source, STOCK_PRESIDENT_CERTIFICATE, move.ipo_price)
