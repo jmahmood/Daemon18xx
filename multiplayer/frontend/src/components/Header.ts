@@ -6,6 +6,7 @@ import type { GameState } from '../types';
 
 export class Header {
   private element: HTMLElement | null = null;
+  private myPlayerName: string | null = null;
 
   render(): HTMLElement {
     const header = document.createElement('div');
@@ -26,6 +27,10 @@ export class Header {
       </div>
 
       <div class="header-right">
+        <div class="player-name-display" id="player-name-display">
+          <span class="player-label">You:</span>
+          <span class="player-name" id="my-player-name">—</span>
+        </div>
         <div class="player-stats">
           <div class="stat-item">
             <div class="stat-label">Cash</div>
@@ -43,6 +48,18 @@ export class Header {
     return header;
   }
 
+  setPlayerName(playerName: string) {
+    this.myPlayerName = playerName;
+
+    // Update display immediately
+    if (this.element) {
+      const nameEl = this.element.querySelector('#my-player-name');
+      if (nameEl) {
+        nameEl.textContent = playerName;
+      }
+    }
+  }
+
   update(gameState: GameState) {
     if (!this.element) return;
 
@@ -55,25 +72,23 @@ export class Header {
     // Update current player
     const currentPlayerEl = this.element.querySelector('#current-player');
     if (currentPlayerEl && gameState.current_player) {
-      const player = gameState.players.find(p => p.id === gameState.current_player);
-      if (player) {
-        currentPlayerEl.textContent = `Current: ${player.name}`;
-        currentPlayerEl.classList.add('active');
-      }
+      currentPlayerEl.textContent = `Current: ${gameState.current_player.name}`;
+      currentPlayerEl.classList.add('active');
     }
 
-    // Update player stats (assumes first player is "you")
-    if (gameState.players.length > 0) {
-      const player = gameState.players[0]; // TODO: identify actual player
+    // Update player stats (find the current user's player)
+    if (this.myPlayerName && gameState.players) {
+      const myPlayer = gameState.players.find(p => p.name === this.myPlayerName);
+      if (myPlayer) {
+        const cashEl = this.element.querySelector('#player-cash');
+        if (cashEl) {
+          cashEl.textContent = `$${myPlayer.cash}`;
+        }
 
-      const cashEl = this.element.querySelector('#player-cash');
-      if (cashEl) {
-        cashEl.textContent = `$${player.cash}`;
-      }
-
-      const certsEl = this.element.querySelector('#player-certs');
-      if (certsEl) {
-        certsEl.textContent = `${player.certificates || 0}`;
+        const certsEl = this.element.querySelector('#player-certs');
+        if (certsEl) {
+          certsEl.textContent = `${myPlayer.certificates || 0}`;
+        }
       }
     }
   }

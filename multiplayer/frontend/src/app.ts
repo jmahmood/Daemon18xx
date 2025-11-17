@@ -14,13 +14,14 @@ import { ActionTicker } from './components/ActionTicker';
 import { PlayerList } from './components/PlayerList';
 import { LobbyModal } from './components/LobbyModal';
 import { GameLobby } from './components/GameLobby';
+import { PrivateCompanyAuction } from './components/PrivateCompanyAuction';
 
 export class App {
   private appContainer: HTMLElement;
   private authState: AuthState = { authenticated: false };
   private gameState: GameState | null = null;
-  private currentTab: string = 'map';
   private gameLobby: GameLobby | null = null;
+  private myPlayerName: string | null = null; // Track this player's name
 
   // UI Components
   private header: Header;
@@ -28,6 +29,7 @@ export class App {
   private hexMap: HexMap;
   private actionTicker: ActionTicker;
   private playerList: PlayerList;
+  private privateAuction: PrivateCompanyAuction;
   private lobbyModal: LobbyModal | null = null;
 
   constructor() {
@@ -39,6 +41,9 @@ export class App {
     this.hexMap = new HexMap();
     this.actionTicker = new ActionTicker();
     this.playerList = new PlayerList();
+    this.privateAuction = new PrivateCompanyAuction({
+      onMakeMove: (moveData: any) => this.handleMakeMove(moveData)
+    });
   }
 
   async initialize() {
@@ -86,10 +91,6 @@ export class App {
     this.lobbyModal = new LobbyModal({
       onCreateGame: async (maxPlayers: number) => {
         await this.createNewGame(maxPlayers);
-      },
-      onJoinGame: (roomCode: string) => {
-        // Redirect to game URL (will need token)
-        window.location.href = `/game/${roomCode}/join`;
       }
     });
 
@@ -120,40 +121,91 @@ export class App {
     // Create a modal showing all the URLs
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
+
+    const creatorUrl = `${window.location.origin}${data.creator_url}`;
+    const spectatorUrl = `${window.location.origin}${data.spectator_url}`;
+    const playerUrls = data.player_urls.map((url: string) => `${window.location.origin}${url}`);
+
     modal.innerHTML = `
-      <div class="modal">
+      <div class="modal" style="max-width: 800px;">
         <div class="modal-header">
-          <h2 class="modal-title">Game Created!</h2>
+          <h2 class="modal-title">🎮 Game Created: ${data.room_code}</h2>
         </div>
         <div class="modal-body">
-          <p style="margin-bottom: 20px;">Share these links with players:</p>
+          <p style="margin-bottom: 20px; font-size: 16px;">
+            Share these links with players. Each link is unique and can be bookmarked.
+          </p>
 
-          <div class="form-group">
-            <label class="form-label">Room Code:</label>
-            <input class="form-input" readonly value="${data.room_code}" onclick="this.select()">
+          <!-- Creator Link -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid var(--primary-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong style="color: var(--primary-color);">👑 Creator Link (You)</strong>
+              <button onclick="window.open('${creatorUrl}', '_blank')"
+                      style="padding: 8px 16px; font-size: 12px;">
+                Open in New Tab
+              </button>
+            </div>
+            <input class="form-input" readonly value="${creatorUrl}"
+                   onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                   style="font-size: 11px; font-family: monospace;">
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+              Click to copy. You can manage the game and start it.
+            </p>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Your Link (Creator):</label>
-            <input class="form-input" readonly value="${window.location.origin}${data.creator_url}" onclick="this.select()">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Player Links:</label>
-            ${data.player_urls.map((url: string, i: number) => `
-              <input class="form-input" style="margin-bottom: 10px;" readonly
-                value="${window.location.origin}${url}" onclick="this.select()"
-                placeholder="Player ${i + 1}">
+          <!-- Player Links -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <strong style="display: block; margin-bottom: 10px;">👥 Player Links (Share these)</strong>
+            ${playerUrls.map((url: string, i: number) => `
+              <div style="margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">Player ${i + 1}</span>
+                  <button onclick="window.open('${url}', '_blank')"
+                          style="padding: 6px 12px; font-size: 11px;">
+                    Open in New Tab
+                  </button>
+                </div>
+                <input class="form-input" readonly value="${url}"
+                       onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                       style="font-size: 10px; font-family: monospace; margin-bottom: 0;">
+              </div>
             `).join('')}
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 10px;">
+              Click any link to copy it. Each player needs their own unique link.
+            </p>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Spectator Link:</label>
-            <input class="form-input" readonly value="${window.location.origin}${data.spectator_url}" onclick="this.select()">
+          <!-- Spectator Link -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong>👁️ Spectator Link</strong>
+              <button onclick="window.open('${spectatorUrl}', '_blank')"
+                      style="padding: 8px 16px; font-size: 12px;">
+                Open in New Tab
+              </button>
+            </div>
+            <input class="form-input" readonly value="${spectatorUrl}"
+                   onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                   style="font-size: 11px; font-family: monospace;">
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+              For viewing only (display on a large monitor).
+            </p>
+          </div>
+
+          <div style="margin-top: 20px; padding: 15px; background: var(--background-secondary); border-radius: 8px;">
+            <strong>💡 Testing Tips:</strong>
+            <ul style="margin: 10px 0 0 20px; font-size: 13px; line-height: 1.8;">
+              <li>Click "Open in New Tab" buttons to test in different tabs</li>
+              <li>Use incognito windows for separate sessions</li>
+              <li>Each link has a unique token - don't mix them up!</li>
+              <li>Room Code: <strong>${data.room_code}</strong></li>
+            </ul>
           </div>
         </div>
         <div class="modal-footer">
-          <button onclick="window.location.href='${data.creator_url}'">Go to Game</button>
+          <button onclick="window.location.href='${data.creator_url}'">
+            Go to Game Lobby
+          </button>
         </div>
       </div>
     `;
@@ -185,16 +237,35 @@ export class App {
       this.authState.authenticated = true;
       this.authState.authType = data.auth_type;
 
-      // If player, prompt for name first
+      // If player, check if they already have a name
       if (data.auth_type === 'player') {
-        this.promptForPlayerName();
+        if (data.player && data.player.has_name) {
+          // Player already has a name - restore it and go to lobby/game
+          this.myPlayerName = data.player.name;
+          this.header.setPlayerName(data.player.name);
+
+          // Check game status
+          if (data.game.status === 'in_progress') {
+            // Game already started - go straight to game UI
+            this.showLoading('Loading game...');
+            socketService.requestGameState();
+          } else {
+            // Still in lobby
+            this.showGameLobby(data.game);
+          }
+        } else {
+          // Player doesn't have a name yet - prompt for it
+          this.promptForPlayerName();
+        }
       } else {
         // Creator or spectator - show lobby
         this.showGameLobby(data.game);
       }
 
-      // Request current game state
-      socketService.requestGameState();
+      // Request current game state if not already done
+      if (data.auth_type !== 'player' || (data.player && data.player.has_name && data.game.status !== 'in_progress')) {
+        socketService.requestGameState();
+      }
     });
 
     // Game events
@@ -211,6 +282,17 @@ export class App {
     socketService.on('game_state_update', (data) => {
       console.log('📊 Game state updated');
       this.gameState = data.game_state;
+
+      // If we received game state but don't have game UI built yet, build it
+      if (data.game_state && !document.getElementById('game-header')) {
+        this.buildMainUI();
+
+        // Set player name on header if we have it
+        if (this.myPlayerName) {
+          this.header.setPlayerName(this.myPlayerName);
+        }
+      }
+
       this.updateUI();
     });
 
@@ -223,12 +305,12 @@ export class App {
     socketService.on('player_joined', (data) => {
       console.log('👤 Player joined:', data);
 
-      // If this is us joining, show the lobby
-      if (data.player_name && this.authState.authType === 'player' && !this.gameLobby) {
+      // If this is us joining (our name matches), show the lobby
+      if (data.player_name === this.myPlayerName && this.authState.authType === 'player' && !this.gameLobby) {
         this.showGameLobby({ room_code: this.authState.roomCode, max_players: 6 });
       }
 
-      // Update lobby if visible
+      // Update lobby if visible (for all players including us)
       if (this.gameLobby) {
         this.gameLobby.updatePlayers(data.players);
       }
@@ -286,9 +368,10 @@ export class App {
     const tabsNav = document.createElement('div');
     tabsNav.className = 'tabs';
     tabsNav.innerHTML = `
-      <div class="tab active" data-tab="map">Map</div>
-      <div class="tab" data-tab="market">Stock Market</div>
-      <div class="tab" data-tab="companies">Companies</div>
+      <div class="tab active" data-tab="auction">🏢 Auction</div>
+      <div class="tab" data-tab="map">🗺️ Map</div>
+      <div class="tab" data-tab="market">📈 Stock Market</div>
+      <div class="tab" data-tab="companies">🏭 Companies</div>
     `;
 
     mainContent.appendChild(tabsNav);
@@ -297,9 +380,16 @@ export class App {
     const tabContent = document.createElement('div');
     tabContent.className = 'tab-content';
 
+    // Auction tab (active by default)
+    const auctionPanel = document.createElement('div');
+    auctionPanel.className = 'tab-panel active';
+    auctionPanel.dataset.tab = 'auction';
+    auctionPanel.id = 'auction-panel';
+    auctionPanel.appendChild(this.privateAuction.render());
+
     // Map tab
     const mapPanel = document.createElement('div');
-    mapPanel.className = 'tab-panel active';
+    mapPanel.className = 'tab-panel';
     mapPanel.dataset.tab = 'map';
     mapPanel.appendChild(this.hexMap.render());
 
@@ -315,6 +405,7 @@ export class App {
     companiesPanel.dataset.tab = 'companies';
     companiesPanel.innerHTML = '<div class="company-grid" id="company-grid"></div>';
 
+    tabContent.appendChild(auctionPanel);
     tabContent.appendChild(mapPanel);
     tabContent.appendChild(marketPanel);
     tabContent.appendChild(companiesPanel);
@@ -332,8 +423,6 @@ export class App {
   }
 
   private switchTab(tabName: string) {
-    this.currentTab = tabName;
-
     // Update tab buttons
     document.querySelectorAll('.tab').forEach(tab => {
       tab.classList.toggle('active', (tab as HTMLElement).dataset.tab === tabName);
@@ -353,6 +442,37 @@ export class App {
     // Update header
     this.header.update(this.gameState);
 
+    // Check if phase has changed to something other than private auction
+    const phase = this.gameState.phase;
+    const auctionPanel = document.getElementById('auction-panel');
+
+    if (phase === 'StockRound') {
+      // Show message that stock round has started
+      if (auctionPanel) {
+        auctionPanel.innerHTML = `
+          <div style="padding: 40px; text-align: center;">
+            <h2 style="font-size: 32px; margin-bottom: 20px;">📈 Stock Round</h2>
+            <p style="font-size: 18px; color: var(--text-secondary); margin-bottom: 30px;">
+              Private company auction complete!
+            </p>
+            <p style="font-size: 16px; color: var(--text-secondary);">
+              Stock Round UI coming soon...
+            </p>
+          </div>
+        `;
+      }
+      // Don't update auction component
+    } else if (phase === 'BuyPrivateCompany' || phase === 'BiddingForPrivateCompany') {
+      // Update private company auction UI
+      if (this.myPlayerName && this.gameState.players) {
+        const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
+        if (myPlayer) {
+          this.privateAuction.setCurrentPlayer(myPlayer.id);
+        }
+      }
+      this.privateAuction.updateGameState(this.gameState);
+    }
+
     // Update stock market
     if (this.gameState.stock_market) {
       this.stockMarket.update(this.gameState.stock_market);
@@ -369,6 +489,13 @@ export class App {
 
   private updatePlayerList(players: any[]) {
     this.playerList.update(players);
+  }
+
+  private handleMakeMove(moveData: any) {
+    console.log(`🎯 Making move:`, moveData);
+
+    // Send move to server via Socket.IO
+    socketService.makeMove('BuyPrivateCompanyMove', moveData);
   }
 
   private showLoading(message: string) {
@@ -407,6 +534,14 @@ export class App {
   private promptForPlayerName() {
     this.appContainer.innerHTML = '';
 
+    // Generate a default Transformer Autobot name
+    const autobotNames = [
+      'Optimus Prime', 'Bumblebee', 'Jazz', 'Ironhide', 'Ratchet',
+      'Prowl', 'Bluestreak', 'Sideswipe', 'Wheeljack', 'Sunstreaker'
+    ];
+    const randomIndex = Math.floor(Math.random() * autobotNames.length);
+    const defaultName = autobotNames[randomIndex];
+
     const container = document.createElement('div');
     container.className = 'lobby-container';
     container.innerHTML = `
@@ -419,6 +554,7 @@ export class App {
           <label class="form-label">Player Name:</label>
           <input type="text" id="player-name-input" class="form-input"
                  placeholder="Enter your name..."
+                 value="${this.escapeHtml(defaultName)}"
                  maxlength="20"
                  autofocus>
         </div>
@@ -439,6 +575,8 @@ export class App {
     const submitName = () => {
       const name = input.value.trim();
       if (name) {
+        this.myPlayerName = name; // Remember this player's name
+        this.header.setPlayerName(name); // Set in header
         socketService.joinGame(name);
         this.showLoading('Joining game lobby...');
       }
@@ -473,5 +611,11 @@ export class App {
     if (gameData.players) {
       this.gameLobby.updatePlayers(gameData.players);
     }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }

@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 import socketio
 
 from database import db
+from game_serializer import serialize_game, deserialize_game, serialize_game_state_only
 from app.state import Game
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.StockRound.move import StockRoundMove
@@ -175,11 +176,22 @@ async def authenticate(sid, data):
             await db.update_player_last_seen(player["player_token"])
 
         # Send authentication success
-        await sio.emit("authenticated", {
+        auth_response = {
             "success": True,
             "auth_type": auth_result["type"],
             "game": game
-        }, room=sid)
+        }
+
+        # Include player info if player
+        if auth_result["type"] == "player":
+            player = auth_result["player"]
+            auth_response["player"] = {
+                "id": player["id"],
+                "name": player["player_name"],
+                "has_name": not player["player_name"].endswith("(pending)")
+            }
+
+        await sio.emit("authenticated", auth_response, room=sid)
 
         # Send current game state if exists
         if game["id"] in game_states:
@@ -284,10 +296,29 @@ async def start_game(sid, data):
 
         # Initialize game with Daemon18xx engine
         game = Game.start(player_names, variant="1889")
+
+        # Filter private companies based on player count (1889 rules)
+        # 3 players=5 companies, 4 players=6 companies, 5-6 players=7 companies
+        player_count = len(player_names)
+        all_privates = game.state.private_companies
+        sorted_privates = sorted(all_privates, key=lambda pc: pc.cost)
+
+        if player_count == 3:
+            game.state.private_companies = sorted_privates[:5]
+        elif player_count == 4:
+            game.state.private_companies = sorted_privates[:6]
+        else:
+            game.state.private_companies = sorted_privates
+
+        # Initialize player order for the first phase
+        game.setPlayerOrder()
+        game.setCurrentPlayer()
+
         game_states[game_id] = game
 
-        # Save initial state
-        await db.save_game_state(game_id, json.dumps(game.to_dict()), 0)
+        # Save initial state (using custom serialization)
+        game_serialized = serialize_game(game)
+        await db.save_game_state(game_id, game_serialized, 0)
         await db.update_game_status(game_id, "in_progress")
 
         # Broadcast to all in room
@@ -345,9 +376,10 @@ async def make_move(sid, data):
         # Update game state
         game_states[game_id] = new_game
 
-        # Save to database
-        move_number = len(new_game.history) if hasattr(new_game, 'history') else 0
-        await db.save_game_state(game_id, json.dumps(new_game.to_dict()), move_number)
+        # Save to database (using custom serialization)
+        move_number = getattr(new_game, 'move_count', 0)
+        game_serialized = serialize_game(new_game)
+        await db.save_game_state(game_id, game_serialized, move_number)
 
         # Broadcast updated state to all clients
         await sio.emit("game_state_update", {
@@ -401,8 +433,15 @@ async def send_game_state(sid: str, game_id: int):
         # Try to load from database
         state_record = await db.get_latest_game_state(game_id)
         if state_record:
-            state_json = state_record["state_json"]
-            game = Game.from_dict(json.loads(state_json))
+            # Deserialize using custom deserialization
+            game = deserialize_game(state_record["state_json"])
+
+            # Ensure player order is initialized if missing
+            if not game.player_order_fn_list:
+                game.setPlayerOrder()
+                if hasattr(game, 'state') and hasattr(game.state, 'priority_deal_player') and game.state.priority_deal_player:
+                    game.current_player = game.state.priority_deal_player
+
             game_states[game_id] = game
             await sio.emit("game_state_update", {
                 "game_state": serialize_game_state(game)
@@ -410,35 +449,30 @@ async def send_game_state(sid: str, game_id: int):
 
 
 def serialize_game_state(game: Game) -> Dict[str, Any]:
-    """Serialize game state for transmission"""
-    # This will be a simplified serialization
-    # You'll need to expand this based on what the frontend needs
-    return {
-        "variant": getattr(game, 'variant', '1889'),
-        "phase": type(game.minigame).__name__ if hasattr(game, 'minigame') else "unknown",
-        "players": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "cash": p.cash,
-                "order": p.order,
-            }
-            for p in game.state.players
-        ] if hasattr(game, 'state') and hasattr(game.state, 'players') else [],
-        # Add more fields as needed
-        "raw": game.to_dict() if hasattr(game, 'to_dict') else {}
-    }
+    """Serialize game state for transmission (wrapper for game_serializer)"""
+    return serialize_game_state_only(game)
 
 
 def construct_move(move_type: str, move_data: Dict[str, Any]):
     """Construct a Move object from type and data"""
-    # This is a simplified version - expand based on actual move types
-    if move_type == "buy_private":
-        return BuyPrivateCompanyMove(**move_data)
-    elif move_type == "stock_round":
-        return StockRoundMove(**move_data)
-    elif move_type == "operating_round":
-        return OperatingRoundMove(**move_data)
+    # Create base Move object with msg field
+    from app.base import Move
+
+    if move_type == "BuyPrivateCompanyMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return BuyPrivateCompanyMove.fromMove(base_move)
+    elif move_type == "StockRoundMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return StockRoundMove.fromMove(base_move)
+    elif move_type == "OperatingRoundMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return OperatingRoundMove.fromMove(base_move)
     return None
 
 

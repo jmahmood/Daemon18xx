@@ -1,10 +1,9 @@
 /**
- * Lobby Modal component - for creating and joining games
+ * Lobby Modal component - for creating games
  */
 
 interface LobbyModalOptions {
   onCreateGame: (maxPlayers: number) => void;
-  onJoinGame: (roomCode: string) => void;
 }
 
 export class LobbyModal {
@@ -21,7 +20,7 @@ export class LobbyModal {
     container.innerHTML = `
       <h1 class="lobby-title">🚂 Daemon18xx - 1889</h1>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+      <div style="max-width: 600px; margin: 0 auto;">
         <!-- Create Game -->
         <div style="padding: 30px; background: var(--background-tertiary); border-radius: 12px;">
           <h2 style="margin-bottom: 20px; font-size: 24px;">Create New Game</h2>
@@ -39,26 +38,20 @@ export class LobbyModal {
           <button id="create-game-btn" style="width: 100%;">Create Game</button>
 
           <p style="margin-top: 20px; font-size: 14px; color: var(--text-secondary);">
-            You'll receive links to share with other players. Each player gets a unique link.
+            You'll receive unique links for yourself, players, and spectators.
+            Each link contains a secure token for authentication.
           </p>
         </div>
 
-        <!-- Join Game -->
-        <div style="padding: 30px; background: var(--background-tertiary); border-radius: 12px;">
-          <h2 style="margin-bottom: 20px; font-size: 24px;">Join Existing Game</h2>
-
-          <div class="form-group">
-            <label class="form-label">Room Code:</label>
-            <input type="text" id="room-code" class="form-input"
-                   placeholder="Enter 6-character code"
-                   maxlength="6"
-                   style="text-transform: uppercase;">
-          </div>
-
-          <button id="join-game-btn" style="width: 100%;">Join Game</button>
-
-          <p style="margin-top: 20px; font-size: 14px; color: var(--text-secondary);">
-            Enter the room code shared by the game creator.
+        <!-- Join Game Instructions -->
+        <div style="padding: 30px; background: var(--background-secondary); border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color);">
+          <h3 style="margin-bottom: 15px; font-size: 18px;">📎 Have a Player Link?</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 15px;">
+            To join an existing game, use the unique player link you received from the game creator.
+            Each player link contains a special token that identifies you.
+          </p>
+          <p style="font-size: 13px; color: var(--warning-color);">
+            ⚠️ You cannot join by room code alone - you need your personal player link.
           </p>
         </div>
       </div>
@@ -79,18 +72,6 @@ export class LobbyModal {
       const select = container.querySelector('#max-players') as HTMLSelectElement;
       const maxPlayers = parseInt(select.value);
       this.options.onCreateGame(maxPlayers);
-    });
-
-    const joinBtn = container.querySelector('#join-game-btn');
-    joinBtn?.addEventListener('click', () => {
-      const input = container.querySelector('#room-code') as HTMLInputElement;
-      const roomCode = input.value.trim().toUpperCase();
-
-      if (roomCode.length === 6) {
-        this.options.onJoinGame(roomCode);
-      } else {
-        alert('Please enter a valid 6-character room code');
-      }
     });
 
     return container;

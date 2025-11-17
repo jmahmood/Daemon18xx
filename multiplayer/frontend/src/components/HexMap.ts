@@ -48,7 +48,6 @@ const HEX_MAP_DATA = [
 ];
 
 export class HexMap {
-  private element: HTMLElement | null = null;
   private svg: SVGElement | null = null;
   private viewBox = { x: 0, y: 0, width: 1000, height: 800 };
   private scale = 1;
@@ -72,9 +71,8 @@ export class HexMap {
     container.appendChild(svg);
 
     // Add zoom/pan controls
-    this.setupZoomPan(container, svg);
+    this.setupZoomPan(container);
 
-    this.element = container;
     this.svg = svg;
 
     return container;
@@ -152,7 +150,7 @@ export class HexMap {
     return path;
   }
 
-  private setupZoomPan(container: HTMLElement, svg: SVGElement) {
+  private setupZoomPan(container: HTMLElement) {
     // Mouse wheel zoom
     container.addEventListener('wheel', (e) => {
       e.preventDefault();

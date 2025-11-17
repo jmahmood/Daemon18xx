@@ -3,7 +3,6 @@
  */
 
 import type { PlayerAction } from '../types';
-import { soundEffects } from '../utils/soundEffects';
 
 export class ActionTicker {
   private element: HTMLElement | null = null;
