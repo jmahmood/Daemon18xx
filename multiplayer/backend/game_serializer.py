@@ -113,6 +113,8 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
         'public_companies': [],
         'stock_market': None,
         'round_info': {},
+        'available_trains': [],
+        'game_phase': 'yellow',  # Track phase for tile color restrictions
     }
 
     # Serialize players
@@ -179,14 +181,14 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'id': c.id,
                 'name': c.name,
                 'short_name': c.short_name,
-                'floated': c.isFloated(),
+                'floated': c.isFloated() if c.isFloated() is not None else False,
                 'ipo_price': c.stockPrice.get(StockPurchaseSource.IPO, 0) if hasattr(c, 'stockPrice') else 0,
                 'market_price': c.stockPrice.get(StockPurchaseSource.BANK, 0) if hasattr(c, 'stockPrice') else 0,
                 'ipo_shares': c.stocks.get(StockPurchaseSource.IPO, 0) if hasattr(c, 'stocks') else 0,
                 'bank_shares': c.stocks.get(StockPurchaseSource.BANK, 0) if hasattr(c, 'stocks') else 0,
                 'president': c.president.name if hasattr(c, 'president') and c.president else None,
                 'president_id': c.president.id if hasattr(c, 'president') and c.president else None,
-                'cash': getattr(c, 'cash', 0),
+                'cash': c.cash if c.cash is not None else 0,
                 'stock_position': getattr(c, 'stock_pos', (0, 0)),
                 'shareholders': {
                     player.name: amount
@@ -194,6 +196,24 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 },
                 'outstanding_shares': getattr(c, 'outstanding_shares', 0),
                 'bankrupt': getattr(c, 'bankrupt', False),
+                # Operating Round specific fields
+                'trains': [
+                    {
+                        'type': train.type,
+                        'cost': train.cost,
+                        'rusts_on': train.rusts_on
+                    }
+                    for train in (c.trains or [])
+                ] if hasattr(c, 'trains') and c.trains else [],
+                'tokens_available': getattr(c, 'tokens_available', 0),
+                'token_costs': getattr(c, 'token_costs', []),
+                'tokens_placed': [
+                    {
+                        'location': token.location,
+                        'company_id': token.company.id if hasattr(token, 'company') else c.id
+                    }
+                    for token in (c.tokens or [])
+                ] if hasattr(c, 'tokens') and c.tokens else [],
             }
             for c in game.state.public_companies
         ]
@@ -222,6 +242,18 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
             'stock_round_passed': getattr(game.state, 'stock_round_passed', 0),
             'operating_order': getattr(game, 'operating_order', []),
             'last_operating_order': getattr(game, 'last_operating_order', []),
+            'track_laid': list(getattr(game.state, 'track_laid', set())),
         }
+
+    # Serialize available trains from config
+    if hasattr(game, 'config') and hasattr(game.config, 'TRAINS'):
+        state['available_trains'] = [
+            {
+                'type': train.type,
+                'cost': train.cost,
+                'rusts_on': train.rusts_on
+            }
+            for train in game.config.TRAINS
+        ]
 
     return state
