@@ -297,6 +297,19 @@ async def start_game(sid, data):
         # Initialize game with Daemon18xx engine
         game = Game.start(player_names, variant="1889")
 
+        # Filter private companies based on player count (1889 rules)
+        # 3 players=5 companies, 4 players=6 companies, 5-6 players=7 companies
+        player_count = len(player_names)
+        all_privates = game.state.private_companies
+        sorted_privates = sorted(all_privates, key=lambda pc: pc.cost)
+
+        if player_count == 3:
+            game.state.private_companies = sorted_privates[:5]
+        elif player_count == 4:
+            game.state.private_companies = sorted_privates[:6]
+        else:
+            game.state.private_companies = sorted_privates
+
         # Initialize player order for the first phase
         game.setPlayerOrder()
         game.setCurrentPlayer()

@@ -441,16 +441,34 @@ export class App {
     // Update header
     this.header.update(this.gameState);
 
-    // Find and set current player ID for auction
-    if (this.myPlayerName && this.gameState.players) {
-      const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
-      if (myPlayer) {
-        this.privateAuction.setCurrentPlayer(myPlayer.id);
+    // Check if phase has changed to something other than private auction
+    const phase = this.gameState.phase;
+    if (phase === 'StockRound') {
+      // Show message that stock round has started
+      const auctionPanel = document.querySelector('[data-tab="auction"]');
+      if (auctionPanel) {
+        auctionPanel.innerHTML = `
+          <div style="padding: 40px; text-align: center;">
+            <h2 style="font-size: 32px; margin-bottom: 20px;">📈 Stock Round</h2>
+            <p style="font-size: 18px; color: var(--text-secondary); margin-bottom: 30px;">
+              Private company auction complete!
+            </p>
+            <p style="font-size: 16px; color: var(--text-secondary);">
+              Stock Round UI coming soon...
+            </p>
+          </div>
+        `;
       }
+    } else if (phase === 'BuyPrivateCompany' || phase === 'BiddingForPrivateCompany') {
+      // Update private company auction UI
+      if (this.myPlayerName && this.gameState.players) {
+        const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
+        if (myPlayer) {
+          this.privateAuction.setCurrentPlayer(myPlayer.id);
+        }
+      }
+      this.privateAuction.updateGameState(this.gameState);
     }
-
-    // Update private company auction
-    this.privateAuction.updateGameState(this.gameState);
 
     // Update stock market
     if (this.gameState.stock_market) {
