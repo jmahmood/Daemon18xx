@@ -443,12 +443,19 @@ class OperatingRound(Minigame):
 
 
 class TrainsRusted(Minigame):
-    """Your trains rusted and you have nothing left.  Absolutely not kosher."""
-    # Very simplified emergency train purchase / bankruptcy logic.
+    """Emergency train purchase and bankruptcy handling.
+
+    When trains rust and a company has no valid trains, the president must:
+    1. Buy a new train with company funds
+    2. Loan money to the company (if needed)
+    3. Sell shares to raise funds (if loan insufficient)
+    4. Declare bankruptcy (if all else fails)
+    """
 
     def __init__(self):
         super().__init__()
         self.bankrupt = False
+        self.shares_sold = []  # Track forced share sales
 
     def next(self, **kwargs) -> str:
         """Return to the operating round unless the company is bankrupt."""
@@ -475,12 +482,80 @@ class TrainsRusted(Minigame):
             current_round = kwargs.get("currentOperatingRound", 1)
             company.take_loan(diff, company.president, 0.10, current_round)
         else:
-            # Cannot afford train even with president's help
-            company.bankrupt = True
-            self.bankrupt = True
-            return True
+            # Try forced share sales to raise funds
+            if self._try_forced_share_sales(company, train.cost, state):
+                # Successfully raised funds through share sales
+                # Now company or president should have enough
+                if company.cash >= train.cost:
+                    company.cash -= train.cost
+                elif company.cash + company.president.cash >= train.cost:
+                    diff = train.cost - company.cash
+                    company.cash = 0
+                    current_round = kwargs.get("currentOperatingRound", 1)
+                    company.take_loan(diff, company.president, 0.10, current_round)
+                else:
+                    # Still can't afford - bankruptcy
+                    company.bankrupt = True
+                    self.bankrupt = True
+                    return True
+            else:
+                # Cannot afford train even with forced sales
+                company.bankrupt = True
+                self.bankrupt = True
+                return True
 
         if company.trains is None:
             company.trains = []
         company.trains.append(train)
         return True
+
+    def _try_forced_share_sales(self, company: 'PublicCompany', needed_amount: int, state: MutableGameState) -> bool:
+        """Try to raise funds through forced share sales.
+
+        President must sell shares (starting with other companies) to raise funds.
+        Returns True if enough funds were raised.
+        """
+        president = company.president
+        if not president:
+            return False
+
+        # Calculate how much we need to raise
+        shortfall = needed_amount - (company.cash + president.cash)
+        if shortfall <= 0:
+            return True
+
+        # Get all shares owned by president (in other companies first)
+        from app.base import StockPurchaseSource
+        shares_to_sell = []
+
+        # First, try to sell shares in other companies
+        for other_company in state.public_companies or []:
+            if other_company == company:
+                continue  # Don't sell own company shares yet
+
+            shares_owned = other_company.owners.get(president, 0)
+            if shares_owned > 0:
+                # Sell shares at current market price
+                price_per_share = other_company.stockPrice.get(StockPurchaseSource.BANK, 0)
+                shares_to_sell.append((other_company, shares_owned, price_per_share))
+
+        # Sort by value (sell most valuable first)
+        shares_to_sell.sort(key=lambda x: x[1] * x[2], reverse=True)
+
+        # Sell shares until we have enough
+        total_raised = 0
+        for sell_company, shares, price_per_share in shares_to_sell:
+            if total_raised >= shortfall:
+                break
+
+            # Sell all shares in this company
+            sell_company.sell(president, shares)
+            cash_raised = shares * price_per_share / 10  # Convert from percentage to shares
+            president.cash += int(cash_raised)
+            total_raised += int(cash_raised)
+            self.shares_sold.append((sell_company, shares))
+
+            # Check for president change
+            sell_company.checkPresident()
+
+        return total_raised >= shortfall
