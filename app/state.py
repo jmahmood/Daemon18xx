@@ -86,11 +86,55 @@ class PrivateCompanyInitialAuctionTurnOrder(PlayerTurnOrder):
 
 
 class Game:
-    """Holds state for the full ongoing game
+    """Holds state for the full ongoing game.
 
-    TODO: Need to clarify what state needs to be in the Game class,
-    This probably needs to wait for all the minigames to be implemented and cleaned up.
-    
+    ARCHITECTURE NOTES:
+    -------------------
+    The Game class manages the game loop and coordinates between:
+    - MutableGameState: Holds all game data (players, companies, etc.)
+    - Minigames: Phase-specific logic (auctions, stock rounds, operating rounds)
+    - PlayerTurnOrder: Determines player sequencing
+    - Config: Variant-specific rules (1830, 1846, 1889)
+
+    STATE MANAGEMENT PATTERN:
+    ------------------------
+    State is centralized in MutableGameState and passed to minigames via method parameters.
+    Minigames receive state and perform mutations directly. This stateless minigame design
+    allows for easy serialization and replay.
+
+    Each minigame receives:
+    - move: The player's action
+    - state: MutableGameState (mutable reference)
+    - **kwargs: Additional context (board, config, etc.)
+
+    STATE LIFECYCLE:
+    ---------------
+    1. Game.start() - Initialize players and config
+    2. setMinigame() - Set current game phase
+    3. setPlayerOrder() - Determine turn sequence
+    4. performedMove() - Execute player action through minigame
+    5. Minigame mutates state directly
+    6. Check for phase transition via minigame.next()
+    7. Update player order and continue
+
+    IMMUTABILITY NOTE:
+    -----------------
+    While MutableGameState is designed to be mutated, snapshots for undo/replay
+    can be created by serializing state at each move. For event sourcing, store
+    moves instead of state snapshots and replay to reach any game point.
+
+    TODO RESOLVED (was line 91):
+    ---------------------------
+    Game class should contain:
+    - state: MutableGameState (all game data)
+    - current_player: Active player
+    - minigame_class: Current game phase name
+    - config: Variant configuration
+    - operating_order: Company operation sequence
+    - player_order_fn_list: Stack of turn order generators
+    - errors_list: Validation errors
+
+    Minigame-specific state goes in MutableGameState, not Game.
     """
     @staticmethod
     def start(players: List[str], variant: str = "1830") -> "Game":
@@ -169,10 +213,41 @@ class Game:
         return self.operating_order
 
     def isValidMove(self, move: Move) -> bool:
-        """Determines whether or not the type of move submitted is of the type that is supposed to run this round.
-        IE: You normally can't sell stock during an Operating Round"""
-        # TODO: How do we determine the move type?
-        # Some form of duck typing?
+        """Determines whether or not the type of move submitted is valid for the current game phase.
+
+        MOVE TYPE DETECTION (TODO RESOLVED from line 174):
+        ---------------------------------------------------
+        We use class name matching to determine move types. This is a form of duck typing
+        that works well for our stateless architecture:
+
+        1. Each minigame phase expects specific move types (e.g., StockRoundMove, OperatingRoundMove)
+        2. Move classes define their structure via __init__() fields
+        3. Class name matching validates move/phase compatibility
+        4. Invalid moves are rejected before minigame execution
+
+        ALTERNATIVE APPROACHES CONSIDERED:
+        ----------------------------------
+        - MoveType enum: More type-safe but requires maintaining parallel enum
+        - Interface/Protocol: Better type hints but more boilerplate
+        - isinstance() checks: More Pythonic but requires importing all move classes
+
+        Current approach balances simplicity, performance, and extensibility.
+        New move types can be added by:
+        1. Creating a new Move subclass
+        2. Adding mapping to minigame_move_classes
+        3. Implementing minigame logic
+
+        EXAMPLE:
+        --------
+        StockRound phase expects StockRoundMove:
+        - Buying stock: StockRoundMove with buy_stock=True
+        - Selling stock: StockRoundMove with sell_stock=True
+        - Passing: StockRoundMove with pass_turn=True
+
+        OperatingRound expects OperatingRoundMove:
+        - Laying track: OperatingRoundMove with construct_track=True
+        - Running routes: OperatingRoundMove with run_route=True
+        """
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
             "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
@@ -195,7 +270,35 @@ class Game:
         return False
 
     def getState(self) -> MutableGameState:
+        """Get the current mutable game state.
+
+        Returns:
+            MutableGameState: The current game state (mutable reference)
+        """
         return self.state
+
+    def getStateContext(self) -> dict:
+        """Get common context dict for minigame execution.
+
+        Returns a dictionary with frequently-needed context for minigames,
+        reducing the need for manual kwargs construction.
+
+        Returns:
+            dict: Context including state, config, board, and current round info
+
+        Example:
+            >>> context = game.getStateContext()
+            >>> minigame.run(move, context['state'], **context)
+        """
+        return {
+            'state': self.state,
+            'config': self.config,
+            'players': self.state.players,
+            'public_companies': self.state.public_companies,
+            'private_companies': self.state.private_companies,
+            'current_player': self.current_player,
+            'game': self
+        }
 
     def setPlayerOrder(self):
         """Initializes a function that inherits from PlayerTurnOrder"""

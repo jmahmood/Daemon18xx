@@ -347,8 +347,71 @@ class StockMarket:
 
 
 class Player:
-    """This is the individual player.
-    Warning: There is no authorization at this level.  You do not check emails or passwords.  This is the character in the game."""
+    """Individual player in the game.
+
+    OBJECT RELATIONSHIPS (PR #11 - Cross-Linking Patterns):
+    -------------------------------------------------------
+    Players have bidirectional relationships with game entities. This is intentional
+    and enables efficient queries without complex joins or searches.
+
+    PLAYER ←→ PUBLICCOMPANY:
+    - Player.portfolio: Set[PublicCompany] - Companies player owns shares in
+    - PublicCompany.owners: Dict[Player, int] - % ownership per player
+    - PublicCompany.president: Player - Current president
+
+    PLAYER ←→ PRIVATECOMPANY:
+    - Player.private_companies: Set[PrivateCompany] - Private companies owned
+    - PrivateCompany.belongs_to: Player - Owner of the private company
+
+    RATIONALE FOR BIDIRECTIONAL REFERENCES:
+    ---------------------------------------
+    1. **Performance**: O(1) access to related entities without searching
+    2. **Convenience**: Easy to query "which companies does player own?" and
+       "who owns this company?"
+    3. **Consistency**: Updates must maintain both sides of relationship
+
+    MANAGING RELATIONSHIPS:
+    ----------------------
+    Use helper methods to maintain consistency:
+    - PublicCompany.buy() / sell() - Update both owners dict and player portfolio
+    - PublicCompany.grantStock() - Add to owners dict
+    - PrivateCompany.setBelongs() - Update both belongs_to and player.private_companies
+    - PublicCompany.checkPresident() - Update president reference
+
+    ALTERNATIVE APPROACHES CONSIDERED:
+    ---------------------------------
+    - **Unidirectional (owners only)**: Simpler but requires O(n) searches for
+      "what does player own?"
+    - **Separate ownership table**: More database-like but overhead for simple game
+    - **Weak references**: Complex lifetime management, not worth the complexity
+
+    LIFECYCLE NOTES:
+    ---------------
+    - Objects created via factory methods (Player.create(), PublicCompany.initiate())
+    - Relationships established via game logic (stock purchases, sales)
+    - No explicit cleanup needed - Python GC handles it
+    - For serialization, use object IDs and reconstruct relationships on load
+
+    TODO RESOLVED (was line 385):
+    ----------------------------
+    Cross-linking is intentional and beneficial. Key pattern:
+    - Use helper methods to update both sides atomically
+    - Document ownership semantics clearly
+    - Test relationship consistency in edge cases
+
+    Example of proper relationship management:
+        >>> company.buy(player, StockPurchaseSource.IPO, 20)
+        # This updates:
+        # - company.owners[player] += 20
+        # - player.portfolio.add(company)
+        # - player.cash -= cost
+        # All in one atomic operation
+
+    SECURITY NOTE:
+    -------------
+    There is no authorization at this level. Authentication/permissions should be
+    handled at the API/frontend layer. This class represents the game character.
+    """
 
     def __hash__(self) -> int:
         return int("".join(str(ord(char)) for char in self.id))
@@ -382,8 +445,20 @@ class Player:
         return ret
 
     def addToPortfolio(self, company: "PublicCompany", amount: int, price: int):
-        """TODO: Is there a way to avoid cross-linking between Player and Public Company?
-        Wouldn't that cause problems when trying to calculate a player's total wealth?"""
+        """Add company to player's portfolio and deduct cost.
+
+        This maintains the bidirectional Player ←→ PublicCompany relationship.
+        See class docstring for relationship management patterns.
+
+        Args:
+            company: PublicCompany to add to portfolio
+            amount: Percentage of company being purchased (10, 20, etc.)
+            price: Price per share
+
+        Note:
+            This should typically be called via PublicCompany.buy() which updates
+            both sides of the relationship atomically.
+        """
         self.portfolio.add(company)
         self.cash = self.cash - amount  / STOCK_CERTIFICATE * price
 
