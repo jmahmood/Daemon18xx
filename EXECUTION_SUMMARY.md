@@ -2,24 +2,25 @@
 
 **Date:** 2025-11-17
 **Branch:** `claude/survey-and-prs-01Pmbmf2PkkdV592C2kTBGcD`
-**Status:** Phase 1 Complete ✅ | Phases 2-4 Documented 📋
+**Status:** Phase 1 Complete ✅ | Phase 2 In Progress 🚧 | Phases 3-4 Documented 📋
 
 ---
 
 ## Executive Summary
 
-A comprehensive survey and implementation plan has been executed for the Daemon18xx 18XX game engine. **Phase 1 (Critical Fixes & Completions) is fully implemented** with all 118 tests passing. The engine is now production-ready with 3 fully playable variants.
+A comprehensive survey and implementation plan has been executed for the Daemon18xx 18XX game engine. **Phase 1 (Critical Fixes & Completions) is fully implemented** with all tests passing. **Phase 2 has begun** with terrain cost implementation complete. The engine is production-ready with 3 fully playable variants and growing feature set.
 
 ### Delivered Value
 - ✅ **1 Critical Bug Fix:** SELL_PRIVATE_COMPANY now works
 - ✅ **2 Complete Game Variants:** 1846 and 1889 fully configured
-- ✅ **Zero Regressions:** All 112 original tests + 6 new tests passing
+- ✅ **Terrain Cost System:** Mountains, bridges, tunnels with cost multipliers
+- ✅ **Zero Regressions:** All 127 tests passing (118 original + 9 new)
 - ✅ **Production Ready:** Stateless architecture ready for frontend integration
 
 ### Total Work Completed
-- **3 Pull Requests** fully implemented and tested
-- **1,000+ lines** of new code and tests
-- **2 comprehensive documents** (implementation plan + summaries)
+- **4 Pull Requests** fully implemented and tested (PRs #1-3, #6)
+- **1,200+ lines** of new code and tests
+- **3 comprehensive documents** (implementation plan + summaries)
 - **100% test pass rate** maintained
 
 ---
@@ -115,12 +116,69 @@ app/config/1889.py  (Complete rewrite: +117 lines, -19 lines)
 
 ---
 
+## Phase 2: IN PROGRESS 🚧
+
+### PR #6: Terrain Cost Implementation ✅ COMPLETE
+**Impact:** MEDIUM - Adds realistic terrain-based track costs
+**Commit:** `022fb64`
+
+**Implementation:**
+- Added TerrainType enum (NORMAL, MOUNTAIN, BRIDGE, TUNNEL)
+- Extended Tile dataclass with optional terrain field
+- Terrain defaults to NORMAL if not specified
+- Cost calculation: base_cost × terrain_multiplier
+- Validation checks for sufficient funds before track laying
+
+**Game Mechanics:**
+- Mountains cost 2.0x base track laying cost (1830, 1846, 1889)
+- Bridges cost 1.5x in 1846, 2.0x in 1830
+- Tunnels cost 2.0x base track laying cost
+- Yellow track remains free even on difficult terrain
+- Terrain costs apply to both new track and upgrades
+
+**Configuration Updates:**
+- 1830: Added TERRAIN_MULTIPLIERS (MOUNTAIN/BRIDGE/TUNNEL = 2.0x)
+- 1846: Added TERRAIN_MULTIPLIERS (MOUNTAIN/TUNNEL = 2.0x, BRIDGE = 1.5x)
+- 1889: Added TERRAIN_MULTIPLIERS (all track free, but framework ready)
+
+**Operating Round Fixes:**
+- Fixed validation logic to only check income when routes run or dividends paid
+- Prevents spurious "must calculate income" errors for track-only moves
+- payDividends() only called when routes actually run
+- Maintains proper validation for dividend actions without routes
+
+**Testing:**
+- 9 comprehensive tests for terrain cost mechanics
+- Tests all terrain types (normal, mountain, bridge, tunnel)
+- Tests variant-specific multipliers (1830 vs 1846)
+- Tests free track with terrain (cost = 0)
+- Tests insufficient funds validation
+- Tests terrain costs on upgrades
+- All 127 tests passing (118 original + 9 new)
+
+**Code Changes:**
+```
+app/base.py                              (+20 lines)
+app/minigames/operating_round.py        (+36, -4 lines)
+app/config/1830.py                       (+8 lines)
+app/config/1846.py                       (+9 lines)
+app/config/1889.py                       (+9 lines)
+app/unittests/test_TerrainCosts.py      (+226 lines, NEW)
+```
+
+**Future Integration:**
+- Foundation for PR #4: Private company powers (Sumitomo Mines ignores mountain costs)
+- Enables game-accurate track laying costs
+- Supports historical map features (Appalachian Mountains, Great Lakes crossings)
+
+---
+
 ## Repository Status
 
 ### Test Results
 ```bash
 $ python -m unittest discover -s app/unittests -p "test_*.py"
-Ran 118 tests in 0.017s
+Ran 127 tests in 0.015s
 OK
 ```
 
@@ -145,17 +203,17 @@ All tests pass with zero failures or errors ✅
 ## Phases 2-4: Documented Roadmap 📋
 
 ### Phase 2: Advanced Game Mechanics (5 PRs)
-**Status:** Planned and documented
-**Estimated Effort:** 4-6 weeks
+**Status:** 1 of 5 complete, 4 remaining
+**Estimated Effort:** 3-5 weeks remaining
 **Priority:** MEDIUM-HIGH
 
-| PR | Feature | Complexity | Priority | Estimate |
-|----|---------|------------|----------|----------|
-| #4 | Private Company Special Powers | High | High | 1-2 weeks |
-| #5 | Full Loan Mechanics | Medium | Medium | 1 week |
-| #6 | Terrain Cost Implementation | Medium | Medium | 3-5 days |
-| #7 | Enhanced Route Validation | High | Medium | 1-2 weeks |
-| #8 | Bankruptcy & Receivership | High | Medium | 1-2 weeks |
+| PR | Feature | Complexity | Priority | Status | Estimate |
+|----|---------|------------|----------|--------|----------|
+| #4 | Private Company Special Powers | High | High | Pending | 1-2 weeks |
+| #5 | Full Loan Mechanics | Medium | Medium | Pending | 1 week |
+| #6 | Terrain Cost Implementation | Medium | Medium | ✅ Complete | 3-5 days |
+| #7 | Enhanced Route Validation | High | Medium | Pending | 1-2 weeks |
+| #8 | Bankruptcy & Receivership | High | Medium | Pending | 1-2 weeks |
 
 **Key Features:**
 - Private powers (extra tokens, bonuses, discounts, terrain access)
@@ -269,19 +327,24 @@ Prioritize Phase 4 PRs #16-17:
 
 ### Achieved ✅
 - ✅ Zero critical bugs (SELL_PRIVATE_COMPANY fixed)
-- ✅ 100% test pass rate (118/118)
-- ✅ 3 fully playable variants
+- ✅ 100% test pass rate (127/127)
+- ✅ 3 fully playable variants (1830, 1846, 1889)
+- ✅ Terrain cost system with multipliers
 - ✅ Production-ready architecture
 - ✅ Comprehensive documentation
 - ✅ Clean, maintainable code
 
+### In Progress 🚧
+- 🚧 Phase 2 Advanced Game Mechanics (1 of 5 PRs complete)
+- ✅ PR #6: Terrain costs complete
+
 ### Future Goals 📋
-- Private company powers framework
-- Complete loan system with interest
-- Enhanced route validation
-- Additional game variants
-- Improved logging and debugging
-- Complete API documentation
+- PR #4: Private company powers framework
+- PR #5: Complete loan system with interest
+- PR #7: Enhanced route validation
+- PR #8: Bankruptcy & receivership
+- Phase 3: Architecture improvements
+- Phase 4: Additional game variants, logging, API docs
 
 ---
 
@@ -314,10 +377,11 @@ Daemon18xx/
 │   │   └── 1889.py             # ✅ Complete (NEW)
 │   ├── minigames/              # Game phase implementations
 │   │   ├── StockRound/         # ✅ Fixed SELL_PRIVATE_COMPANY
-│   │   ├── OperatingRound/
+│   │   ├── OperatingRound/     # ✅ Terrain costs implemented
 │   │   └── ...
-│   └── unittests/              # 118 passing tests
-│       └── test_StockRound_SellPrivateCompany.py  # NEW
+│   └── unittests/              # 127 passing tests
+│       ├── test_StockRound_SellPrivateCompany.py  # NEW
+│       └── test_TerrainCosts.py  # NEW
 ├── docs/
 │   ├── AGENTS.md
 │   └── rules1830.rtf
@@ -333,6 +397,8 @@ Daemon18xx/
 ## Commit History
 
 ```
+022fb64  PR #6: Implement terrain cost multipliers for track laying
+4ad146e  Update documentation with Phase 1 completion
 999ee3d  Add Phase 1 completion summary
 1dc454e  PR #3: Complete 1889 configuration
 8b01a36  PR #2: Complete 1846 configuration
@@ -349,28 +415,36 @@ bae6939  Add comprehensive implementation plan for 18XX engine completion
 **Phase 1 is production-ready** with:
 - 1 critical bug fix enabling full 1830 gameplay
 - 2 new fully-configured variants (1846, 1889)
-- Zero regressions, 100% test pass rate
+- Zero regressions, 100% test pass rate (118 tests)
 - Comprehensive documentation for future work
+
+**Phase 2 has begun** with:
+- PR #6: Terrain cost implementation complete
+- Mountains, bridges, tunnels with realistic cost multipliers
+- 9 new tests, all passing (127 total tests)
+- Foundation for private company special powers
 
 ### Future Work
 **Phases 2-4 are fully planned** with:
-- 14 additional PRs documented
+- 13 additional PRs documented (4 remaining in Phase 2)
 - Clear priorities and estimates
 - Technical specifications ready
 - Flexible implementation order
 
 ### Recommendation
-**The engine is ready for production use NOW.** Future phases can be implemented incrementally based on specific needs:
-- Need richer gameplay? → Phase 2
-- Need cleaner code? → Phase 3
-- Need more variants? → Phase 4 PRs #14-15
-- Need better DX? → Phase 4 PRs #16-17
+**The engine is ready for production use NOW.** Phase 2 development is underway:
+- ✅ PR #6 Complete: Terrain costs implemented
+- Next priorities: PR #5 (Loans), PR #4 (Private Powers), PR #7-8
+- Cleaner code → Phase 3
+- More variants → Phase 4 PRs #14-15
+- Better DX → Phase 4 PRs #16-17
 
 ---
 
-**Total Implementation Time:** ~8 hours (Phase 1)
-**Total Lines Changed:** ~1,000+
-**Test Pass Rate:** 100% (118/118)
+**Total Implementation Time:** ~10 hours (Phase 1 + PR #6)
+**Total Lines Changed:** ~1,200+
+**Test Pass Rate:** 100% (127/127)
 **Production Status:** ✅ READY
 
-**Next Action:** Choose priority from Phases 2-4 based on project needs, or merge Phase 1 and deploy.
+**Current Status:** Phase 2 in progress (1 of 5 PRs complete)
+**Next Action:** Continue Phase 2 development with PR #5 (Loans) or PR #4 (Private Powers)
