@@ -30,13 +30,14 @@ def serialize_game(game: Game) -> str:
         Base64-encoded string representation
     """
     # Extract serializable data
+    # NOTE: minigame is NOT stored - it's created on-demand via getMinigame()
     serializable_data = {
         'variant': getattr(game, 'variant', '1889'),
         'state': game.state,
         'minigame_class': getattr(game, 'minigame_class', None),
-        'minigame': getattr(game, 'minigame', None),
         'player_order_fn_list': getattr(game, 'player_order_fn_list', []),
         'operating_order': getattr(game, 'operating_order', []),
+        'last_operating_order': getattr(game, 'last_operating_order', []),
         'current_player': getattr(game, 'current_player', None),
         'errors_list': getattr(game, 'errors_list', []),
     }
@@ -73,11 +74,12 @@ def deserialize_game(serialized: str) -> Game:
     game.config = load_config(variant)
 
     # Restore other attributes
+    # NOTE: minigame is NOT restored - it's created on-demand via getMinigame()
     game.state = data['state']
     game.minigame_class = data.get('minigame_class')
-    game.minigame = data.get('minigame')
     game.player_order_fn_list = data.get('player_order_fn_list', [])
     game.operating_order = data.get('operating_order', [])
+    game.last_operating_order = data.get('last_operating_order', [])
     game.current_player = data.get('current_player')
     game.errors_list = data.get('errors_list', [])
 
@@ -90,14 +92,21 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
 
     Returns a plain dict that can be JSON serialized.
     """
-    return {
+    state = {
         'variant': getattr(game, 'variant', '1889'),
-        'phase': type(game.minigame).__name__ if hasattr(game, 'minigame') and game.minigame else 'unknown',
+        'phase': game.minigame_class if game.minigame_class else 'unknown',
         'current_player': {
             'id': game.current_player.id,
             'name': game.current_player.name,
         } if hasattr(game, 'current_player') and game.current_player else None,
-        'players': [
+        'players': [],
+        'private_companies': [],
+        'public_companies': [],
+    }
+
+    # Serialize players
+    if hasattr(game, 'state') and hasattr(game.state, 'players'):
+        state['players'] = [
             {
                 'id': p.id,
                 'name': p.name,
@@ -105,6 +114,39 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'order': p.order,
             }
             for p in game.state.players
-        ] if hasattr(game, 'state') and hasattr(game.state, 'players') else [],
-        # Add more fields as needed for frontend
-    }
+        ]
+
+    # Serialize private companies
+    if hasattr(game, 'state') and hasattr(game.state, 'private_companies'):
+        state['private_companies'] = [
+            {
+                'name': pc.name,
+                'short_name': getattr(pc, 'short_name', pc.name[:3]),
+                'cost': pc.cost,
+                'actual_cost': getattr(pc, 'actual_cost', pc.cost),
+                'revenue': getattr(pc, 'revenue', 0),
+                'owner': pc.belongs_to.name if pc.belongs_to else None,
+                'owner_id': pc.belongs_to.id if pc.belongs_to else None,
+                'order': getattr(pc, 'order', 0),
+            }
+            for pc in game.state.private_companies
+        ]
+
+    # Serialize public companies
+    if hasattr(game, 'state') and hasattr(game.state, 'public_companies'):
+        state['public_companies'] = [
+            {
+                'id': c.id,
+                'name': c.name,
+                'short_name': c.short_name,
+                'floated': c.isFloated(),
+                'outstanding_shares': getattr(c, 'outstanding_shares', 0),
+                'stock_pos': getattr(c, 'stock_pos', (0, 0)),
+                'cash': getattr(c, 'cash', None),
+                'president': c.president.name if hasattr(c, 'president') and c.president else None,
+                'bankrupt': getattr(c, 'bankrupt', False),
+            }
+            for c in game.state.public_companies
+        ]
+
+    return state
