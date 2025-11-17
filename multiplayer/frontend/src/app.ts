@@ -86,10 +86,6 @@ export class App {
     this.lobbyModal = new LobbyModal({
       onCreateGame: async (maxPlayers: number) => {
         await this.createNewGame(maxPlayers);
-      },
-      onJoinGame: (roomCode: string) => {
-        // Redirect to game URL (will need token)
-        window.location.href = `/game/${roomCode}/join`;
       }
     });
 
@@ -120,40 +116,91 @@ export class App {
     // Create a modal showing all the URLs
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
+
+    const creatorUrl = `${window.location.origin}${data.creator_url}`;
+    const spectatorUrl = `${window.location.origin}${data.spectator_url}`;
+    const playerUrls = data.player_urls.map((url: string) => `${window.location.origin}${url}`);
+
     modal.innerHTML = `
-      <div class="modal">
+      <div class="modal" style="max-width: 800px;">
         <div class="modal-header">
-          <h2 class="modal-title">Game Created!</h2>
+          <h2 class="modal-title">🎮 Game Created: ${data.room_code}</h2>
         </div>
         <div class="modal-body">
-          <p style="margin-bottom: 20px;">Share these links with players:</p>
+          <p style="margin-bottom: 20px; font-size: 16px;">
+            Share these links with players. Each link is unique and can be bookmarked.
+          </p>
 
-          <div class="form-group">
-            <label class="form-label">Room Code:</label>
-            <input class="form-input" readonly value="${data.room_code}" onclick="this.select()">
+          <!-- Creator Link -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid var(--primary-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong style="color: var(--primary-color);">👑 Creator Link (You)</strong>
+              <button onclick="window.open('${creatorUrl}', '_blank')"
+                      style="padding: 8px 16px; font-size: 12px;">
+                Open in New Tab
+              </button>
+            </div>
+            <input class="form-input" readonly value="${creatorUrl}"
+                   onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                   style="font-size: 11px; font-family: monospace;">
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+              Click to copy. You can manage the game and start it.
+            </p>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Your Link (Creator):</label>
-            <input class="form-input" readonly value="${window.location.origin}${data.creator_url}" onclick="this.select()">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Player Links:</label>
-            ${data.player_urls.map((url: string, i: number) => `
-              <input class="form-input" style="margin-bottom: 10px;" readonly
-                value="${window.location.origin}${url}" onclick="this.select()"
-                placeholder="Player ${i + 1}">
+          <!-- Player Links -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <strong style="display: block; margin-bottom: 10px;">👥 Player Links (Share these)</strong>
+            ${playerUrls.map((url: string, i: number) => `
+              <div style="margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 13px; color: var(--text-secondary);">Player ${i + 1}</span>
+                  <button onclick="window.open('${url}', '_blank')"
+                          style="padding: 6px 12px; font-size: 11px;">
+                    Open in New Tab
+                  </button>
+                </div>
+                <input class="form-input" readonly value="${url}"
+                       onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                       style="font-size: 10px; font-family: monospace; margin-bottom: 0;">
+              </div>
             `).join('')}
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 10px;">
+              Click any link to copy it. Each player needs their own unique link.
+            </p>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Spectator Link:</label>
-            <input class="form-input" readonly value="${window.location.origin}${data.spectator_url}" onclick="this.select()">
+          <!-- Spectator Link -->
+          <div style="background: var(--background-tertiary); padding: 15px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong>👁️ Spectator Link</strong>
+              <button onclick="window.open('${spectatorUrl}', '_blank')"
+                      style="padding: 8px 16px; font-size: 12px;">
+                Open in New Tab
+              </button>
+            </div>
+            <input class="form-input" readonly value="${spectatorUrl}"
+                   onclick="this.select(); navigator.clipboard.writeText(this.value);"
+                   style="font-size: 11px; font-family: monospace;">
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+              For viewing only (display on a large monitor).
+            </p>
+          </div>
+
+          <div style="margin-top: 20px; padding: 15px; background: var(--background-secondary); border-radius: 8px;">
+            <strong>💡 Testing Tips:</strong>
+            <ul style="margin: 10px 0 0 20px; font-size: 13px; line-height: 1.8;">
+              <li>Click "Open in New Tab" buttons to test in different tabs</li>
+              <li>Use incognito windows for separate sessions</li>
+              <li>Each link has a unique token - don't mix them up!</li>
+              <li>Room Code: <strong>${data.room_code}</strong></li>
+            </ul>
           </div>
         </div>
         <div class="modal-footer">
-          <button onclick="window.location.href='${data.creator_url}'">Go to Game</button>
+          <button onclick="window.location.href='${data.creator_url}'">
+            Go to Game Lobby
+          </button>
         </div>
       </div>
     `;
