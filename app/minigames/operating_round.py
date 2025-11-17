@@ -381,6 +381,8 @@ class OperatingRound(Minigame):
         )
         for company in public_companies or []:
             company.token_placed = False
+            # Accrue interest on all outstanding loans
+            company.accrue_loan_interest()
 
         game = kwargs.get("game")
         if game is not None:
@@ -424,12 +426,18 @@ class TrainsRusted(Minigame):
         train = move.train
 
         if company.cash >= train.cost:
+            # Company has enough cash to buy the train
             company.cash -= train.cost
         elif company.cash + company.president.cash >= train.cost:
+            # President must loan the company money to buy the train
             diff = train.cost - company.cash
-            company.president.cash -= diff
-            company.cash = 0
+            company.cash -= company.cash  # Drain company cash
+
+            # Create formal loan from president (10% interest per round)
+            current_round = kwargs.get("currentOperatingRound", 1)
+            company.take_loan(diff, company.president, 0.10, current_round)
         else:
+            # Cannot afford train even with president's help
             company.bankrupt = True
             self.bankrupt = True
             return True

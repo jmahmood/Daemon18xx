@@ -94,6 +94,36 @@ class Tile:
             self.terrain = TerrainType.NORMAL
 
 
+@dataclass
+class Loan:
+    """Represents a loan taken by a company from its president or the bank.
+
+    Loans accrue interest each operating round and must be repaid. If a company
+    defaults on its loans, consequences include forced share sales, presidency
+    transfer, and potentially receivership.
+    """
+    id: str
+    principal: int  # Original loan amount
+    balance: int  # Current outstanding balance
+    interest_rate: float  # Interest rate per operating round (e.g., 0.05 for 5%)
+    lender: 'Player'  # Who provided the loan (usually president)
+    round_taken: int  # Which operating round the loan was taken
+
+    def accrue_interest(self) -> None:
+        """Apply interest to the loan balance."""
+        self.balance = int(self.balance * (1 + self.interest_rate))
+
+    def make_payment(self, amount: int) -> int:
+        """Make a payment towards the loan. Returns actual amount paid."""
+        actual_payment = min(amount, self.balance)
+        self.balance -= actual_payment
+        return actual_payment
+
+    def is_paid_off(self) -> bool:
+        """Check if loan is fully repaid."""
+        return self.balance <= 0
+
+
 class Direction(Enum):
     LEFT = 1
     RIGHT = 2
@@ -338,6 +368,7 @@ class PublicCompany:
         self.token_placed: bool = False
         self.stock_market: StockMarket = None
         self.stock_pos: Tuple[int, int] = (0, 0)
+        self.loans: List[Loan] = []  # Outstanding loans
 
     @staticmethod
     def initiate(**kwargs):
@@ -533,6 +564,52 @@ class PublicCompany:
             return False
 
         return True
+
+    def take_loan(self, amount: int, lender: Player, interest_rate: float, current_round: int) -> Loan:
+        """Take a loan from a player (usually president) or the bank."""
+        import uuid
+        loan = Loan(
+            id=str(uuid.uuid4()),
+            principal=amount,
+            balance=amount,
+            interest_rate=interest_rate,
+            lender=lender,
+            round_taken=current_round
+        )
+        self.loans.append(loan)
+        self.cash += amount
+        lender.cash -= amount
+        return loan
+
+    def repay_loan(self, loan: Loan, amount: int) -> int:
+        """Repay a loan (or part of it). Returns the actual amount repaid."""
+        if loan not in self.loans:
+            return 0
+
+        actual_payment = loan.make_payment(amount)
+        self.cash -= actual_payment
+        loan.lender.cash += actual_payment
+
+        # Remove loan if fully paid off
+        if loan.is_paid_off():
+            self.loans.remove(loan)
+
+        return actual_payment
+
+    def accrue_loan_interest(self) -> None:
+        """Apply interest to all outstanding loans."""
+        for loan in self.loans:
+            loan.accrue_interest()
+
+    def total_debt(self) -> int:
+        """Calculate total outstanding debt."""
+        return sum(loan.balance for loan in self.loans)
+
+    def can_service_debt(self) -> bool:
+        """Check if company has enough cash to cover minimum debt payments."""
+        # Minimum payment is typically 10% of total debt per round
+        min_payment = int(self.total_debt() * 0.1)
+        return self.cash >= min_payment
 
 
 class PrivateCompany:
