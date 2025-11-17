@@ -296,6 +296,11 @@ async def start_game(sid, data):
 
         # Initialize game with Daemon18xx engine
         game = Game.start(player_names, variant="1889")
+
+        # Initialize player order for the first phase
+        game.setPlayerOrder()
+        game.setCurrentPlayer()
+
         game_states[game_id] = game
 
         # Save initial state (using custom serialization)
@@ -350,6 +355,12 @@ async def make_move(sid, data):
         if not move:
             await sio.emit("error", {"message": "Invalid move"}, room=sid)
             return
+
+        # For BuyPrivateCompany phase, set current_player from priority_deal_player
+        # since the player order system isn't used for this phase
+        if game.minigame_class == "BuyPrivateCompany":
+            if hasattr(game.state, 'priority_deal_player') and game.state.priority_deal_player:
+                game.current_player = game.state.priority_deal_player
 
         # Apply move to game state
         from app.state import apply_move
@@ -417,6 +428,13 @@ async def send_game_state(sid: str, game_id: int):
         if state_record:
             # Deserialize using custom deserialization
             game = deserialize_game(state_record["state_json"])
+
+            # Ensure player order is initialized if missing
+            if not game.player_order_fn_list:
+                game.setPlayerOrder()
+                if hasattr(game, 'state') and hasattr(game.state, 'priority_deal_player') and game.state.priority_deal_player:
+                    game.current_player = game.state.priority_deal_player
+
             game_states[game_id] = game
             await sio.emit("game_state_update", {
                 "game_state": serialize_game_state(game)
@@ -430,13 +448,24 @@ def serialize_game_state(game: Game) -> Dict[str, Any]:
 
 def construct_move(move_type: str, move_data: Dict[str, Any]):
     """Construct a Move object from type and data"""
-    # This is a simplified version - expand based on actual move types
-    if move_type == "buy_private":
-        return BuyPrivateCompanyMove(**move_data)
-    elif move_type == "stock_round":
-        return StockRoundMove(**move_data)
-    elif move_type == "operating_round":
-        return OperatingRoundMove(**move_data)
+    # Create base Move object with msg field
+    from app.base import Move
+
+    if move_type == "BuyPrivateCompanyMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return BuyPrivateCompanyMove.fromMove(base_move)
+    elif move_type == "StockRoundMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return StockRoundMove.fromMove(base_move)
+    elif move_type == "OperatingRoundMove":
+        base_move = Move()
+        base_move.msg = json.dumps(move_data)
+        base_move.player_id = move_data.get('player_id')
+        return OperatingRoundMove.fromMove(base_move)
     return None
 
 
