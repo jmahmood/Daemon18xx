@@ -44,12 +44,53 @@ class StockRound(Minigame):
             purchase_history[move.player] = [move.public_company]
 
     def _sellround(self, move: StockRoundMove, kwargs: MutableGameState) -> None:
+        """Execute stock sales and pay the player.
+
+        CRITICAL: Player must be paid BEFORE price drops, since payment
+        is based on current market price.
+        """
         sale_history = kwargs.sales[kwargs.stock_round_count]
         for company, amount in move.for_sale:
+            # Calculate payment BEFORE selling (price may drop)
+            price_per_share = company.stockPrice[StockPurchaseSource.BANK]
+            # amount is in percentage (10, 20, etc.), divide by 10 to get number of shares
+            num_shares = amount // STOCK_CERTIFICATE
+            payment = num_shares * price_per_share
+
+            logger.debug(
+                f"💰 Selling {amount}% of {company.short_name}",
+                extra={
+                    'company': company.short_name,
+                    'amount': amount,
+                    'price_per_share': price_per_share,
+                    'num_shares': num_shares,
+                    'payment': payment,
+                    'player_cash_before': move.player.cash
+                }
+            )
+
+            # Update ownership and bank pool
             company.sell(move.player, amount)
+
+            # PAY THE PLAYER (critical fix!)
+            move.player.cash += payment
+
+            # Price drops after sale
             company.priceDown(amount)
+
+            # Check for president change
             company.checkPresident()
+
+            # Track that player sold this company this round
             move.player.sold_this_round.add(company)
+
+            logger.debug(
+                f"💰 Sale completed",
+                extra={
+                    'player_cash_after': move.player.cash,
+                    'cash_gained': payment
+                }
+            )
 
             try:
                 sale_history[move.player].append(company)
@@ -57,12 +98,37 @@ class StockRound(Minigame):
                 sale_history[move.player] = [company]
 
     def _buysell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+        """Execute sell-then-buy action.
+
+        CRITICAL: Must SELL FIRST, then BUY, so player can use sale proceeds
+        to fund the purchase. This is standard 18xx rules.
+        """
         if not self.validateBuy(move, kwargs) or not self.validateSales(move, kwargs):
             return False
         elif self.isFirstPurchase(move) and not self.validateFirstPurchase(move):
             return False
-        self._buyround(move, kwargs)
+
+        logger.debug(
+            f"🔄 BUYSELL: Selling first, then buying",
+            extra={'player_cash_before': move.player.cash}
+        )
+
+        # SELL FIRST (so player gets cash)
         self._sellround(move, kwargs)
+
+        logger.debug(
+            f"🔄 BUYSELL: After sell, before buy",
+            extra={'player_cash_after_sell': move.player.cash}
+        )
+
+        # BUY SECOND (using proceeds from sale)
+        self._buyround(move, kwargs)
+
+        logger.debug(
+            f"🔄 BUYSELL: Completed",
+            extra={'player_cash_final': move.player.cash}
+        )
+
         kwargs.stock_round_play += 1
         self.last_deal_player = move.player
         return True
