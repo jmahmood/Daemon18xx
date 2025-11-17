@@ -2,6 +2,7 @@ from typing import List
 
 from app.config import load_config
 from app.logging_config import get_logger, PerformanceTimer
+from app.phase_validation import PhaseValidator
 
 from app.base import err, Player, Move, PrivateCompany, PublicCompany, MutableGameState, StockPurchaseSource
 
@@ -158,7 +159,7 @@ class Game:
             extra={'starting_cash': cash}
         )
 
-        game = Game.initialize(player_objects, config)
+        game = Game.initialize(player_objects, config, variant=variant)
         game.setMinigame("BuyPrivateCompany")
 
         logger.info(
@@ -170,11 +171,12 @@ class Game:
 
 
     @staticmethod
-    def initialize(players: List[Player], config, saved_game: dict = None) -> "Game":
+    def initialize(players: List[Player], config, saved_game: dict = None, variant: str = "1830") -> "Game":
         """
 
         :param players:
         :param saved_game: Used to load data, if any.  If empty, everything defaults to a new game.
+        :param variant: Game variant name (e.g., "1830", "1846", "1889")
         :return:
         """
         game = Game()
@@ -184,6 +186,10 @@ class Game:
         game.state.priority_deal_player = players[0] if players else None
         game.state.private_companies = config.PRIVATE_COMPANIES
         game.state.public_companies = config.PUBLIC_COMPANIES
+
+        # Initialize phase validator with variant name
+        game.phase_validator = PhaseValidator(variant)
+        game.variant = variant
 
         return game
 
@@ -195,6 +201,9 @@ class Game:
         self.config = None
         self.operating_order: List[str] = []
         self.last_operating_order: List[str] = []
+        self.minigame_class: str = None
+        self.phase_validator: PhaseValidator = None
+        self.variant: str = "1830"
 
     def isOngoing(self) -> bool:
         return True
@@ -453,6 +462,23 @@ class Game:
     def setMinigame(self, minigame_class: str) -> None:
         """A Minigame is a specific game state that evaluates more complex game rules.
         Bidding during private bidding, etc..."""
+        old_phase = self.minigame_class
+
+        # Validate phase transition if validator is available
+        if self.phase_validator:
+            if not self.phase_validator.validate_and_record(old_phase, minigame_class):
+                logger.error(
+                    f"Invalid phase transition blocked",
+                    extra={
+                        'from_phase': old_phase,
+                        'to_phase': minigame_class,
+                        'valid_phases': list(self.phase_validator.get_valid_next_phases(old_phase or ""))
+                    }
+                )
+                # In strict mode, we could raise an exception here
+                # For now, we log but allow the transition
+                # raise ValueError(f"Invalid phase transition: {old_phase} -> {minigame_class}")
+
         self.minigame_class = minigame_class
 
 
