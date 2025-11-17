@@ -15,6 +15,7 @@ import { PlayerList } from './components/PlayerList';
 import { LobbyModal } from './components/LobbyModal';
 import { GameLobby } from './components/GameLobby';
 import { PrivateCompanyAuction } from './components/PrivateCompanyAuction';
+import { StockRound } from './components/StockRound';
 
 export class App {
   private appContainer: HTMLElement;
@@ -30,6 +31,7 @@ export class App {
   private actionTicker: ActionTicker;
   private playerList: PlayerList;
   private privateAuction: PrivateCompanyAuction;
+  private stockRound: StockRound;
   private lobbyModal: LobbyModal | null = null;
 
   constructor() {
@@ -43,6 +45,9 @@ export class App {
     this.playerList = new PlayerList();
     this.privateAuction = new PrivateCompanyAuction({
       onMakeMove: (moveData: any) => this.handleMakeMove(moveData)
+    });
+    this.stockRound = new StockRound({
+      onMakeMove: (moveData: any) => this.handleStockRoundMove(moveData)
     });
   }
 
@@ -380,12 +385,11 @@ export class App {
     const tabContent = document.createElement('div');
     tabContent.className = 'tab-content';
 
-    // Auction tab (active by default)
+    // Auction tab (active by default) - initially empty, populated by updateUI based on phase
     const auctionPanel = document.createElement('div');
     auctionPanel.className = 'tab-panel active';
     auctionPanel.dataset.tab = 'auction';
     auctionPanel.id = 'auction-panel';
-    auctionPanel.appendChild(this.privateAuction.render());
 
     // Map tab
     const mapPanel = document.createElement('div');
@@ -447,22 +451,28 @@ export class App {
     const auctionPanel = document.getElementById('auction-panel');
 
     if (phase === 'StockRound') {
-      // Show message that stock round has started
-      if (auctionPanel) {
-        auctionPanel.innerHTML = `
-          <div style="padding: 40px; text-align: center;">
-            <h2 style="font-size: 32px; margin-bottom: 20px;">📈 Stock Round</h2>
-            <p style="font-size: 18px; color: var(--text-secondary); margin-bottom: 30px;">
-              Private company auction complete!
-            </p>
-            <p style="font-size: 16px; color: var(--text-secondary);">
-              Stock Round UI coming soon...
-            </p>
-          </div>
-        `;
+      // Clear and show stock round UI
+      if (auctionPanel && !auctionPanel.querySelector('.stock-round-container')) {
+        auctionPanel.innerHTML = '';
+        auctionPanel.appendChild(this.stockRound.render());
       }
-      // Don't update auction component
+
+      // Update with current state
+      if (this.myPlayerName && this.gameState.players) {
+        const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
+        if (myPlayer) {
+          this.stockRound.setCurrentPlayer(myPlayer.id);
+        }
+      }
+      this.stockRound.updateGameState(this.gameState);
+
     } else if (phase === 'BuyPrivateCompany' || phase === 'BiddingForPrivateCompany') {
+      // Clear and show private company auction UI
+      if (auctionPanel && !auctionPanel.querySelector('.auction-container')) {
+        auctionPanel.innerHTML = '';
+        auctionPanel.appendChild(this.privateAuction.render());
+      }
+
       // Update private company auction UI
       if (this.myPlayerName && this.gameState.players) {
         const myPlayer = this.gameState.players.find((p: any) => p.name === this.myPlayerName);
@@ -496,6 +506,11 @@ export class App {
 
     // Send move to server via Socket.IO
     socketService.makeMove('BuyPrivateCompanyMove', moveData);
+  }
+
+  private handleStockRoundMove(moveData: any) {
+    console.log('🎯 Stock Round move:', moveData);
+    socketService.makeMove('StockRoundMove', moveData);
   }
 
   private showLoading(message: string) {
