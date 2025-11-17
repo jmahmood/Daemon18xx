@@ -135,6 +135,8 @@ export class PrivateCompanyAuction {
             <div class="company-name">${this.escapeHtml(pc.name)}</div>
             <div class="company-revenue">Revenue: $${pc.revenue}</div>
 
+            ${this.renderBids(pc)}
+
             ${isMyTurn ? this.renderActions(pc, isCurrent, canAfford) : ''}
           </div>
         `;
@@ -169,6 +171,30 @@ export class PrivateCompanyAuction {
     this.setupEventListeners();
   }
 
+  private renderBids(company: any): string {
+    if (!company.bids || company.bids.length === 0) {
+      return '';
+    }
+
+    // Sort bids by amount (highest first)
+    const sortedBids = [...company.bids].sort((a, b) => b.amount - a.amount);
+
+    let html = '<div style="margin: 8px 0; padding: 8px; background: var(--background-secondary); border-radius: 6px;">';
+    html += '<div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">BIDS:</div>';
+
+    sortedBids.forEach((bid, index) => {
+      const isHighest = index === 0;
+      html += `
+        <div style="font-size: 12px; color: ${isHighest ? 'var(--warning-color)' : 'var(--text-primary)'}; font-weight: ${isHighest ? '600' : '400'};">
+          ${isHighest ? '🔥 ' : ''}${this.escapeHtml(bid.player_name)}: $${bid.amount}
+        </div>
+      `;
+    });
+
+    html += '</div>';
+    return html;
+  }
+
   private renderActions(company: any, isCurrent: boolean, canAfford: boolean): string {
     if (isCurrent) {
       // Current company: BUY or PASS
@@ -188,9 +214,12 @@ export class PrivateCompanyAuction {
         </div>
       `;
     } else {
-      // Future company: BID (requires bidding $5 above cost minimum)
-      const minBid = company.cost + 5;
-      const canBid = this.currentPlayerId && canAfford && minBid <= (this.gameState.players.find((p: any) => p.id === this.currentPlayerId)?.cash || 0);
+      // Future company: BID (requires bidding $5 above highest bid or cost)
+      // Minimum bid is highest of: cost + 5, or highest_bid + 5
+      const highestBid = company.highest_bid || 0;
+      const baseAmount = Math.max(company.cost, highestBid);
+      const minBid = baseAmount + 5;
+      const canBid = this.currentPlayerId && minBid <= (this.gameState.players.find((p: any) => p.id === this.currentPlayerId)?.cash || 0);
 
       return `
         <div class="action-buttons">

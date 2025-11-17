@@ -151,6 +151,15 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'owner': pc.belongs_to.name if pc.belongs_to else None,
                 'owner_id': pc.belongs_to.id if pc.belongs_to else None,
                 'order': getattr(pc, 'order', 0),
+                'bids': [
+                    {
+                        'player_id': bid.player.id,
+                        'player_name': bid.player.name,
+                        'amount': bid.bid_amount
+                    }
+                    for bid in (getattr(pc, 'player_bids', None) or [])
+                ],
+                'highest_bid': max([bid.bid_amount for bid in (getattr(pc, 'player_bids', None) or [])], default=0)
             }
             for pc in companies_to_use
         ]
