@@ -48,6 +48,19 @@ npm run dev  # Development mode with hot reload
 ### Production Setup:
 The backend can serve static frontend files by mounting the dist folder.
 
+### Running Tests:
+```bash
+cd multiplayer/backend
+
+# Test serialization (unit test)
+python test_serialization.py
+
+# Test full game flow (integration test)
+python test_game_flow.py
+```
+
+Both tests should pass with ✅ indicators. If either fails, there's a problem with game serialization.
+
 ## 🎮 How to Use
 
 ### Creating a Game:
@@ -105,24 +118,41 @@ The backend can serve static frontend files by mounting the dist folder.
   - Color-coded borders
   - Click-to-copy functionality
 
-### Issue #7: Game Serialization Error
+### Issue #7: Game Serialization Error (`to_dict()`)
 - **Fixed**: Changed from non-existent `to_dict()` to pickle serialization
 - Game objects now properly saved and loaded from database
+- Note: This fix revealed Issue #8 (pickle module error)
 
 ### Issue #8: TypeScript Compilation Errors
 - **Fixed**: Removed unused variables and imports
 - All files now compile successfully
 - Production build working
 
+### Issue #9: Pickle Module Error ("cannot pickle 'module' object")
+- **Problem**: Pickle couldn't serialize Game objects containing module references
+- **Error**: `TypeError: cannot pickle 'module' object` when starting game
+- **Root Cause**: `game.config` is a Python module, which pickle can't handle
+- **Fix**: Created custom serialization system
+  - `game_serializer.py`: Custom serialize/deserialize functions
+  - Stores variant name instead of module reference
+  - Reloads config module on deserialization
+- **Tests Added**:
+  - `test_serialization.py`: Unit tests for serializer
+  - `test_game_flow.py`: Integration test for create/save/load flow
+- **Lesson**: Always test serialization before deploying to production
+
 ## 📁 File Structure
 
 ```
 multiplayer/
 ├── backend/
-│   ├── server.py          # FastAPI + Socket.IO server
-│   ├── database.py        # SQLite database operations
-│   ├── requirements.txt   # Python dependencies
-│   └── game.db           # SQLite database (created on first run)
+│   ├── server.py               # FastAPI + Socket.IO server
+│   ├── database.py             # SQLite database operations
+│   ├── game_serializer.py      # Custom Game serialization (fixes pickle error)
+│   ├── test_serialization.py   # Unit tests for serializer
+│   ├── test_game_flow.py       # Integration tests for game flow
+│   ├── requirements.txt        # Python dependencies
+│   └── game.db                 # SQLite database (created on first run)
 ├── frontend/
 │   ├── src/
 │   │   ├── app.ts                      # Main application
