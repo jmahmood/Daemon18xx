@@ -118,6 +118,21 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
 
     # Serialize private companies
     if hasattr(game, 'state') and hasattr(game.state, 'private_companies'):
+        # Filter private companies based on player count (1889 rules)
+        player_count = len(game.state.players) if hasattr(game.state, 'players') else 6
+        all_privates = game.state.private_companies
+
+        # Sort by cost to determine which to use
+        sorted_privates = sorted(all_privates, key=lambda pc: pc.cost)
+
+        # 1889 rules: 3 players=5 companies, 4 players=6 companies, 5-6 players=7 companies
+        if player_count == 3:
+            companies_to_use = sorted_privates[:5]  # Use 5 cheapest
+        elif player_count == 4:
+            companies_to_use = sorted_privates[:6]  # Use 6 cheapest
+        else:
+            companies_to_use = sorted_privates  # Use all 7
+
         state['private_companies'] = [
             {
                 'name': pc.name,
@@ -129,7 +144,7 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
                 'owner_id': pc.belongs_to.id if pc.belongs_to else None,
                 'order': getattr(pc, 'order', 0),
             }
-            for pc in game.state.private_companies
+            for pc in companies_to_use
         ]
 
     # Serialize public companies

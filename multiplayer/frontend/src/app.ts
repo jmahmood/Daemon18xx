@@ -21,6 +21,7 @@ export class App {
   private authState: AuthState = { authenticated: false };
   private gameState: GameState | null = null;
   private gameLobby: GameLobby | null = null;
+  private myPlayerName: string | null = null; // Track this player's name
 
   // UI Components
   private header: Header;
@@ -274,12 +275,12 @@ export class App {
     socketService.on('player_joined', (data) => {
       console.log('👤 Player joined:', data);
 
-      // If this is us joining, show the lobby
-      if (data.player_name && this.authState.authType === 'player' && !this.gameLobby) {
+      // If this is us joining (our name matches), show the lobby
+      if (data.player_name === this.myPlayerName && this.authState.authType === 'player' && !this.gameLobby) {
         this.showGameLobby({ room_code: this.authState.roomCode, max_players: 6 });
       }
 
-      // Update lobby if visible
+      // Update lobby if visible (for all players including us)
       if (this.gameLobby) {
         this.gameLobby.updatePlayers(data.players);
       }
@@ -478,6 +479,14 @@ export class App {
   private promptForPlayerName() {
     this.appContainer.innerHTML = '';
 
+    // Generate a default Transformer Autobot name
+    const autobotNames = [
+      'Optimus Prime', 'Bumblebee', 'Jazz', 'Ironhide', 'Ratchet',
+      'Prowl', 'Bluestreak', 'Sideswipe', 'Wheeljack', 'Sunstreaker'
+    ];
+    const randomIndex = Math.floor(Math.random() * autobotNames.length);
+    const defaultName = autobotNames[randomIndex];
+
     const container = document.createElement('div');
     container.className = 'lobby-container';
     container.innerHTML = `
@@ -490,6 +499,7 @@ export class App {
           <label class="form-label">Player Name:</label>
           <input type="text" id="player-name-input" class="form-input"
                  placeholder="Enter your name..."
+                 value="${this.escapeHtml(defaultName)}"
                  maxlength="20"
                  autofocus>
         </div>
@@ -510,6 +520,7 @@ export class App {
     const submitName = () => {
       const name = input.value.trim();
       if (name) {
+        this.myPlayerName = name; // Remember this player's name
         socketService.joinGame(name);
         this.showLoading('Joining game lobby...');
       }
@@ -544,5 +555,11 @@ export class App {
     if (gameData.players) {
       this.gameLobby.updatePlayers(gameData.players);
     }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
