@@ -176,7 +176,11 @@ class StockRound(Minigame):
 
     @staticmethod
     def onStart(kwargs: MutableGameState) -> None:
-        """Initialize the Stock Round state."""
+        """Initialize the Stock Round state.
+
+        NOTE: stock_round_count is 0-indexed (first round = 0)
+        This allows direct array indexing: purchases[stock_round_count]
+        """
         logger.info(
             f"🎲 Stock Round starting",
             extra={
@@ -185,10 +189,8 @@ class StockRound(Minigame):
             }
         )
 
-        # Increment stock round count
-        kwargs.stock_round_count += 1
-
         # Initialize purchases and sales tracking for this round
+        # NOTE: We use 0-indexing, so first round (stock_round_count=0) uses index 0
         kwargs.purchases.append({})
         kwargs.sales.append({})
 
@@ -200,6 +202,7 @@ class StockRound(Minigame):
             f"🎲 Stock Round initialized",
             extra={
                 'stock_round_count': kwargs.stock_round_count,
+                'round_number_display': kwargs.stock_round_count + 1,  # Display as 1, 2, 3...
                 'purchases_length': len(kwargs.purchases),
                 'sales_length': len(kwargs.sales)
             }
@@ -217,6 +220,13 @@ class StockRound(Minigame):
         # Reset sell restrictions for next stock round
         for player in kwargs.players:
             player.sold_this_round = set()
+
+        # Increment stock round count for next round
+        kwargs.stock_round_count += 1
+        logger.info(
+            f"🎲 Stock Round completed, advancing to round {kwargs.stock_round_count + 1}",
+            extra={'stock_round_count': kwargs.stock_round_count}
+        )
 
     @staticmethod
     def onTurnComplete(kwargs: MutableGameState):
@@ -301,8 +311,8 @@ class StockRound(Minigame):
                 "You can only sell in units of 10 stocks ({})".format(amount),
                 ),
 
-            err(kwargs.stock_round_count > 1,
-                "You can only sell after the first stock round.")
+            err(kwargs.stock_round_count >= 1,
+                "You can only sell after the first stock round. (Currently in round {})".format(kwargs.stock_round_count + 1))
         ]
 
         return self.validate(validations)
@@ -325,8 +335,8 @@ class StockRound(Minigame):
         """Validate that a player can initiate a private company auction."""
         return self.validate([
             err(
-                kwargs.stock_round_count > 1,
-                "You can't sell a private company in the first stock round."
+                kwargs.stock_round_count >= 1,
+                "You can't sell a private company in the first stock round. (Currently in round {})".format(kwargs.stock_round_count + 1)
             ),
             err(
                 move.private_company is not None,
