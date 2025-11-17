@@ -286,6 +286,11 @@ export class App {
       // If we received game state but don't have game UI built yet, build it
       if (data.game_state && !document.getElementById('game-header')) {
         this.buildMainUI();
+
+        // Set player name on header if we have it
+        if (this.myPlayerName) {
+          this.header.setPlayerName(this.myPlayerName);
+        }
       }
 
       this.updateUI();

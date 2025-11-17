@@ -92,13 +92,21 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
 
     Returns a plain dict that can be JSON serialized.
     """
+    # Determine current player from various sources
+    current_player = None
+    if hasattr(game, 'current_player') and game.current_player:
+        current_player = game.current_player
+    elif hasattr(game, 'state') and hasattr(game.state, 'priority_deal_player') and game.state.priority_deal_player:
+        # For private company auction, use priority_deal_player
+        current_player = game.state.priority_deal_player
+
     state = {
         'variant': getattr(game, 'variant', '1889'),
         'phase': game.minigame_class if game.minigame_class else 'unknown',
         'current_player': {
-            'id': game.current_player.id,
-            'name': game.current_player.name,
-        } if hasattr(game, 'current_player') and game.current_player else None,
+            'id': current_player.id,
+            'name': current_player.name,
+        } if current_player else None,
         'players': [],
         'private_companies': [],
         'public_companies': [],
