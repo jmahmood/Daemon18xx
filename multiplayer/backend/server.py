@@ -4,8 +4,6 @@ FastAPI + Socket.IO implementation
 """
 import sys
 import json
-import pickle
-import base64
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -20,6 +18,7 @@ from fastapi.responses import HTMLResponse
 import socketio
 
 from database import db
+from game_serializer import serialize_game, deserialize_game, serialize_game_state_only
 from app.state import Game
 from app.minigames.PrivateCompanyInitialAuction.move import BuyPrivateCompanyMove
 from app.minigames.StockRound.move import StockRoundMove
@@ -288,9 +287,9 @@ async def start_game(sid, data):
         game = Game.start(player_names, variant="1889")
         game_states[game_id] = game
 
-        # Save initial state (using pickle for now)
-        game_pickle = base64.b64encode(pickle.dumps(game)).decode('utf-8')
-        await db.save_game_state(game_id, game_pickle, 0)
+        # Save initial state (using custom serialization)
+        game_serialized = serialize_game(game)
+        await db.save_game_state(game_id, game_serialized, 0)
         await db.update_game_status(game_id, "in_progress")
 
         # Broadcast to all in room
@@ -348,10 +347,10 @@ async def make_move(sid, data):
         # Update game state
         game_states[game_id] = new_game
 
-        # Save to database (using pickle)
+        # Save to database (using custom serialization)
         move_number = getattr(new_game, 'move_count', 0)
-        game_pickle = base64.b64encode(pickle.dumps(new_game)).decode('utf-8')
-        await db.save_game_state(game_id, game_pickle, move_number)
+        game_serialized = serialize_game(new_game)
+        await db.save_game_state(game_id, game_serialized, move_number)
 
         # Broadcast updated state to all clients
         await sio.emit("game_state_update", {
@@ -405,9 +404,8 @@ async def send_game_state(sid: str, game_id: int):
         # Try to load from database
         state_record = await db.get_latest_game_state(game_id)
         if state_record:
-            # Deserialize from pickle
-            game_pickle = base64.b64decode(state_record["state_json"])
-            game = pickle.loads(game_pickle)
+            # Deserialize using custom deserialization
+            game = deserialize_game(state_record["state_json"])
             game_states[game_id] = game
             await sio.emit("game_state_update", {
                 "game_state": serialize_game_state(game)
@@ -415,22 +413,8 @@ async def send_game_state(sid: str, game_id: int):
 
 
 def serialize_game_state(game: Game) -> Dict[str, Any]:
-    """Serialize game state for transmission"""
-    # Simplified serialization for frontend
-    return {
-        "variant": getattr(game, 'variant', '1889'),
-        "phase": type(game.minigame).__name__ if hasattr(game, 'minigame') else "unknown",
-        "players": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "cash": p.cash,
-                "order": p.order,
-            }
-            for p in game.state.players
-        ] if hasattr(game, 'state') and hasattr(game.state, 'players') else [],
-        # Don't call to_dict() - it doesn't exist
-    }
+    """Serialize game state for transmission (wrapper for game_serializer)"""
+    return serialize_game_state_only(game)
 
 
 def construct_move(move_type: str, move_data: Dict[str, Any]):
