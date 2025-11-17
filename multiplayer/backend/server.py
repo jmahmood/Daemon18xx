@@ -4,6 +4,8 @@ FastAPI + Socket.IO implementation
 """
 import sys
 import json
+import pickle
+import base64
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -286,8 +288,9 @@ async def start_game(sid, data):
         game = Game.start(player_names, variant="1889")
         game_states[game_id] = game
 
-        # Save initial state
-        await db.save_game_state(game_id, json.dumps(game.to_dict()), 0)
+        # Save initial state (using pickle for now)
+        game_pickle = base64.b64encode(pickle.dumps(game)).decode('utf-8')
+        await db.save_game_state(game_id, game_pickle, 0)
         await db.update_game_status(game_id, "in_progress")
 
         # Broadcast to all in room
@@ -345,9 +348,10 @@ async def make_move(sid, data):
         # Update game state
         game_states[game_id] = new_game
 
-        # Save to database
-        move_number = len(new_game.history) if hasattr(new_game, 'history') else 0
-        await db.save_game_state(game_id, json.dumps(new_game.to_dict()), move_number)
+        # Save to database (using pickle)
+        move_number = getattr(new_game, 'move_count', 0)
+        game_pickle = base64.b64encode(pickle.dumps(new_game)).decode('utf-8')
+        await db.save_game_state(game_id, game_pickle, move_number)
 
         # Broadcast updated state to all clients
         await sio.emit("game_state_update", {
@@ -401,8 +405,9 @@ async def send_game_state(sid: str, game_id: int):
         # Try to load from database
         state_record = await db.get_latest_game_state(game_id)
         if state_record:
-            state_json = state_record["state_json"]
-            game = Game.from_dict(json.loads(state_json))
+            # Deserialize from pickle
+            game_pickle = base64.b64decode(state_record["state_json"])
+            game = pickle.loads(game_pickle)
             game_states[game_id] = game
             await sio.emit("game_state_update", {
                 "game_state": serialize_game_state(game)
@@ -411,8 +416,7 @@ async def send_game_state(sid: str, game_id: int):
 
 def serialize_game_state(game: Game) -> Dict[str, Any]:
     """Serialize game state for transmission"""
-    # This will be a simplified serialization
-    # You'll need to expand this based on what the frontend needs
+    # Simplified serialization for frontend
     return {
         "variant": getattr(game, 'variant', '1889'),
         "phase": type(game.minigame).__name__ if hasattr(game, 'minigame') else "unknown",
@@ -425,8 +429,7 @@ def serialize_game_state(game: Game) -> Dict[str, Any]:
             }
             for p in game.state.players
         ] if hasattr(game, 'state') and hasattr(game.state, 'players') else [],
-        # Add more fields as needed
-        "raw": game.to_dict() if hasattr(game, 'to_dict') else {}
+        # Don't call to_dict() - it doesn't exist
     }
 
 
