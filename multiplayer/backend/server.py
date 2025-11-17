@@ -369,12 +369,6 @@ async def make_move(sid, data):
             await sio.emit("error", {"message": "Invalid move"}, room=sid)
             return
 
-        # For BuyPrivateCompany phase, set current_player from priority_deal_player
-        # since the player order system isn't used for this phase
-        if game.minigame_class == "BuyPrivateCompany":
-            if hasattr(game.state, 'priority_deal_player') and game.state.priority_deal_player:
-                game.current_player = game.state.priority_deal_player
-
         # Apply move to game state
         from app.state import apply_move
         new_game = apply_move(game, move)
