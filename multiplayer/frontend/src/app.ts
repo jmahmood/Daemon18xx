@@ -13,12 +13,14 @@ import { HexMap } from './components/HexMap';
 import { ActionTicker } from './components/ActionTicker';
 import { PlayerList } from './components/PlayerList';
 import { LobbyModal } from './components/LobbyModal';
+import { GameLobby } from './components/GameLobby';
 
 export class App {
   private appContainer: HTMLElement;
   private authState: AuthState = { authenticated: false };
   private gameState: GameState | null = null;
   private currentTab: string = 'map';
+  private gameLobby: GameLobby | null = null;
 
   // UI Components
   private header: Header;
@@ -183,8 +185,13 @@ export class App {
       this.authState.authenticated = true;
       this.authState.authType = data.auth_type;
 
-      // Build main UI
-      this.buildMainUI();
+      // If player, prompt for name first
+      if (data.auth_type === 'player') {
+        this.promptForPlayerName();
+      } else {
+        // Creator or spectator - show lobby
+        this.showGameLobby(data.game);
+      }
 
       // Request current game state
       socketService.requestGameState();
@@ -195,6 +202,9 @@ export class App {
       console.log('🎮 Game started');
       soundEffects.playSuccess();
       this.gameState = data.game_state;
+
+      // Switch from lobby to game UI
+      this.buildMainUI();
       this.updateUI();
     });
 
@@ -212,6 +222,18 @@ export class App {
 
     socketService.on('player_joined', (data) => {
       console.log('👤 Player joined:', data);
+
+      // If this is us joining, show the lobby
+      if (data.player_name && this.authState.authType === 'player' && !this.gameLobby) {
+        this.showGameLobby({ room_code: this.authState.roomCode, max_players: 6 });
+      }
+
+      // Update lobby if visible
+      if (this.gameLobby) {
+        this.gameLobby.updatePlayers(data.players);
+      }
+
+      // Update player list
       this.updatePlayerList(data.players);
     });
 
@@ -380,5 +402,76 @@ export class App {
     setTimeout(() => {
       errorDiv.remove();
     }, 5000);
+  }
+
+  private promptForPlayerName() {
+    this.appContainer.innerHTML = '';
+
+    const container = document.createElement('div');
+    container.className = 'lobby-container';
+    container.innerHTML = `
+      <h1 class="lobby-title">🚂 Welcome to 1889!</h1>
+
+      <div style="max-width: 500px; margin: 0 auto; background: var(--background-tertiary); padding: 40px; border-radius: 12px;">
+        <h2 style="margin-bottom: 20px;">Enter Your Name</h2>
+
+        <div class="form-group">
+          <label class="form-label">Player Name:</label>
+          <input type="text" id="player-name-input" class="form-input"
+                 placeholder="Enter your name..."
+                 maxlength="20"
+                 autofocus>
+        </div>
+
+        <button id="set-name-btn" style="width: 100%;">Join Game</button>
+
+        <p style="margin-top: 20px; font-size: 14px; color: var(--text-secondary);">
+          Choose a name that other players will see during the game.
+        </p>
+      </div>
+    `;
+
+    this.appContainer.appendChild(container);
+
+    const input = container.querySelector('#player-name-input') as HTMLInputElement;
+    const button = container.querySelector('#set-name-btn') as HTMLButtonElement;
+
+    const submitName = () => {
+      const name = input.value.trim();
+      if (name) {
+        socketService.joinGame(name);
+        this.showLoading('Joining game lobby...');
+      }
+    };
+
+    button.addEventListener('click', submitName);
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitName();
+      }
+    });
+  }
+
+  private async showGameLobby(game: any) {
+    this.appContainer.innerHTML = '';
+
+    // Fetch current players
+    const response = await fetch(`/api/games/${game.room_code}`);
+    const gameData = await response.json();
+
+    this.gameLobby = new GameLobby({
+      maxPlayers: game.max_players,
+      isCreator: this.authState.authType === 'creator',
+      onStartGame: (playerNames: string[]) => {
+        socketService.startGame(playerNames);
+        this.showLoading('Starting game...');
+      }
+    });
+
+    this.appContainer.appendChild(this.gameLobby.render());
+
+    if (gameData.players) {
+      this.gameLobby.updatePlayers(gameData.players);
+    }
   }
 }
