@@ -111,6 +111,8 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
         'players': [],
         'private_companies': [],
         'public_companies': [],
+        'stock_market': None,
+        'round_info': {},
     }
 
     # Serialize players
@@ -195,5 +197,31 @@ def serialize_game_state_only(game: Game) -> Dict[str, Any]:
             }
             for c in game.state.public_companies
         ]
+
+    # Serialize stock market grid
+    if hasattr(game, 'config') and hasattr(game.config, 'STOCK_MARKET'):
+        stock_market = game.config.STOCK_MARKET
+        if hasattr(stock_market, 'grid'):
+            state['stock_market'] = [
+                [
+                    {
+                        'price': cell.price,
+                        'band': cell.band.name if hasattr(cell.band, 'name') else str(cell.band),
+                        'arrow': cell.arrow.name if cell.arrow and hasattr(cell.arrow, 'name') else None
+                    }
+                    for cell in row
+                ]
+                for row in stock_market.grid
+            ]
+
+    # Serialize round information
+    if hasattr(game, 'state'):
+        state['round_info'] = {
+            'stock_round_count': getattr(game.state, 'stock_round_count', 0),
+            'stock_round_play': getattr(game.state, 'stock_round_play', 0),
+            'stock_round_passed': getattr(game.state, 'stock_round_passed', 0),
+            'operating_order': getattr(game, 'operating_order', []),
+            'last_operating_order': getattr(game, 'last_operating_order', []),
+        }
 
     return state
