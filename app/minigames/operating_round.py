@@ -63,14 +63,16 @@ class OperatingRound(Minigame):
         if move.construct_track and not self.isValidTrackPlacement(move, game_state) or \
             move.purchase_token and not self.isValidTokenPlacement(move) or \
             move.run_route and not self.isValidRoute(move) or \
-            not self.isValidPaymentOption(move) or \
+            (move.run_route or move.pay_dividend is not False) and not self.isValidPaymentOption(move) or \
             move.buy_train and not self.isValidTrainPurchase(move):
             return False
 
         self.constructTrack(move, game_state, **extra)
         self.purchaseToken(move, **extra)
         self.runRoutes(move, **extra)
-        self.payDividends(move, **extra)
+        # Only handle dividends if routes were run
+        if move.run_route:
+            self.payDividends(move, **extra)
         self.purchaseTrain(move)
 
         return True
@@ -287,6 +289,17 @@ class OperatingRound(Minigame):
         already_laid = move.public_company.id in state.track_laid if state else False
         is_upgrade = existing is not None
 
+        # Calculate track laying cost including terrain multiplier
+        if config is not None:
+            base_cost = config.TRACK_LAYING_COSTS.get(track.color, 0)
+            terrain_multipliers = getattr(config, 'TERRAIN_MULTIPLIERS', {})
+            from app.base import TerrainType
+            terrain_type = track.terrain if track.terrain else TerrainType.NORMAL
+            multiplier = terrain_multipliers.get(terrain_type, 1.0)
+            cost = int(base_cost * multiplier)
+        else:
+            cost = 0
+
         validations = [
             err(not (already_laid and not is_upgrade), "That company already laid track this round"),
             err(track.location is not None, "Your track needs to be on a location that exists"),
@@ -294,6 +307,7 @@ class OperatingRound(Minigame):
                 "Track upgrades must follow the colour progression"),
             err(existing is not None or has_company_token,
                 "You cannot access that tile from your company"),
+            err(move.public_company.cash >= cost, "You do not have enough cash"),
         ]
 
         if track.location in special_rules:
