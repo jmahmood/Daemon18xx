@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from app.base import PublicCompany, StockPurchaseSource, Player, err, MutableGameState, STOCK_CERTIFICATE, \
     STOCK_PRESIDENT_CERTIFICATE
+from app.logging_config import get_logger
 from app.minigames.StockRound.const import (
     VALID_CERTIFICATE_COUNT,
     VALID_IPO_PRICES,
@@ -12,6 +13,8 @@ from app.minigames.StockRound.const import (
 from app.minigames.StockRound.enums import StockRoundType
 from app.minigames.StockRound.move import StockRoundMove
 from app.minigames.base import Minigame
+
+logger = get_logger(__name__)
 
 
 class StockRound(Minigame):
@@ -65,13 +68,35 @@ class StockRound(Minigame):
         return True
 
     def _buy(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+        logger.debug(
+            f"🎲 _buy() called",
+            extra={
+                'player_id': move.player_id,
+                'company_id': move.public_company_id,
+                'source': move.source,
+                'ipo_price': move.ipo_price
+            }
+        )
+
         if not self.validateBuy(move, kwargs):
+            logger.debug(f"🎲 validateBuy failed: {self.errors()}")
             return False
         elif self.isFirstPurchase(move) and not self.validateFirstPurchase(move):
+            logger.debug(f"🎲 validateFirstPurchase failed: {self.errors()}")
             return False
+
+        logger.debug(f"🎲 Validation passed, executing _buyround()")
         self._buyround(move, kwargs)
         kwargs.stock_round_play += 1
         self.last_deal_player = move.player
+
+        logger.debug(
+            f"🎲 _buy() completed successfully",
+            extra={
+                'stock_round_play': kwargs.stock_round_play,
+                'player_cash': move.player.cash
+            }
+        )
         return True
 
     def _sell(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
@@ -83,25 +108,45 @@ class StockRound(Minigame):
         return True
 
     def run(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
+        logger.debug(
+            f"🎲 StockRound.run() called",
+            extra={
+                'move_type': move.move_type,
+                'player_id': move.player_id,
+                'stock_round_count': getattr(kwargs, 'stock_round_count', 'NOT_SET'),
+                'stock_round_play': getattr(kwargs, 'stock_round_play', 'NOT_SET')
+            }
+        )
+
         move.backfill(kwargs)
 
         if StockRoundType(move.move_type) == StockRoundType.BUYSELL:
-            return self._buysell(move, kwargs)
+            result = self._buysell(move, kwargs)
+            logger.debug(f"🎲 BUYSELL result: {result}")
+            return result
 
         elif StockRoundType(move.move_type) == StockRoundType.BUY:
-            return self._buy(move, kwargs)
+            result = self._buy(move, kwargs)
+            logger.debug(f"🎲 BUY result: {result}")
+            return result
 
         elif StockRoundType(move.move_type) == StockRoundType.SELL:
-            return self._sell(move, kwargs)
+            result = self._sell(move, kwargs)
+            logger.debug(f"🎲 SELL result: {result}")
+            return result
 
         if StockRoundType.PASS == StockRoundType(move.move_type):
             if self.validatePass(move, kwargs):
                 kwargs.stock_round_play += 1
                 kwargs.stock_round_passed += 1
+                logger.debug(f"🎲 PASS successful - play: {kwargs.stock_round_play}, passed: {kwargs.stock_round_passed}")
                 return True
+            logger.debug(f"🎲 PASS validation failed")
+            return False
 
         if StockRoundType.SELL_PRIVATE_COMPANY == StockRoundType(move.move_type):
             if not self.validateSellPrivateCompany(move, kwargs):
+                logger.debug(f"🎲 SELL_PRIVATE_COMPANY validation failed")
                 return False
 
             # Initialize the auction state for the private company sale
@@ -109,8 +154,10 @@ class StockRound(Minigame):
             kwargs.auction = []
             self.sell_private_company_auction = True
             # Note: stock_round_play is NOT incremented here; the auction decision will increment it
+            logger.debug(f"🎲 SELL_PRIVATE_COMPANY successful")
             return True
 
+        logger.debug(f"🎲 Unknown move_type: {move.move_type}")
         return False
 
     def next(self, kwargs: MutableGameState) -> str:
@@ -129,7 +176,34 @@ class StockRound(Minigame):
 
     @staticmethod
     def onStart(kwargs: MutableGameState) -> None:
-        pass
+        """Initialize the Stock Round state."""
+        logger.info(
+            f"🎲 Stock Round starting",
+            extra={
+                'stock_round_count': kwargs.stock_round_count,
+                'stock_round_play': kwargs.stock_round_play
+            }
+        )
+
+        # Increment stock round count
+        kwargs.stock_round_count += 1
+
+        # Initialize purchases and sales tracking for this round
+        kwargs.purchases.append({})
+        kwargs.sales.append({})
+
+        # Reset round state
+        kwargs.stock_round_passed = 0
+        kwargs.stock_round_play = 0
+
+        logger.info(
+            f"🎲 Stock Round initialized",
+            extra={
+                'stock_round_count': kwargs.stock_round_count,
+                'purchases_length': len(kwargs.purchases),
+                'sales_length': len(kwargs.sales)
+            }
+        )
 
     @staticmethod
     def onComplete(kwargs: MutableGameState) -> None:

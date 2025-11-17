@@ -277,9 +277,28 @@ class Game:
         """
         minigame_move_classes = {
             "BuyPrivateCompany": "BuyPrivateCompanyMove",
-            "BiddingForPrivateCompany":  "BuyPrivateCompanyMove",
+            "BiddingForPrivateCompany": "BuyPrivateCompanyMove",
+            "StockRound": "StockRoundMove",
+            "Auction": "AuctionBidMove",
+            "AuctionDecision": "AuctionDecisionMove",
+            "OperatingRound1": "OperatingRoundMove",
+            "OperatingRound2": "OperatingRoundMove",
+            "OperatingRound3": "OperatingRoundMove",
         }
-        return minigame_move_classes.get(self.minigame_class) == move.__class__.__name__
+        expected_move_class = minigame_move_classes.get(self.minigame_class)
+        actual_move_class = move.__class__.__name__
+
+        logger.debug(
+            f"🔍 Move type validation",
+            extra={
+                'current_phase': self.minigame_class,
+                'expected_move_class': expected_move_class,
+                'actual_move_class': actual_move_class,
+                'is_valid': expected_move_class == actual_move_class
+            }
+        )
+
+        return expected_move_class == actual_move_class
 
     def isValidPlayer(self, move: Move) -> bool:
         """The person who submitted the move must be the current player.
@@ -488,6 +507,15 @@ def apply_move(game: Game, move: Move) -> Game:
     No external side effects such as saving or network notifications occur.  The
     passed in ``game`` instance is mutated and returned for convenience.
     """
+    logger.debug(
+        f"🔍 apply_move validation",
+        extra={
+            'move_class': move.__class__.__name__,
+            'current_phase': game.minigame_class,
+            'is_valid_move': game.isValidMove(move),
+            'is_valid_player': game.isValidPlayer(move)
+        }
+    )
 
     if game.isValidMove(move) and game.isValidPlayer(move) and game.performedMove(move):
         return game
