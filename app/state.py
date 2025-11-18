@@ -354,10 +354,25 @@ class Game:
             "BiddingForPrivateCompany": PrivateCompanyInitialAuctionTurnOrder,
             "StockRound": PlayerTurnOrder,
             "StockRoundSellPrivateCompany": PlayerTurnOrder,
-            "OperatingRound": None
+            "OperatingRound": None,
+            "OperatingRound1": None,
+            "OperatingRound2": None,
+            "OperatingRound3": None,
+            "Auction": PlayerTurnOrder,
+            "AuctionDecision": PlayerTurnOrder,
         }
 
-        player_order_generator = player_order_functions.get(self.minigame_class)(self.getState())
+        player_order_generator_class = player_order_functions.get(self.minigame_class)
+
+        # Operating rounds don't use player order (companies operate, not players)
+        if player_order_generator_class is None:
+            logger.debug(
+                f"No player order for {self.minigame_class} (companies operate, not players)",
+                extra={'minigame_class': self.minigame_class}
+            )
+            return
+
+        player_order_generator = player_order_generator_class(self.getState())
 
         if self.minigame_class == "StockRound" and self.state.priority_deal_player in self.state.players:
             players = self.state.players
