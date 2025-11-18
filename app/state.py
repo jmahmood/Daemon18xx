@@ -451,7 +451,7 @@ class Game:
                 minigame.onComplete(self.getState())
                 self.setMinigame(new_phase)
                 self.setPlayerOrder()
-                self.getMinigame().onStart(self.getState())
+                self.getMinigame().onStart(self.getState(), game=self)
             else:
                 minigame.onTurnComplete(self.getState())
 
