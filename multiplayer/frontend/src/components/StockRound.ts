@@ -208,18 +208,33 @@ export class StockRound {
       `;
     }
 
+    const ipoCerts = ipoShares / 10;
+    const bankCerts = bankShares / 10;
+    const outstandingShares = company.outstanding_shares || 0;
+    const floatPercent = outstandingShares;
+
     return `
       <div style="margin: 10px 0;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px; background: var(--background-secondary); border-radius: 6px;">
           <div>
             <div style="font-size: 11px; color: var(--text-secondary);">IPO</div>
             <div style="font-size: 14px; font-weight: 600; color: var(--success-color);">$${ipoPrice}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">${ipoShares} shares</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">${ipoCerts} certs (${ipoShares}%)</div>
           </div>
           <div>
             <div style="font-size: 11px; color: var(--text-secondary);">Bank Pool</div>
             <div style="font-size: 14px; font-weight: 600; color: var(--warning-color);">$${marketPrice}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">${bankShares} shares</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">${bankCerts} certs (${bankShares}%)</div>
+          </div>
+        </div>
+        <div style="padding: 8px; background: var(--background-tertiary); border-radius: 6px; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Status:</div>
+          <div style="font-size: 13px;">
+            <strong>${floatPercent}% sold</strong>
+            ${company.floated ?
+              '<span style="color: var(--success-color); margin-left: 8px;">✓ Floated</span>' :
+              `<span style="color: var(--text-secondary); margin-left: 8px;">(${50 - floatPercent}% needed to float)</span>`
+            }
           </div>
         </div>
         ${company.cash !== undefined ? `
