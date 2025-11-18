@@ -188,16 +188,25 @@ class StockRound(Minigame):
 
         if StockRoundType(move.move_type) == StockRoundType.BUYSELL:
             result = self._buysell(move, kwargs)
+            if result:
+                # Reset consecutive pass counter when a buysell is made
+                kwargs.stock_round_passed = 0
             logger.debug(f"🎲 BUYSELL result: {result}")
             return result
 
         elif StockRoundType(move.move_type) == StockRoundType.BUY:
             result = self._buy(move, kwargs)
+            if result:
+                # Reset consecutive pass counter when a buy is made
+                kwargs.stock_round_passed = 0
             logger.debug(f"🎲 BUY result: {result}")
             return result
 
         elif StockRoundType(move.move_type) == StockRoundType.SELL:
             result = self._sell(move, kwargs)
+            if result:
+                # Reset consecutive pass counter when a sell is made
+                kwargs.stock_round_passed = 0
             logger.debug(f"🎲 SELL result: {result}")
             return result
 
@@ -219,6 +228,8 @@ class StockRound(Minigame):
             kwargs.auctioned_private_company = move.private_company
             kwargs.auction = []
             self.sell_private_company_auction = True
+            # Reset consecutive pass counter when selling private company
+            kwargs.stock_round_passed = 0
             # Note: stock_round_play is NOT incremented here; the auction decision will increment it
             logger.debug(f"🎲 SELL_PRIVATE_COMPANY successful")
             return True
