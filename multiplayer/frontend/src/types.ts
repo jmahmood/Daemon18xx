@@ -41,6 +41,7 @@ export interface GameState {
   };
   private_companies?: any[];
   public_companies?: any[];
+  operating_order?: string[];
   raw?: any;
 }
 

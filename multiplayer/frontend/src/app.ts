@@ -481,6 +481,37 @@ export class App {
         }
       }
       this.privateAuction.updateGameState(this.gameState);
+
+    } else if (phase && phase.startsWith('OperatingRound')) {
+      // Operating Round UI
+      if (auctionPanel) {
+        auctionPanel.innerHTML = `
+          <div class="operating-round-container" style="padding: 20px; background: #2a2a2a; border-radius: 8px;">
+            <h2 style="color: #4a9eff; margin-bottom: 20px;">
+              ${phase}
+            </h2>
+            <div style="background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+              <h3 style="color: #fff; margin-bottom: 10px;">Operating Order:</h3>
+              <div id="operating-order-list" style="color: #ccc;">
+                ${this.gameState.operating_order
+                  ? this.gameState.operating_order.map((companyId: string) => `
+                      <div style="padding: 5px 10px; margin: 5px 0; background: #2a2a2a; border-radius: 3px;">
+                        ${companyId}
+                      </div>
+                    `).join('')
+                  : '<p>No companies operating</p>'
+                }
+              </div>
+            </div>
+            <div style="background: #1a1a1a; padding: 15px; border-radius: 4px;">
+              <p style="color: #aaa;">Companies will operate in order based on stock price.</p>
+              <p style="color: #888; font-size: 0.9em; margin-top: 10px;">
+                <em>Operating Round UI coming soon...</em>
+              </p>
+            </div>
+          </div>
+        `;
+      }
     }
 
     // Update stock market
