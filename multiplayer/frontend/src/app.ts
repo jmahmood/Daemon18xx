@@ -546,8 +546,18 @@ export class App {
     }, 5000);
   }
 
-  private promptForPlayerName() {
+  private async promptForPlayerName() {
     this.appContainer.innerHTML = '';
+
+    // Fetch current players to check for duplicates
+    let existingPlayers: any[] = [];
+    try {
+      const response = await fetch(`/api/games/${this.authState.roomCode}`);
+      const gameData = await response.json();
+      existingPlayers = gameData.players || [];
+    } catch (error) {
+      console.error('Failed to fetch player list:', error);
+    }
 
     // Generate a default Transformer Autobot name
     const autobotNames = [
@@ -572,6 +582,7 @@ export class App {
                  value="${this.escapeHtml(defaultName)}"
                  maxlength="20"
                  autofocus>
+          <div id="name-error" style="display: none; margin-top: 8px; padding: 10px; background: var(--danger-color); color: white; border-radius: 6px; font-size: 14px;"></div>
         </div>
 
         <button id="set-name-btn" style="width: 100%;">Join Game</button>
@@ -586,15 +597,40 @@ export class App {
 
     const input = container.querySelector('#player-name-input') as HTMLInputElement;
     const button = container.querySelector('#set-name-btn') as HTMLButtonElement;
+    const errorDiv = container.querySelector('#name-error') as HTMLElement;
 
     const submitName = () => {
       const name = input.value.trim();
-      if (name) {
-        this.myPlayerName = name; // Remember this player's name
-        this.header.setPlayerName(name); // Set in header
-        socketService.joinGame(name);
-        this.showLoading('Joining game lobby...');
+
+      // Clear previous error
+      errorDiv.style.display = 'none';
+
+      if (!name) {
+        errorDiv.textContent = 'Please enter a name';
+        errorDiv.style.display = 'block';
+        return;
       }
+
+      // Check for duplicate names (case-insensitive)
+      const existingNames = existingPlayers
+        .map(p => p.player_name)
+        .filter(n => !n.includes('(pending)')); // Ignore pending players
+
+      const isDuplicate = existingNames.some(
+        existingName => existingName.toLowerCase() === name.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        errorDiv.textContent = `The name "${name}" is already taken. Please choose a different name.`;
+        errorDiv.style.display = 'block';
+        input.select(); // Select text for easy replacement
+        return;
+      }
+
+      this.myPlayerName = name; // Remember this player's name
+      this.header.setPlayerName(name); // Set in header
+      socketService.joinGame(name);
+      this.showLoading('Joining game lobby...');
     };
 
     button.addEventListener('click', submitName);

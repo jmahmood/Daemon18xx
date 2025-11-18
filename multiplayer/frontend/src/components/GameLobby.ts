@@ -41,10 +41,10 @@ export class GameLobby {
           <div class="form-group">
             <label class="form-label">Number of Players:</label>
             <select id="active-player-count" class="form-input">
-              <option value="3">3 Players</option>
-              <option value="4">4 Players</option>
-              <option value="5">5 Players</option>
-              <option value="6" selected>6 Players</option>
+              <option value="3" ${this.maxPlayers === 3 ? 'selected' : ''}>3 Players</option>
+              <option value="4" ${this.maxPlayers === 4 ? 'selected' : ''}>4 Players</option>
+              <option value="5" ${this.maxPlayers === 5 ? 'selected' : ''}>5 Players</option>
+              <option value="6" ${this.maxPlayers === 6 ? 'selected' : ''}>6 Players</option>
             </select>
             <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
               Only the selected number of players will be used. Empty slots will be ignored.
