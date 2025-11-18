@@ -241,11 +241,15 @@ class StockRound(Minigame):
         return "StockRound"
 
     @staticmethod
-    def onStart(kwargs: MutableGameState) -> None:
+    def onStart(kwargs: MutableGameState, **extra_kwargs) -> None:
         """Initialize the Stock Round state.
 
         NOTE: stock_round_count is 0-indexed (first round = 0)
         This allows direct array indexing: purchases[stock_round_count]
+
+        Args:
+            kwargs: The game state
+            **extra_kwargs: Additional kwargs (e.g., game=Game instance) - currently unused
         """
         logger.info(
             f"🎲 Stock Round starting",
