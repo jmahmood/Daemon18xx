@@ -485,26 +485,50 @@ export class App {
     } else if (phase && phase.startsWith('OperatingRound')) {
       // Operating Round UI
       if (auctionPanel) {
+        const operatingOrder = this.gameState.round_info?.operating_order || [];
+        const publicCompanies = this.gameState.public_companies || [];
+
+        // Build list of operating companies with details
+        let companiesHtml = '';
+        if (operatingOrder.length > 0) {
+          operatingOrder.forEach((companyId: string, index: number) => {
+            const company = publicCompanies.find((c: any) => c.id === companyId);
+            companiesHtml += `
+              <div style="padding: 10px; margin: 5px 0; background: #2a2a2a; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong style="color: #4a9eff; font-size: 16px;">${index + 1}. ${companyId}</strong>
+                  ${company ? `
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">
+                      ${company.name} - $${company.market_price}
+                    </div>
+                  ` : ''}
+                </div>
+                <div style="text-align: right;">
+                  ${company ? `
+                    <div style="color: var(--success-color); font-size: 12px;">✓ Floated</div>
+                    <div style="font-size: 11px; color: #888;">Cash: $${company.cash || 0}</div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          });
+        } else {
+          companiesHtml = '<p style="color: #888; text-align: center;">No companies have floated yet</p>';
+        }
+
         auctionPanel.innerHTML = `
           <div class="operating-round-container" style="padding: 20px; background: #2a2a2a; border-radius: 8px;">
             <h2 style="color: #4a9eff; margin-bottom: 20px;">
               ${phase}
             </h2>
             <div style="background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-              <h3 style="color: #fff; margin-bottom: 10px;">Operating Order:</h3>
-              <div id="operating-order-list" style="color: #ccc;">
-                ${this.gameState.operating_order
-                  ? this.gameState.operating_order.map((companyId: string) => `
-                      <div style="padding: 5px 10px; margin: 5px 0; background: #2a2a2a; border-radius: 3px;">
-                        ${companyId}
-                      </div>
-                    `).join('')
-                  : '<p>No companies operating</p>'
-                }
+              <h3 style="color: #fff; margin-bottom: 10px;">Companies Operating This Round:</h3>
+              <div id="operating-order-list">
+                ${companiesHtml}
               </div>
             </div>
             <div style="background: #1a1a1a; padding: 15px; border-radius: 4px;">
-              <p style="color: #aaa;">Companies will operate in order based on stock price.</p>
+              <p style="color: #aaa;">Companies operate in order based on stock price.</p>
               <p style="color: #888; font-size: 0.9em; margin-top: 10px;">
                 <em>Operating Round UI coming soon...</em>
               </p>

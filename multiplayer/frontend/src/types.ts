@@ -42,6 +42,14 @@ export interface GameState {
   private_companies?: any[];
   public_companies?: any[];
   operating_order?: string[];
+  round_info?: {
+    stock_round_count?: number;
+    stock_round_play?: number;
+    stock_round_passed?: number;
+    operating_order?: string[];
+    last_operating_order?: string[];
+    track_laid?: string[];
+  };
   raw?: any;
 }
 
