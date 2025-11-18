@@ -696,7 +696,7 @@ class PublicCompany:
         self.president = new_president[0]
 
     def checkFloated(self):
-        if not self._floated and self.stocks[StockPurchaseSource.IPO] < STOCK_CERTIFICATE * 5:
+        if not self._floated and self.stocks[StockPurchaseSource.IPO] <= STOCK_CERTIFICATE * 5:
             self._floated = True
             self.cash = self.stockPrice[StockPurchaseSource.IPO] * 100 / STOCK_CERTIFICATE
             return True
