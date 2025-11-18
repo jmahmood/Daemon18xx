@@ -100,42 +100,70 @@ class PhaseValidator:
         }
         return variant_limits.get(variant, 3)
 
+    @staticmethod
+    def normalize_phase(phase: str) -> str:
+        """Normalize phase names for validation.
+
+        Converts numbered operating rounds (OperatingRound1, OperatingRound2, etc.)
+        to the generic OperatingRound for validation purposes.
+
+        Args:
+            phase: Phase name (e.g., "OperatingRound1", "StockRound")
+
+        Returns:
+            Normalized phase name (e.g., "OperatingRound", "StockRound")
+        """
+        if phase and phase.startswith("OperatingRound"):
+            return "OperatingRound"
+        return phase
+
     def can_transition(self, from_phase: str, to_phase: str) -> bool:
         """Check if transition is valid.
 
         Args:
-            from_phase: Current phase
-            to_phase: Target phase
+            from_phase: Current phase (e.g., "StockRound", "OperatingRound1")
+            to_phase: Target phase (e.g., "OperatingRound1", "StockRound")
 
         Returns:
             True if transition is allowed
         """
+        # Normalize phase names (OperatingRound1 -> OperatingRound)
+        from_phase_normalized = self.normalize_phase(from_phase) if from_phase else None
+        to_phase_normalized = self.normalize_phase(to_phase)
+
         # Allow initial phase to be set
-        if from_phase is None and to_phase in self.INITIAL_PHASES:
+        if from_phase_normalized is None and to_phase_normalized in self.INITIAL_PHASES:
             return True
 
         # Check if transition is in valid transitions map
-        if from_phase not in self.VALID_TRANSITIONS:
+        if from_phase_normalized not in self.VALID_TRANSITIONS:
             logger.warning(
                 f"Unknown phase: {from_phase}",
-                extra={'from_phase': from_phase, 'to_phase': to_phase}
+                extra={
+                    'from_phase': from_phase,
+                    'from_phase_normalized': from_phase_normalized,
+                    'to_phase': to_phase,
+                    'to_phase_normalized': to_phase_normalized
+                }
             )
             return False
 
-        valid_targets = self.VALID_TRANSITIONS[from_phase]
-        if to_phase not in valid_targets:
+        valid_targets = self.VALID_TRANSITIONS[from_phase_normalized]
+        if to_phase_normalized not in valid_targets:
             logger.warning(
                 f"Invalid phase transition",
                 extra={
                     'from_phase': from_phase,
+                    'from_phase_normalized': from_phase_normalized,
                     'to_phase': to_phase,
+                    'to_phase_normalized': to_phase_normalized,
                     'valid_targets': list(valid_targets)
                 }
             )
             return False
 
         # Additional validation for operating round limits
-        if from_phase == "OperatingRound" and to_phase == "OperatingRound":
+        if from_phase_normalized == "OperatingRound" and to_phase_normalized == "OperatingRound":
             if self.operating_rounds_this_set >= self.max_operating_rounds_per_set:
                 logger.warning(
                     f"Too many operating rounds in this set",
@@ -152,19 +180,22 @@ class PhaseValidator:
         """Record a phase transition.
 
         Args:
-            from_phase: Previous phase (None if initial)
-            to_phase: New phase
+            from_phase: Previous phase (None if initial, e.g., "StockRound")
+            to_phase: New phase (e.g., "OperatingRound1", "StockRound")
         """
-        # Update counters
-        if to_phase == "StockRound":
+        # Normalize phase names for counter updates
+        to_phase_normalized = self.normalize_phase(to_phase)
+
+        # Update counters based on normalized phase
+        if to_phase_normalized == "StockRound":
             self.stock_round_count += 1
             self.operating_rounds_this_set = 0  # Reset for new set
 
-        if to_phase == "OperatingRound":
+        if to_phase_normalized == "OperatingRound":
             self.operating_round_count += 1
             self.operating_rounds_this_set += 1
 
-        # Record transition
+        # Record transition with actual phase names (not normalized)
         transition = PhaseTransition(
             from_phase=from_phase or "INIT",
             to_phase=to_phase,
@@ -180,6 +211,7 @@ class PhaseValidator:
             extra={
                 'from_phase': from_phase,
                 'to_phase': to_phase,
+                'to_phase_normalized': to_phase_normalized,
                 'stock_rounds': self.stock_round_count,
                 'operating_rounds': self.operating_round_count
             }
