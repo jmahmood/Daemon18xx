@@ -171,6 +171,102 @@ class FullGameFlowIntegrationTests(unittest.TestCase):
 
         print("✅ All phase transitions validated correctly")
 
+    def test_round_transition_logic(self):
+        """Test the next() logic for round transitions."""
+
+        # === TEST 1: StockRound transitions ===
+        print("\n=== Testing StockRound Transition Logic ===")
+
+        # Setup stock round
+        self.game.setMinigame("StockRound")
+        StockRound.onStart(self.state)
+
+        # Initially, should stay in StockRound (no one has passed yet)
+        stock_round_minigame = StockRound()
+        next_phase = stock_round_minigame.next(self.state)
+        self.assertEqual(next_phase, "StockRound", "Should stay in StockRound when no passes")
+        print("✓ StockRound continues when players haven't all passed")
+
+        # Simulate all players passing
+        self.state.stock_round_play = len(self.state.players)  # One full round
+        self.state.stock_round_passed = len(self.state.players)  # All players passed
+        stock_round_minigame.last_deal_player = self.alice  # Set last dealer
+
+        next_phase = stock_round_minigame.next(self.state)
+        self.assertEqual(next_phase, "OperatingRound1",
+                        "Should transition to OperatingRound1 when all players pass")
+        print(f"✓ StockRound → {next_phase} when all players pass")
+
+        # Verify priority deal player rotates
+        expected_priority = self.bob  # Should be next player after alice
+        self.assertEqual(self.state.priority_deal_player, expected_priority,
+                        "Priority deal player should rotate to next player")
+        print(f"✓ Priority deal player rotates: {self.alice.name} → {self.state.priority_deal_player.name}")
+
+        # === TEST 2: OperatingRound transitions (requires mock playerTurn) ===
+        print("\n=== Testing OperatingRound Transition Logic ===")
+
+        # Create a mock playerTurn object that simulates company order
+        class MockPlayerTurn:
+            def __init__(self, companies_waiting=True, current_round=1, total_rounds=2):
+                self.companies_waiting = companies_waiting
+                self.current_round = current_round
+                self.total_rounds = total_rounds
+
+            def anotherCompanyWaiting(self):
+                return self.companies_waiting
+
+            def restart(self, round_num):
+                pass  # Mock restart
+
+        # Test 1: More companies in current round
+        operating_round = OperatingRound()
+        mock_turn = MockPlayerTurn(companies_waiting=True, current_round=1, total_rounds=2)
+
+        next_phase = operating_round.next(
+            playerTurn=mock_turn,
+            currentOperatingRound=1,
+            totalOperatingRounds=2,
+            public_companies=self.state.public_companies
+        )
+        self.assertEqual(next_phase, "OperatingRound1",
+                        "Should continue same round when companies waiting")
+        print(f"✓ OperatingRound1 continues when companies still waiting")
+
+        # Test 2: Move to next operating round
+        mock_turn.companies_waiting = False  # No more companies in this round
+
+        next_phase = operating_round.next(
+            playerTurn=mock_turn,
+            currentOperatingRound=1,
+            totalOperatingRounds=2,
+            public_companies=self.state.public_companies
+        )
+        self.assertEqual(next_phase, "OperatingRound2",
+                        "Should transition to OperatingRound2 when current round complete")
+        print(f"✓ OperatingRound1 → OperatingRound2 when round complete and more rounds remain")
+
+        # Test 3: Return to Stock Round after all operating rounds
+        next_phase = operating_round.next(
+            playerTurn=mock_turn,
+            currentOperatingRound=2,  # Last round
+            totalOperatingRounds=2,
+            public_companies=self.state.public_companies
+        )
+        self.assertEqual(next_phase, "StockRound",
+                        "Should transition to StockRound when all operating rounds complete")
+        print(f"✓ OperatingRound2 → StockRound when all operating rounds complete")
+
+        # === TEST 3: Complete cycle ===
+        print("\n=== Testing Complete Round Cycle ===")
+        print("✓ Verified round flow:")
+        print("  1. StockRound (all players pass)")
+        print("  2. → OperatingRound1 (companies operate)")
+        print("  3. → OperatingRound2 (if totalOperatingRounds >= 2)")
+        print("  4. → StockRound (cycle repeats)")
+
+        print("\n✅ Round transition logic validated successfully!")
+
 
 if __name__ == "__main__":
     unittest.main()
