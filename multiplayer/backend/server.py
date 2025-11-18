@@ -369,9 +369,22 @@ async def make_move(sid, data):
             await sio.emit("error", {"message": "Invalid move"}, room=sid)
             return
 
+        # Check which companies were floated before the move
+        floated_before = set()
+        if hasattr(game, 'state') and hasattr(game.state, 'public_companies'):
+            floated_before = {c.id for c in game.state.public_companies if c.isFloated()}
+
         # Apply move to game state
         from app.state import apply_move
         new_game = apply_move(game, move)
+
+        # Check which companies floated after the move
+        floated_after = set()
+        newly_floated_companies = []
+        if hasattr(new_game, 'state') and hasattr(new_game.state, 'public_companies'):
+            floated_after = {c.id for c in new_game.state.public_companies if c.isFloated()}
+            newly_floated_ids = floated_after - floated_before
+            newly_floated_companies = [c for c in new_game.state.public_companies if c.id in newly_floated_ids]
 
         # Update game state
         game_states[game_id] = new_game
@@ -387,11 +400,21 @@ async def make_move(sid, data):
         }, room=client["room_code"])
 
         # Broadcast action to ticker
+        action_text = format_action(move_type, move_data, new_game.state)
         await sio.emit("player_action", {
             "player_name": client.get("player_name", "Unknown"),
-            "action": format_action(move_type, move_data),
+            "action": action_text,
             "timestamp": datetime.now().isoformat()
         }, room=client["room_code"])
+
+        # Broadcast company float notifications
+        for company in newly_floated_companies:
+            await sio.emit("player_action", {
+                "player_name": "System",
+                "action": f"🎉 {company.short_name} ({company.name}) has floated! Treasury: ${company.cash}",
+                "timestamp": datetime.now().isoformat(),
+                "is_system": True
+            }, room=client["room_code"])
 
         print(f"✅ Move applied: {move_type}")
 
@@ -476,14 +499,102 @@ def construct_move(move_type: str, move_data: Dict[str, Any]):
     return None
 
 
-def format_action(move_type: str, move_data: Dict[str, Any]) -> str:
+def format_action(move_type: str, move_data: Dict[str, Any], game_state=None) -> str:
     """Format a move as a human-readable action for the ticker"""
-    # Simplified formatting
-    if move_type == "buy_private":
-        return f"Bought private company for ${move_data.get('amount', 0)}"
-    elif move_type == "stock_round":
-        action = move_data.get('action', 'unknown')
-        return f"Stock action: {action}"
+
+    if move_type == "BuyPrivateCompanyMove":
+        # Parse private company auction moves
+        action_type = move_data.get('move_type', 'UNKNOWN')
+
+        if action_type == 'BUY':
+            # Find the private company that was bought
+            pc_order = move_data.get('private_company_order')
+            if game_state and hasattr(game_state, 'private_companies'):
+                pc = next((c for c in game_state.private_companies if c.order == pc_order), None)
+                if pc:
+                    return f"Bought {pc.short_name} ({pc.name}) for ${pc.actual_cost}"
+            return "Bought a private company"
+
+        elif action_type == 'BID':
+            bid_amount = move_data.get('bid_amount', 0)
+            pc_order = move_data.get('private_company_order')
+            if game_state and hasattr(game_state, 'private_companies'):
+                pc = next((c for c in game_state.private_companies if c.order == pc_order), None)
+                if pc:
+                    return f"Bid ${bid_amount} on {pc.short_name}"
+            return f"Bid ${bid_amount}"
+
+        elif action_type == 'PASS':
+            return "Passed on private companies"
+
+        return f"Private company action: {action_type}"
+
+    elif move_type == "StockRoundMove":
+        # Parse stock round moves
+        action_type = move_data.get('move_type', 'UNKNOWN')
+
+        if action_type == 'BUY':
+            company_id = move_data.get('public_company_id', '')
+            source = move_data.get('source', 'IPO')
+            ipo_price = move_data.get('ipo_price')
+
+            # Get company details from game state
+            if game_state and hasattr(game_state, 'public_companies'):
+                company = next((c for c in game_state.public_companies if c.id == company_id), None)
+                if company:
+                    price = company.stockPrice.get(source, 0) if hasattr(company, 'stockPrice') else 0
+
+                    if ipo_price:
+                        # Starting a new company
+                        return f"🚀 Started {company.short_name} at ${ipo_price} (20% president's cert)"
+                    else:
+                        # Regular purchase
+                        return f"Bought 10% of {company.short_name} from {source} for ${price}"
+
+            return f"Bought stock from {source}"
+
+        elif action_type == 'SELL':
+            for_sale = move_data.get('for_sale_raw', [])
+            if for_sale:
+                sales = []
+                for company_short_name, amount in for_sale:
+                    # Get price from game state
+                    if game_state and hasattr(game_state, 'public_companies'):
+                        company = next((c for c in game_state.public_companies
+                                      if c.short_name == company_short_name), None)
+                        if company:
+                            price = company.stockPrice.get('BANK', 0) if hasattr(company, 'stockPrice') else 0
+                            sales.append(f"{amount}% of {company_short_name} @ ${price}")
+                        else:
+                            sales.append(f"{amount}% of {company_short_name}")
+                    else:
+                        sales.append(f"{amount}% of {company_short_name}")
+
+                return f"Sold {', '.join(sales)}"
+            return "Sold stock"
+
+        elif action_type == 'BUYSELL':
+            # Combined sell then buy action
+            return "Sold stock, then bought stock"
+
+        elif action_type == 'PASS':
+            return "Passed"
+
+        elif action_type == 'SELL_PRIVATE_COMPANY':
+            pc_id = move_data.get('private_company_id')
+            if game_state and hasattr(game_state, 'private_companies'):
+                pc = next((c for c in game_state.private_companies if c.order == pc_id), None)
+                if pc:
+                    return f"Sold private company {pc.short_name} to the bank"
+            return "Sold private company"
+
+        return f"Stock action: {action_type}"
+
+    elif move_type == "OperatingRoundMove":
+        # Parse operating round moves
+        action_type = move_data.get('action', 'UNKNOWN')
+        return f"Operating action: {action_type}"
+
     return f"Made move: {move_type}"
 
 

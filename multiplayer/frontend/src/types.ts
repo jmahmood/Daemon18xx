@@ -57,6 +57,7 @@ export interface PlayerAction {
   player_name: string;
   action: string;
   timestamp: string;
+  is_system?: boolean;
 }
 
 export interface GameInfo {

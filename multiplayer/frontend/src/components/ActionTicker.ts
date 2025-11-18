@@ -47,13 +47,20 @@ export class ActionTicker {
     if (!tickerContent) return;
 
     // Build ticker HTML (duplicate for seamless loop)
-    const tickerHTML = this.actions.map(action => `
-      <div class="ticker-item">
-        <span class="player-name">${this.escapeHtml(action.player_name)}</span>
-        <span class="action">${this.escapeHtml(action.action)}</span>
-        <span style="color: var(--text-secondary); font-size: 12px;">${this.formatTime(action.timestamp)}</span>
-      </div>
-    `).join('');
+    const tickerHTML = this.actions.map(action => {
+      const isSystem = action.is_system || action.player_name === 'System';
+      const itemClass = isSystem ? 'ticker-item system-message' : 'ticker-item';
+      const nameColor = isSystem ? 'var(--warning-color)' : 'var(--primary-color)';
+      const actionStyle = isSystem ? 'font-weight: 600; color: var(--warning-color);' : '';
+
+      return `
+        <div class="${itemClass}">
+          <span class="player-name" style="color: ${nameColor};">${this.escapeHtml(action.player_name)}</span>
+          <span class="action" style="${actionStyle}">${this.escapeHtml(action.action)}</span>
+          <span style="color: var(--text-secondary); font-size: 12px;">${this.formatTime(action.timestamp)}</span>
+        </div>
+      `;
+    }).join('');
 
     // Duplicate content for seamless scrolling
     tickerContent.innerHTML = tickerHTML + tickerHTML;
