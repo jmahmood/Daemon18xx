@@ -296,8 +296,8 @@ class StockRound(Minigame):
 
     @staticmethod
     def onTurnComplete(kwargs: MutableGameState):
-        """Transitioning out of the stock round: increment stock values."""
-        super().onTurnComplete(kwargs)
+        """Called after each turn completes (not the whole round)."""
+        Minigame.onTurnComplete(kwargs)
 
     def validateBuy(self, move: StockRoundMove, kwargs: MutableGameState) -> bool:
         number_of_total_players = len(kwargs.players)

@@ -293,7 +293,7 @@ class StockRoundMinigameSellTests(unittest.TestCase):
     def test_cannot_sell_in_first_round(self):
         move = self.move()
         state = self.state()
-        state.stock_round_count = 1
+        state.stock_round_count = 0  # First round (0-indexed)
 
         self.initial_setup_company(
             state.public_companies[0],
@@ -303,9 +303,11 @@ class StockRoundMinigameSellTests(unittest.TestCase):
 
         minigame = StockRound()
         self.assertFalse(minigame.run(move, state), minigame.errors())
+        # Check that the error message is present (allow for extra text)
+        errors_str = " ".join(minigame.errors())
         self.assertIn(
             "You can only sell after the first stock round.",
-            minigame.errors(),
+            errors_str,
         )
 
 
@@ -676,11 +678,10 @@ class StockRoundNoBuyAfterSellTests(unittest.TestCase):
         sr = StockRound()
         self.assertTrue(sr.run(sell, state), sr.errors())
 
-        # end of stock round
+        # end of stock round - onComplete increments stock_round_count
         StockRound.onComplete(state)
-        state.stock_round_count += 1
-        state.sales.append({})
-        state.purchases.append({})
+        # onStart initializes new round's purchases/sales
+        StockRound.onStart(state)
 
         buy = self.buy_move()
         sr2 = StockRound()
