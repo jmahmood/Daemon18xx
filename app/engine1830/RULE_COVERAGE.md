@@ -12,6 +12,23 @@ Specification: `docs/rules1830.rtf`, including its Tables 1–8. The backend is
 implementation covered by this checklist. This work covers 1830; it does not
 establish rules completeness for 1846, 1889, or every other 18xx title.
 
+The [dual-game edge-case inventory](../../docs/ENGINE_EDGE_CASES.md) adds explicit
+boundary-to-test mapping. The auction now advances to the lowest standing bid
+after every pass or raise, with three-bidder, escrow, resumption and HTTP tests.
+
+`test_EngineReviewEdges.py` strengthens the seven-stop Diesel and par-preservation
+cases and covers multiple forced discards, cheaper returned emergency trains,
+owned 5/6 Diesel trade-ins, and independent action-discovery results. Discovery
+no longer returns a mutable alias of the source state's train lists.
+
+`test_EngineCoverageLoop.py` exercises certificate buy/pass boundaries at every
+player count, consent after a presidency change, malformed saved-state metadata
+and invariants, wrong-round action rejection, and auction/terminal discovery.
+Authenticated HTTP cases cover all player counts and SQLite rollback/retry.
+1830 now rejects a snapshot tagged as another variant, and both validators
+require an integer schema version. See the
+[iterative test audit](../../docs/ENGINE_TEST_AUDIT.md).
+
 ## Numbered rules
 
 Every row below has implementation and automated acceptance coverage. Test names

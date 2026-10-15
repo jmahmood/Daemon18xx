@@ -1,3 +1,40 @@
+# Multiplayer implementation status
+
+The supported pure-Python JSON backends are `app.engine1830` and `app.engine1889`,
+served at `/api/1830` and `/api/1889`. Both include a complete game loop and final
+scoring. The 1889 backend targets the standard game, excluding beginner options.
+
+- [1830 engine, actions and HTTP API](../app/engine1830/README.md)
+- [1889 engine, actions and HTTP API](../app/engine1889/README.md)
+- [1889 acceptance evidence and reference limitations](../app/engine1889/RULE_COVERAGE.md)
+- [1830/1889 edge cases and named test coverage](../docs/ENGINE_EDGE_CASES.md)
+
+Both APIs authenticate room roles, bind player identity, enforce expected action
+revisions and append JSON snapshots atomically in SQLite. The 1889 catalog also
+exposes its flat board, standard market and complete component definitions.
+
+New 1889 rooms are marked `engine=python`. Existing rooms default to `legacy`
+through an additive schema migration. Legacy HTTP/Socket.IO handlers reject
+Python rooms; Python APIs reject prototype 1889 rooms. The old pickle-based
+engine is retained for compatibility but is not a complete 1889 implementation.
+
+The existing TypeScript frontend still uses the legacy Socket.IO protocol and
+has unfinished stock/operating/map controls. It is not yet a browser-playable
+client for either new rules backend. Updating that frontend is separate work.
+
+Run the FastAPI server from `multiplayer/backend` after installing its existing
+requirements; API documentation is at `/docs`. Run `python -m unittest discover`
+from the repository root with backend dependencies installed to include HTTP and
+SQLite tests. No Ruby or upstream checkout is required at runtime or in tests.
+
+---
+
+## Historical prototype notes
+
+The earlier report below is retained for legacy setup/troubleshooting context.
+Its completion claims describe the old prototype and do not establish rules
+coverage or frontend readiness for the new JSON backends.
+
 # Daemon18xx Multiplayer - Status Report
 
 ## ✅ Completed and Working

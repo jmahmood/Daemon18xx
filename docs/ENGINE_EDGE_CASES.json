@@ -1,0 +1,3117 @@
+{
+  "scope": "Standard 1830 (uploaded RTF) and standard Shikoku 1889 (pinned G1889 reference); pure Python engines and authenticated HTTP backends. Excludes 1846, beginner variants and browser UI.",
+  "interpretation": "A finite inventory of rule boundaries and observed failure modes, not an enumeration of every possible game state. Each row maps to executable tests whose assertions were reviewed; reference/API replays are labeled integration rather than unit tests.",
+  "cases": [
+    {
+      "id": "SETUP-01",
+      "area": "SETUP",
+      "scenario": "All supported player counts (2–6), starting cash and total bank money",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_setup_all_player_counts_and_money"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_setup_all_player_counts_and_complete_components"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "SETUP-02",
+      "area": "SETUP",
+      "scenario": "Reject too few/many players, blank, duplicate and non-string names",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_invalid_names_and_reserved_duplicate_or_malformed_ids"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_invalid_names_and_reserved_duplicate_or_malformed_ids"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "SETUP-03",
+      "area": "SETUP",
+      "scenario": "Reject reserved, duplicate, empty, non-string and wrong-count player IDs",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_invalid_names_and_reserved_duplicate_or_malformed_ids"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_invalid_names_and_reserved_duplicate_or_malformed_ids"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "SETUP-04",
+      "area": "SETUP",
+      "scenario": "Caller-supplied IDs, trimmed names and independent nested state",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_custom_ids_trimmed_names_and_independent_result_history"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_custom_ids_trimmed_names_and_independent_result_history"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "SETUP-05",
+      "area": "SETUP",
+      "scenario": "Full board, tile inventory, corporations, homes and token supplies",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_setup_component_inventory_and_isolation"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_setup_all_player_counts_and_complete_components"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "SETUP-06",
+      "area": "SETUP",
+      "scenario": "1889 two-player SIR removal and UTF available only for 4–6 players",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_setup_all_player_counts_and_complete_components"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "AUCTION-01",
+      "area": "AUCTION",
+      "scenario": "Only the lowest-price unsold private can be purchased outright",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_initial_private_order_and_prices"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_auction_first_private_price_order_and_bid_cash_commitments"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-02",
+      "area": "AUCTION",
+      "scenario": "Offered private must be paid at its current price",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_initial_private_order_and_prices"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_auction_first_private_price_order_and_bid_cash_commitments"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-03",
+      "area": "AUCTION",
+      "scenario": "Later-company bids exceed face/high bid by at least five",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_auction_minimum_and_reserved_cash"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_auction_first_private_price_order_and_bid_cash_commitments"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-04",
+      "area": "AUCTION",
+      "scenario": "Escrow across companies cannot be spent again; raising reserves only the difference",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_auction_minimum_and_reserved_cash"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_auction_first_private_price_order_and_bid_cash_commitments"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-05",
+      "area": "AUCTION",
+      "scenario": "A sole bid resolves at its bid price, then resumes original seating",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_auction_bid_increment_and_single_bid_resolution"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_single_bid_is_resolved_at_bid_price_and_seating_resumes"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-06",
+      "area": "AUCTION",
+      "scenario": "Competitive auction starts with the lowest standing bidder",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_competitive_auction_and_resume"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_auction_bids_escrow_discount_and_first_round_sales"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-07",
+      "area": "AUCTION",
+      "scenario": "After a pass select lowest remaining bid, even when seating order differs",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-08",
+      "area": "AUCTION",
+      "scenario": "An unchallenged high bidder cannot withdraw out of turn",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-09",
+      "area": "AUCTION",
+      "scenario": "A raise changes the lowest-bidder order; losers receive escrow refunds",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_reorders_by_standing_bid_and_refunds_losers"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_reorders_by_standing_bid_and_refunds_losers"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-10",
+      "area": "AUCTION",
+      "scenario": "Only original, still-active bidders may raise; minimum uses highest live bid",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_only_original_bidders_may_raise_and_minimum_is_highest_plus_five"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_only_original_bidders_may_raise_and_minimum_is_highest_plus_five"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-11",
+      "area": "AUCTION",
+      "scenario": "Competitive-auction actor survives JSON round trip",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_only_original_bidders_may_raise_and_minimum_is_highest_plus_five"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_only_original_bidders_may_raise_and_minimum_is_highest_plus_five"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-12",
+      "area": "AUCTION",
+      "scenario": "Four full pass cycles force the first private's free purchase",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_sv_discount_and_forced_free_purchase"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_auction_bids_escrow_discount_and_first_round_sales"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-13",
+      "area": "AUCTION",
+      "scenario": "A later unsold private does not discount; bought privates pay income after all pass",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_other_privates_do_not_discount_and_pay_revenue"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_other_unsold_privates_pay_income_without_discount"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-14",
+      "area": "AUCTION",
+      "scenario": "A bid resets the pass sequence rather than triggering a discount",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_bid_resets_consecutive_passes_before_first_private_sells"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_bid_resets_consecutive_passes_before_first_private_sells"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-15",
+      "area": "AUCTION",
+      "scenario": "Action discovery before and during competitive auction, wrong actor and terminal states is read-only",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_action_discovery_covers_initial_competitive_auction_and_terminal_states"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_action_discovery_covers_initial_competitive_auction_and_terminal_states"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "AUCTION-16",
+      "area": "AUCTION",
+      "scenario": "Competitive B&O award refunds losing bidder, requires winner par choice, restores pending interrupt and resumes correct stock priority",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_competitive_bo_award_interrupts_for_par_and_resumes_stock_after_restore"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific B&O auction or home-city schema migration."
+      }
+    },
+    {
+      "id": "STOCK-01",
+      "area": "STOCK",
+      "scenario": "President certificate first, exactly 20%, IPO only",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_president_first_and_one_purchase_per_turn"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_stock_president_first_one_buy_and_no_brown_multi_buy"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-02",
+      "area": "STOCK",
+      "scenario": "Only one ordinary buy per turn; 1889 has no brown multiple-buy exception",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_president_first_and_one_purchase_per_turn"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_stock_president_first_one_buy_and_no_brown_multi_buy"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-03",
+      "area": "STOCK",
+      "scenario": "Reject invalid par values, including non-integer values",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_par_rejects_noninteger_and_unlisted_values_atomically"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_par_rejects_noninteger_and_unlisted_values_atomically"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-04",
+      "area": "STOCK",
+      "scenario": "Insufficient cash rejects atomically without setting par or ownership",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-05",
+      "area": "STOCK",
+      "scenario": "IPO shares cost fixed par; pool shares cost current market price",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-06",
+      "area": "STOCK",
+      "scenario": "Reject empty or unknown share sources",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_source_prices_empty_sources_and_insufficient_cash"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-07",
+      "area": "STOCK",
+      "scenario": "No share sales in first stock round",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_first_stock_round_rejects_an_otherwise_saleable_bundle"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_first_stock_round_rejects_an_otherwise_saleable_bundle"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-08",
+      "area": "STOCK",
+      "scenario": "Sales require owned stock, positive integer 10% units and sufficient quantity",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_sale_units_ownership_pool_cap_and_sold_company_restriction"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_sale_units_ownership_pool_cap_and_sold_company_restriction"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-09",
+      "area": "STOCK",
+      "scenario": "Pool cannot exceed 50%; president certificate cannot be dumped without successor",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_president_cannot_dump_without_successor",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_sale_pays_pre_sale_price_and_pool_limits"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_stock_sale_pool_cap_ownership_units_and_president_protection"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-10",
+      "area": "STOCK",
+      "scenario": "All shares in one sale receive pre-sale market price before marker movement",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_sale_pays_pre_sale_price_and_pool_limits"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_stock_sale_pays_pre_sale_price_and_moves_once_per_share"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-11",
+      "area": "STOCK",
+      "scenario": "1889 permits sell–buy or buy–sell, rejects sell–buy–sell and repeated corporate sale blocks",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_sales_one_block_and_sell_buy_or_buy_sell_order"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "STOCK-12",
+      "area": "STOCK",
+      "scenario": "Buying then selling the same corporation is allowed under each variant's ordering rules",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_buy_then_sell_same_corporation_is_permitted"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_buy_then_sell_same_corporation_is_permitted"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-13",
+      "area": "STOCK",
+      "scenario": "A player's sold corporation cannot be repurchased that stock round; other players may buy",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_sale_units_ownership_pool_cap_and_sold_company_restriction"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_sale_units_ownership_pool_cap_and_sold_company_restriction"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-14",
+      "area": "STOCK",
+      "scenario": "Presidency stays with incumbent on equal holdings",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_presidency_does_not_transfer_on_equal_holdings"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_presidency_equal_holdings_keep_incumbent_and_successor_tie_wraps"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-15",
+      "area": "STOCK",
+      "scenario": "Successor ties follow seating order and wrap to the first seat",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_presidency_transfer_and_wraparound_tie"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_presidency_equal_holdings_keep_incumbent_and_successor_tie_wraps"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-16",
+      "area": "STOCK",
+      "scenario": "President certificate counts once; closed and corporate-owned privates do not count",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_certificate_table_and_president_counts_once",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_closed_or_corporate_privates_do_not_count_as_personal_certificates"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_certificate_count_president_once_closed_and_corporate_privates_excluded"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-17",
+      "area": "STOCK",
+      "scenario": "Certificate limits use the correct table for every supported player count",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_certificate_table_and_president_counts_once"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_setup_all_player_counts_and_complete_components"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-18",
+      "area": "STOCK",
+      "scenario": "Colored-zone holdings and total-certificate exemptions use variant rules",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_yellow_orange_brown_exempt_total_certificate_limit",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_orange_allows_more_than_five_certificates",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_yellow_exempts_total_count_but_only_orange_relaxes_company_holding"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_holding_and_total_certificate_color_exceptions",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_yellow_exempts_total_count_but_only_orange_relaxes_company_holding"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-19",
+      "area": "STOCK",
+      "scenario": "Reject buying beyond total certificate limit; excess certificates must be corrected before passing",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_total_certificate_limit_blocks_buy_and_requires_selling_before_pass"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_total_certificate_limit_blocks_buy_and_requires_selling_before_pass"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-20",
+      "area": "STOCK",
+      "scenario": "Excess corporation holdings must be corrected before passing",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_excess_corporation_holding_must_be_sold_before_passing"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_excess_corporation_holding_must_be_sold_before_passing"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-21",
+      "area": "STOCK",
+      "scenario": "1830 brown multiple buys must be the same corporation",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_1830_brown_multiple_buys_cannot_change_corporation"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "STOCK-22",
+      "area": "STOCK",
+      "scenario": "Consecutive passes may wrap seating; deals reset passes and determine priority",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_consecutive_passes_and_priority"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_consecutive_passes_priority_and_no_floated_corporations"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STOCK-23",
+      "area": "STOCK",
+      "scenario": "Buy at the exact certificate limit, reject one above, and require correction before passing, for all five player counts in both games",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.CertificateBoundaryTests.test_buy_and_pass_enforce_exact_certificate_limit_for_every_player_count"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.CertificateBoundaryTests.test_buy_and_pass_enforce_exact_certificate_limit_for_every_player_count"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "MARKET-01",
+      "area": "MARKET",
+      "scenario": "Sold-out shares move up only for eligible floated corporations",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_sold_out_rises_only_for_floated_corporations"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_sold_out_rise_does_not_change_par_or_stack_order"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "MARKET-02",
+      "area": "MARKET",
+      "scenario": "Sold-out marker movement preserves stack order",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_sold_out_movement_preserves_top_to_bottom_stack_order"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_sold_out_rise_does_not_change_par_or_stack_order"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "MARKET-03",
+      "area": "MARKET",
+      "scenario": "Right/left edges move vertically where possible; boundaries and ragged rows stop movement",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_stock_market_right_edge_up_and_left_edge_down"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_market_boundaries_and_ragged_rows"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "MARKET-04",
+      "area": "MARKET",
+      "scenario": "Sales and dividends never change original par price",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_sales_payout_withhold_and_zero_revenue_preserve_original_par"
+        ],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_sales_payout_withhold_and_zero_revenue_preserve_original_par"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "MARKET-05",
+      "area": "MARKET",
+      "scenario": "Operating order uses price, rightmost column, upper row, then marker stack",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_operating_order_rightmost_then_stack",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_tied_market_prices_same_column_use_upper_row_first"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_operating_order_price_column_row_then_stack"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-01",
+      "area": "OPERATING",
+      "scenario": "Flotation threshold is 60% in 1830 and 50% in 1889",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-02",
+      "area": "OPERATING",
+      "scenario": "Full capitalization is issued once at first operation, never again",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-03",
+      "area": "OPERATING",
+      "scenario": "Free homes use the correct city and do not consume an extra-station action",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_free_home_token_and_turn_authorization"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_all_floated_home_stations_are_placed_at_operating_round_start"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-04",
+      "area": "OPERATING",
+      "scenario": "1889 places every floated home before the first company operates",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_all_floated_home_stations_are_placed_at_operating_round_start"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "OPERATING-05",
+      "area": "OPERATING",
+      "scenario": "Wrong president, premature end and steps performed out of order are rejected",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_free_home_token_and_turn_authorization",
+          "app.unittests.test_engine1830.Rules1830Tests.test_float_capital_home_token_and_no_premature_train_use"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_wrong_operating_actor_and_out_of_order_or_duplicate_steps"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-06",
+      "area": "OPERATING",
+      "scenario": "One normal lay, one additional station, one route submission and one dividend per turn",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_station_costs_reachability_and_one_per_turn",
+          "app.unittests.test_engine1830.Rules1830Tests.test_float_capital_home_token_and_no_premature_train_use"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_wrong_operating_actor_and_out_of_order_or_duplicate_steps",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_runnable_train_cannot_be_skipped_and_revenue_is_computed",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_home_reservation_and_one_additional_station_per_turn"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-07",
+      "area": "OPERATING",
+      "scenario": "Optional track/token steps may be skipped; required dividend/train resolution cannot",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_float_capital_home_token_and_no_premature_train_use"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_wrong_operating_actor_and_out_of_order_or_duplicate_steps"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-08",
+      "area": "OPERATING",
+      "scenario": "Runnable trains cannot be skipped or replaced by an empty route set",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_route_uses_actual_revenue_and_train_capacity"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_runnable_train_cannot_be_skipped_and_revenue_is_computed"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-09",
+      "area": "OPERATING",
+      "scenario": "Private income pays the current owner before corporate operations, separately from dividends",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_private_revenue_to_treasury_not_dividends"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_private_income_is_separate_and_closed_privates_stop_paying"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-10",
+      "area": "OPERATING",
+      "scenario": "Payout pays players and pool shares to treasury, never unpaid IPO shares",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_dividends_bank_pool_not_ipo"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dividends_pool_versus_ipo_withhold_and_zero_revenue"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-11",
+      "area": "OPERATING",
+      "scenario": "Withhold pays the corporation; withhold and zero revenue move the marker left",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_withhold_and_zero_revenue_move_left"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dividends_pool_versus_ipo_withhold_and_zero_revenue"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-12",
+      "area": "OPERATING",
+      "scenario": "Phase changes do not lengthen the current OR set; next set uses 1/2/3 ORs",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_phase_changes_wait_for_next_set_before_two_or_three_operating_rounds"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_phase_changes_wait_for_next_set_before_two_or_three_operating_rounds"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-13",
+      "area": "OPERATING",
+      "scenario": "No floated corporation still advances round/priority instead of deadlocking",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_consecutive_passes_and_priority"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_consecutive_passes_priority_and_no_floated_corporations"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "OPERATING-14",
+      "area": "OPERATING",
+      "scenario": "1889 skip routes only without a runnable train; dividend and train resolution cannot be skipped",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_skip_routes_requires_no_runnable_train_and_dividend_cannot_be_skipped"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific private power or scenario."
+      }
+    },
+    {
+      "id": "TRACK-01",
+      "area": "TRACK",
+      "scenario": "Reject unknown hex/tile, invalid rotation, wrong node type, unavailable color and disconnected construction",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_track_rejects_disconnected_wrong_city_type_and_color"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_track_bad_hex_rotation_unknown_tile_phase_type_and_disconnect"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-02",
+      "area": "TRACK",
+      "scenario": "Permanent red/gray hexes cannot be replaced",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_permanent_hexes_wrong_label_and_skipped_color_are_rejected"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_permanent_hexes_wrong_label_and_skipped_color_are_rejected"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-03",
+      "area": "TRACK",
+      "scenario": "Upgrades advance exactly one color; printed labels must match",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_permanent_hexes_wrong_label_and_skipped_color_are_rejected"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_permanent_hexes_wrong_label_and_skipped_color_are_rejected"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-04",
+      "area": "TRACK",
+      "scenario": "Every existing track connection and station must survive an upgrade",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_track_upgrade_preserves_track_and_returns_tile",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_track_upgrade_cannot_remove_track"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_track_upgrade_preserves_station_and_recycles_original_tile",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_track_supply_exhaustion_and_removed_track_rejected"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-05",
+      "area": "TRACK",
+      "scenario": "An upgrade returns its old physical tile; inventory is finite",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_track_terrain_charge_and_finite_supply",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_track_upgrade_preserves_track_and_returns_tile",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_tile_supply_exhaustion_and_insufficient_terrain_treasury"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_track_upgrade_preserves_station_and_recycles_original_tile",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_track_supply_exhaustion_and_removed_track_rejected"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-06",
+      "area": "TRACK",
+      "scenario": "Player-owned private blocks its printed hex; corporate ownership or closure releases it",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_private_block_is_removed_by_closure_or_corporate_ownership"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_private_block_is_removed_by_closure_or_corporate_ownership"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-07",
+      "area": "TRACK",
+      "scenario": "Every initial tile exit checks board edge, impassable border and blank gray side",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_every_initial_tile_exit_is_checked_against_map_and_lakes"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_every_initial_tile_exit_checks_board_edges_and_impassable_borders"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-08",
+      "area": "TRACK",
+      "scenario": "Construction pays terrain from treasury and rejects insufficient funds",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_tile_supply_exhaustion_and_insufficient_terrain_treasury"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_tile_supply_exhaustion_and_insufficient_terrain_treasury"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-09",
+      "area": "TRACK",
+      "scenario": "Station mapping cannot overflow slots, duplicate a company's token or remove track",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_station_preservation_rejects_overflow_duplicate_or_removed_track"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_station_preservation_rejects_overflow_duplicate_or_removed_track"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-10",
+      "area": "TRACK",
+      "scenario": "1830 separate cities retain identity; upgrades preserve future home reservations",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_separate_cities_cannot_collapse_on_upgrade",
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_unfloated_home_reservation_follows_city_mapping",
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_home_upgrade_cannot_deadlock_end_of_stock_round"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "TRACK-11",
+      "area": "TRACK",
+      "scenario": "1830 table-6 replacements have preserving rotations; 28→45 is rejected and corrected to 46",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_all_table6_upgrades_have_preserving_orientation",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_table6_erratum_does_not_override_track_preservation"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "TRACK-12",
+      "area": "TRACK",
+      "scenario": "1830 Erie base identity survives its first tile and either home choice",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_erie_base_does_not_move_when_first_tile_is_laid",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_erie_can_choose_either_home_city_and_lay_disconnected"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "TRACK-13",
+      "area": "TRACK",
+      "scenario": "A junction cannot unlock a route by reversing or switching crossing paths",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_cannot_reverse_at_a_junction_or_switch_crossing_paths"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_cannot_reverse_at_a_junction_or_switch_crossing_paths"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRACK-14",
+      "area": "TRACK",
+      "scenario": "A closed loop cannot manufacture construction/token connectivity; genuine connection remains usable",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_closed_loop_does_not_create_a_connection_but_real_branch_does"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_closed_loop_does_not_create_a_connection_but_real_branch_does"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATION-01",
+      "area": "STATION",
+      "scenario": "Only a valid large city accepts tokens; reject bad indices, bool indices and duplicate hex token",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_tokens_require_a_valid_large_city_and_cannot_duplicate_a_hex"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_tokens_require_a_valid_large_city_and_cannot_duplicate_a_hex"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATION-02",
+      "area": "STATION",
+      "scenario": "Station requires treasury funds, available supply, a vacancy and reachable track",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_tokens_need_cash_supply_vacancy_and_reachability"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_tokens_need_cash_supply_vacancy_and_reachability"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATION-03",
+      "area": "STATION",
+      "scenario": "Last reserved home slot cannot be taken by another corporation",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_cannot_take_another_corporations_reserved_home"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_home_reservation_and_one_additional_station_per_turn"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATION-04",
+      "area": "STATION",
+      "scenario": "First extra station costs 40; later stations cost 100 in 1830 and 40 in 1889",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_extra_station_cost_is_variant_specific"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_extra_station_cost_is_variant_specific"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATION-05",
+      "area": "STATION",
+      "scenario": "Full rival city blocks network expansion; own station permits travel through",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_full_rival_city_is_a_legal_terminus_but_blocks_through_running",
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_own_token_in_full_city_allows_running_through_it"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_full_rival_city_is_a_legal_terminus_but_blocks_through_running",
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_own_token_in_full_city_allows_running_through_it"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-01",
+      "area": "ROUTE",
+      "scenario": "Each intermediate city or town counts toward train capacity and revenue",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_every_intermediate_city_or_town_counts_toward_capacity_and_revenue"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_every_intermediate_city_or_town_counts_toward_capacity_and_revenue"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-02",
+      "area": "ROUTE",
+      "scenario": "Diesel has unrestricted stop capacity, subject to normal route rules",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_diesel_runs_seven_stops_while_six_train_rejects_the_same_route"
+        ],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_diesel_runs_seven_stops_while_six_train_rejects_the_same_route"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-03",
+      "area": "ROUTE",
+      "scenario": "Each route uses a distinct owned train; cannot run the same train twice",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_train_must_be_owned_distinct_and_used_once"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_train_must_be_owned_distinct_and_used_once"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-04",
+      "area": "ROUTE",
+      "scenario": "Different trains cannot share track in either direction",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_different_trains_cannot_share_track_in_either_direction"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_different_trains_cannot_share_track_in_either_direction"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-05",
+      "area": "ROUTE",
+      "scenario": "Different trains may share a city if they use different track",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_different_trains_can_share_a_city_without_sharing_track"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_different_trains_can_share_a_city_without_sharing_track"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-06",
+      "area": "ROUTE",
+      "scenario": "Every route independently includes its corporation's station",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_each_route_needs_its_own_company_station"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_each_route_needs_its_own_company_station"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-07",
+      "area": "ROUTE",
+      "scenario": "Reject repeated vertices, reversal, disconnected paths and non-revenue endpoints",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_repeated_vertices_reversal_disconnected_and_non_city_endpoints"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_repeated_vertices_reversal_disconnected_and_non_city_endpoints"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-08",
+      "area": "ROUTE",
+      "scenario": "Full rival city is a valid endpoint but cannot be an intermediate stop",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_full_rival_city_is_a_legal_terminus_but_blocks_through_running"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_full_rival_city_is_a_legal_terminus_but_blocks_through_running"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-09",
+      "area": "ROUTE",
+      "scenario": "Offboards must be termini and the same offboard region cannot be visited twice",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_offboards_are_termini_and_region_cannot_be_visited_twice"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_offboards_are_termini_and_region_cannot_be_visited_twice"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-10",
+      "area": "ROUTE",
+      "scenario": "Reject switching at junctions and crossings, including misleading graph connectivity",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_cannot_reverse_at_a_junction_or_switch_crossing_paths"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_cannot_reverse_at_a_junction_or_switch_crossing_paths"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-11",
+      "area": "ROUTE",
+      "scenario": "Suggestions respect capacity, station ownership, blocking and requested count",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_route_candidates_respect_capacity_tokens_blocking_and_limit"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_route_candidates_respect_capacity_tokens_blocking_and_limit"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-12",
+      "area": "ROUTE",
+      "scenario": "Client path segments orient correctly in both directions; reject missing, malformed or disconnected segments",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_route_path_segments_expand_in_both_directions_and_bad_segments_fail"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_route_path_segments_expand_in_both_directions_and_bad_segments_fail"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-13",
+      "area": "ROUTE",
+      "scenario": "Malformed route collections/vertices produce rule errors without mutation",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_malformed_route_collections_and_vertices_are_rule_errors"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_malformed_route_collections_and_vertices_are_rule_errors"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-14",
+      "area": "ROUTE",
+      "scenario": "Client-provided revenue cannot override computed revenue",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_route_uses_actual_revenue_and_train_capacity"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_runnable_train_cannot_be_skipped_and_revenue_is_computed"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-15",
+      "area": "ROUTE",
+      "scenario": "Ordinary train offboard revenue changes with phase, while Diesel follows the variant-specific value",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_offboard_values_follow_phase_and_train_type"
+        ],
+        "1889": [
+          "app.unittests.test_EngineTopologyEdges.TopologyEdgeTests.test_offboard_values_follow_phase_and_train_type"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ROUTE-16",
+      "area": "ROUTE",
+      "scenario": "1889 offboard Diesel value applies only to Diesel, not a 5/6 in Diesel phase",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_diesel_revenue_uses_train_type_and_supply_is_unlimited"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "ROUTE-17",
+      "area": "ROUTE",
+      "scenario": "1889 route quotation from forward/reversed path segments or explicit vertices returns stop details/revenue without changing state; invalid/empty routes",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_route_quote_accepts_paths_or_vertices_and_preserves_state"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific private power or scenario."
+      }
+    },
+    {
+      "id": "TRAIN-01",
+      "area": "TRAIN",
+      "scenario": "Finite depot and fixed prices; later train types unavailable until unlocked",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_normal_train_limit_depot_order_and_fixed_price"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_normal_train_limit_depot_order_and_fixed_price"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-02",
+      "area": "TRAIN",
+      "scenario": "At train limit reject ordinary purchase; eligible Diesel trade-in is allowed",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_diesel_trade_in_is_allowed_at_train_limit",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_normal_train_limit_depot_order_and_fixed_price"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_rust_discard_returned_trains_and_diesel_trade_in",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_depot_order_prices_train_limit_and_new_train_waits_until_next_turn"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-03",
+      "area": "TRAIN",
+      "scenario": "Newly acquired trains cannot run in the same corporate turn",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_float_capital_home_token_and_no_premature_train_use"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_depot_order_prices_train_limit_and_new_train_waits_until_next_turn"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-04",
+      "area": "TRAIN",
+      "scenario": "Mandatory train only if a legal route exists; optional second train cannot use personal funds",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_mandatory_train_and_presidential_contribution_not_loan",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_no_presidential_funding_for_optional_train"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mandatory_purchase_cheapest_alternative_and_no_optional_subsidy",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_phase_changes_do_not_rewind_or_change_current_or_set_length"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-05",
+      "area": "TRAIN",
+      "scenario": "Corporate train transfer requires matching real other-party offer and pays seller",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-06",
+      "area": "TRAIN",
+      "scenario": "Reject altered offer price, replayed/consumed offer and buying one's own train",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-07",
+      "area": "TRAIN",
+      "scenario": "Only actual transaction parties can offer, seller must own item, duplicates do not multiply offers",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_train_transfer_exact_consent_party_ownership_price_and_consumption"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-08",
+      "area": "TRAIN",
+      "scenario": "Train limits drop immediately; other president chooses their own excess train",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_train_limit_reduction_requires_other_president_to_discard",
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_two_presidents_resolve_all_discards_in_either_order_with_midway_restore"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_other_president_discards_interrupt_and_cannot_discard_unowned_train",
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_two_presidents_resolve_all_discards_in_either_order_with_midway_restore"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-09",
+      "area": "TRAIN",
+      "scenario": "Pending discards block ordinary actions and private exchanges/ports; wrong owner/train rejected",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_between_turn_exchange_discovery_and_interrupt_restrictions"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_other_president_discards_interrupt_and_cannot_discard_unowned_train"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-10",
+      "area": "TRAIN",
+      "scenario": "Discarded usable trains return to depot at face price without rewinding phase; rusted trains remain unusable",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_phase_changes_rust_close_and_limits",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_train_limit_reduction_requires_other_president_to_discard",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_returned_train_costs_face_and_does_not_rewind_phase"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_rust_discard_returned_trains_and_diesel_trade_in",
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_returned_train_costs_face_and_does_not_rewind_phase"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-11",
+      "area": "TRAIN",
+      "scenario": "First 4 rusts 2s; first 6 rusts 3s; first Diesel rusts 4s",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_phase_changes_rust_close_and_limits",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_diesel_trade_in_and_four_rust"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_rust_discard_returned_trains_and_diesel_trade_in"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-12",
+      "area": "TRAIN",
+      "scenario": "First 5 closes ordinary privates; closed companies no longer pay",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_phase_changes_rust_close_and_limits"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_private_income_is_separate_and_closed_privates_stop_paying",
+          "app.unittests.test_Engine1889.Rules1889Tests.test_private_sales_bounds_no_interplayer_and_utf_survival"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-13",
+      "area": "TRAIN",
+      "scenario": "Diesel available in phase 6; trade-in requires owned 4/5/6 and correct discounted price",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_diesel_trade_in_and_four_rust",
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_owned_five_and_six_trade_for_diesel_at_limit_with_exact_discount"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_diesel_not_available_before_six_and_trade_in_needs_eligible_owned_train",
+          "app.unittests.test_Engine1889.Rules1889Tests.test_rust_discard_returned_trains_and_diesel_trade_in",
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_owned_five_and_six_trade_for_diesel_at_limit_with_exact_discount"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-14",
+      "area": "TRAIN",
+      "scenario": "1889 Diesel supply is unlimited and returned used Diesels coexist",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_diesel_revenue_uses_train_type_and_supply_is_unlimited"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "TRAIN-15",
+      "area": "TRAIN",
+      "scenario": "Mandatory presidential funding rejects a costlier available depot train when a returned train is the cheapest alternative",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_emergency_purchase_rejects_costlier_train_when_returned_train_is_cheapest"
+        ],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_emergency_purchase_rejects_costlier_train_when_returned_train_is_cheapest"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-16",
+      "area": "TRAIN",
+      "scenario": "Two presidents resolve multiple excess-train corporations in either order; midway restoration preserves all remaining interrupts and resumes the original operator",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_two_presidents_resolve_all_discards_in_either_order_with_midway_restore"
+        ],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_two_presidents_resolve_all_discards_in_either_order_with_midway_restore"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-17",
+      "area": "TRAIN",
+      "scenario": "Changing seller presidency invalidates previous consent; failed funding preserves fresh offer for an affordable retry",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.NegotiationLifecycleTests.test_new_president_must_consent_and_failed_purchase_keeps_matching_offer"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.NegotiationLifecycleTests.test_new_president_must_consent_and_failed_purchase_keeps_matching_offer"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "TRAIN-18",
+      "area": "TRAIN",
+      "scenario": "1830 presidential corporate-train assistance up to face value versus 1889 prohibition; failed purchases retain consent and allow treasury-funded retry",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_presidential_funding_of_corporate_train_obeys_variant_and_face_value"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_presidential_funding_of_corporate_train_obeys_variant_and_face_value"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "PRIVATE-01",
+      "area": "PRIVATE",
+      "scenario": "Corporate private purchase only during current operator's turn in permitted phases",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_private_sale_requires_consent_and_corporate_phase_price"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_private_sales_bounds_no_interplayer_and_utf_survival",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_private_sale_cannot_resell_closed_company_or_buy_for_other_operator"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "PRIVATE-02",
+      "area": "PRIVATE",
+      "scenario": "Corporate price bounds are half to twice face; reject outside bounds",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_private_purchase_half_and_twice_face_bounds"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_private_purchase_half_and_twice_face_bounds"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "PRIVATE-03",
+      "area": "PRIVATE",
+      "scenario": "Cannot buy a closed private or resell a corporation-owned private",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_private_sales_prohibited_first_round_and_corporate_resale"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_private_sale_cannot_resell_closed_company_or_buy_for_other_operator"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "PRIVATE-04",
+      "area": "PRIVATE",
+      "scenario": "Interplayer private sales require genuine consent in 1830 and are prohibited in 1889",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_player_private_sale_on_seller_turn_requires_buyer_offer",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_normal_action_cannot_forge_other_party_consent"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_private_sales_bounds_no_interplayer_and_utf_survival"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "PRIVATE-05",
+      "area": "PRIVATE",
+      "scenario": "1830 C&A awards PRR share and B&O awards presidency with explicit par interrupt",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_ca_free_prr_share_and_bo_presidency",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_bo_par_interrupts_auction"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-06",
+      "area": "PRIVATE",
+      "scenario": "1830 B&O cannot be sold to corporation and closes on its first train",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_bo_cannot_be_sold_to_corporation",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_trains_are_finite_and_bought_in_order"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-07",
+      "area": "PRIVATE",
+      "scenario": "1830 C&SL extra disconnected lay is once only",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_cs_extra_disconnected_tile_lay_is_once_only"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-08",
+      "area": "PRIVATE",
+      "scenario": "1830 D&H mountain lay and immediate free token; deferred token is paid, no second paid token",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_dh_disconnected_mountain_tile_and_free_token",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_dh_deferred_disconnected_token_is_paid",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_dh_special_does_not_allow_a_second_paid_token"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-09",
+      "area": "PRIVATE",
+      "scenario": "1830 M&H exchange timing/ownership/limits, closes private and transfers share",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_mh_exchange_closes_private_and_transfers_share",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_mh_can_exchange_between_turns_but_not_interrupt_another_turn",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_mh_cannot_interrupt_own_corporations_operating_turn"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-10",
+      "area": "PRIVATE",
+      "scenario": "1830 M&H exchange does not consume a normal buy and may float corporation",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_mh_exchange_does_not_count_as_stock_purchase",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_mh_exchange_can_float_corporation"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-11",
+      "area": "PRIVATE",
+      "scenario": "1830 M&H presidency transfer preserves another operator or updates affected operator",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Followup.FollowupRegressions.test_mh_transfer_of_another_company_preserves_current_turn",
+          "app.unittests.test_Engine1830Followup.FollowupRegressions.test_mh_presidency_transfer_hands_operating_turn_to_new_president"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "PRIVATE-12",
+      "area": "PRIVATE",
+      "scenario": "1889 MF port: correct owner, coastal hex, tile 437, unbuilt hex, once only, no closure",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_mitsubishi_port_timing_permanence_and_one_use",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-13",
+      "area": "PRIVATE",
+      "scenario": "1889 MF timing: stock, between OR turns or own track step; no other-turn interruption",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_mitsubishi_port_timing_permanence_and_one_use",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-14",
+      "area": "PRIVATE",
+      "scenario": "1889 port is permanent and normal companies cannot lay it",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_mitsubishi_port_timing_permanence_and_one_use",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-15",
+      "area": "PRIVATE",
+      "scenario": "1889 ER corporate purchase interrupts for seller; seller may lay allowed green tile or pass",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_ehime_seller_interrupt_lay_or_pass_and_resume",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-16",
+      "area": "PRIVATE",
+      "scenario": "1889 ER interrupt persists/restores, blocks unrelated actions and returns original operator without consuming normal lay",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_ehime_seller_interrupt_lay_or_pass_and_resume",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-17",
+      "area": "PRIVATE",
+      "scenario": "1889 SMR discounts pure mountain only, not mixed mountain/water; H-city costs repeat",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_smr_only_discounts_pure_mountains_and_h_costs_repeat"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-18",
+      "area": "PRIVATE",
+      "scenario": "1889 DR exchange uses IPO only, rejects pool/exhausted IPO and 60% ownership excess",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_dougo_ipo_exchange_and_limits",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_cannot_exchange_when_only_pool_shares_remain"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-19",
+      "area": "PRIVATE",
+      "scenario": "1889 DR exchange window and normal-buy independence",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_does_not_consume_normal_buy_and_respects_window_and_ipo_supply"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-20",
+      "area": "PRIVATE",
+      "scenario": "1889 DR replaces a private certificate even at certificate limit",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_exchange_at_certificate_limit_replaces_private_certificate"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-21",
+      "area": "PRIVATE",
+      "scenario": "1889 DR presidency transfer changes only the affected current operator",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_exchange_updates_current_president_without_changing_other_operator"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-22",
+      "area": "PRIVATE",
+      "scenario": "1889 player-owned UTF survives first 5 with revenue 50, value 150, counts as certificate and cannot be sold",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_surviving_utf_has_value_revenue_certificate_and_cannot_be_sold"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-23",
+      "area": "PRIVATE",
+      "scenario": "1889 corporation-owned UTF closes on first 5",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_private_sales_bounds_no_interplayer_and_utf_survival"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "PRIVATE-24",
+      "area": "PRIVATE",
+      "scenario": "ER seller also controls buying corporation: optional lay/pass after JSON restoration preserves normal lay and actor",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.Ownership1889Tests.test_ehime_seller_can_control_buyer_and_resolve_lay_or_pass_after_restore"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific private power or scenario."
+      }
+    },
+    {
+      "id": "PRIVATE-25",
+      "area": "PRIVATE",
+      "scenario": "MF corporate sale removes port power from both the former owner and the buying president",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.Ownership1889Tests.test_mitsubishi_sale_disables_port_for_former_owner_and_buying_president"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific private power or scenario."
+      }
+    },
+    {
+      "id": "EMERGENCY-01",
+      "area": "EMERGENCY",
+      "scenario": "Use corporate treasury then required personal cash; no optional personal subsidy",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_mandatory_train_and_presidential_contribution_not_loan",
+          "app.unittests.test_Engine1830.Rules1830Tests.test_no_presidential_funding_for_optional_train"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mandatory_purchase_cheapest_alternative_and_no_optional_subsidy"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "EMERGENCY-02",
+      "area": "EMERGENCY",
+      "scenario": "Reject forced sales without mandatory route or when cash already buys cheapest train",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_emergency_sales_require_a_route_and_a_cash_shortfall"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_emergency_sales_require_a_route_and_a_cash_shortfall"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "EMERGENCY-03",
+      "area": "EMERGENCY",
+      "scenario": "1889 prohibits presidential subsidy of another corporation's train",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_emergency_funding_no_subsidized_transfer_or_presidency_swaps"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-04",
+      "area": "EMERGENCY",
+      "scenario": "1830 affected presidency protected; 1889 protects every presidency",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_forced_share_sales_cannot_dump_affected_presidency"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_emergency_funding_no_subsidized_transfer_or_presidency_swaps"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "EMERGENCY-05",
+      "area": "EMERGENCY",
+      "scenario": "1889 forced sales cannot raise more than needed for cheapest train",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_emergency_sale_cannot_liquidate_more_than_needed"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-06",
+      "area": "EMERGENCY",
+      "scenario": "1889 one sale block per corporation per train turn, even if still short",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_repeat_block_rejected_atomically_even_when_still_short"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-07",
+      "area": "EMERGENCY",
+      "scenario": "1889 larger block receives pre-sale price for all shares; another corporation can still be sold",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_one_larger_block_gets_pre_sale_price_for_every_share",
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_another_corporation_can_still_be_sold"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-08",
+      "area": "EMERGENCY",
+      "scenario": "Failed sale does not consume emergency block; JSON restore cannot reset it",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_failed_sale_does_not_consume_block",
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_block_survives_json_restore_and_cannot_be_bypassed_by_stock_sale"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-09",
+      "area": "EMERGENCY",
+      "scenario": "New operating turn resets emergency block",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_next_operating_turn_has_a_new_sale_block"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-10",
+      "area": "EMERGENCY",
+      "scenario": "Bankruptcy funding estimate and liquidation obey previously used emergency blocks",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAuctionAndEmergency.EmergencyBlock1889Tests.test_bankruptcy_estimate_and_liquidation_respect_consumed_blocks"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "EMERGENCY-11",
+      "area": "EMERGENCY",
+      "scenario": "Forced sales reorder only corporations that have not operated",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_emergency_sale_reorders_remaining_corporations"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_emergency_sale_reorders_only_remaining_corporations"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "EMERGENCY-12",
+      "area": "EMERGENCY",
+      "scenario": "1830 emergency private sale is available only for genuine train shortfall",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_emergency_private_sale_is_permitted_by_section_24",
+          "app.unittests.test_Engine1830Regressions.ReviewRepros.test_emergency_private_sale_requires_shortfall_and_train_step"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "ENDGAME-01",
+      "area": "ENDGAME",
+      "scenario": "Reject bankruptcy when cash or legally saleable stock still funds a train",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_bankruptcy_rejects_without_route_or_while_cash_or_stock_can_fund_train"
+        ],
+        "1889": [
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_bankruptcy_rejects_without_route_or_while_cash_or_stock_can_fund_train"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ENDGAME-02",
+      "area": "ENDGAME",
+      "scenario": "Bankruptcy ends immediately; unsaleable shares remain in bankrupt player's score",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_bankruptcy_ends_immediately_and_scoring"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_bankruptcy_and_bank_end_scoring"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ENDGAME-03",
+      "area": "ENDGAME",
+      "scenario": "Bank exhaustion at exactly zero triggers; negative bank can continue payouts",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_bank_break_deferred_and_scores_exclude_treasury"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_bank_break_zero_negative_payouts_and_required_or_set_completion"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ENDGAME-04",
+      "area": "ENDGAME",
+      "scenario": "Bank break finishes the required OR set, not just current corporation or OR",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_bank_end_waits_for_complete_operating_set"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_bank_break_zero_negative_payouts_and_required_or_set_completion"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ENDGAME-05",
+      "area": "ENDGAME",
+      "scenario": "Final scores include player cash, market-valued shares, open player-owned privates; exclude corporate treasury",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_bankruptcy_ends_immediately_and_scoring",
+          "app.unittests.test_engine1830.Rules1830Tests.test_bank_break_deferred_and_scores_exclude_treasury"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_final_score_excludes_corporate_cash_and_closed_privates",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_surviving_utf_has_value_revenue_certificate_and_cannot_be_sold"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "ENDGAME-06",
+      "area": "ENDGAME",
+      "scenario": "Finished game exposes no actions and rejects any further move",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_bank_break_deferred_and_scores_exclude_treasury"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_bank_break_zero_negative_payouts_and_required_or_set_completion"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-01",
+      "area": "STATE",
+      "scenario": "Unknown action/player, malformed identifier, numeric bool and stale revision reject atomically",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_action_atomicity_wrong_player_unknown_action_and_stale_version",
+          "app.unittests.test_Engine1830Specials.SpecialRules1830Tests.test_malformed_json_actions_fail_as_rule_errors"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_action_type_identity_versions_and_malformed_fields_are_atomic",
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_stock_sale_pool_cap_ownership_units_and_president_protection"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-02",
+      "area": "STATE",
+      "scenario": "Successful actions do not mutate input snapshot/history or independent games",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_engine1830.Rules1830Tests.test_action_is_atomic_and_revision_checked",
+          "app.unittests.test_engine1830.Rules1830Tests.test_setup_component_inventory_and_isolation"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_custom_ids_trimmed_names_and_nested_state_independence",
+          "app.unittests.test_Engine1889.Rules1889Tests.test_parallel_variants_and_replay_isolation"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-03",
+      "area": "STATE",
+      "scenario": "Public histories replay deterministically and survive JSON serialization",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830.Rules1830Tests.test_replay_is_deterministic_and_json_safe"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_parallel_variants_and_replay_isolation"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-04",
+      "area": "STATE",
+      "scenario": "Interleaved variants preserve separate money, map, components and rules",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_parallel_variants_and_replay_isolation"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_parallel_variants_and_replay_isolation"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-05",
+      "area": "STATE",
+      "scenario": "1830 old home schema repairs supported states and rejects unknown/conflicting/blocked repairs",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_legacy_new_york_mapping_allows_stock_round_to_finish",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_legacy_placed_nynh_home_is_repaired",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_legacy_erie_choice_is_preserved",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_unknown_schema_and_conflicting_repairs_are_rejected_atomically",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_migration_rejects_blocked_legacy_reservation"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific rule or topology regression."
+      }
+    },
+    {
+      "id": "STATE-06",
+      "area": "STATE",
+      "scenario": "1889 rejects wrong variant and unsupported saved-state schema",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_schema_and_variant_rejections_preserve_saved_state"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific rule."
+      }
+    },
+    {
+      "id": "STATE-07",
+      "area": "STATE",
+      "scenario": "Out-of-turn sellers/exchange owners discover their actions; unrelated players do not",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_train_offer_discovery_only_includes_transaction_parties",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_non_active_seller_can_discover_and_submit_offer",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionTests.test_between_turn_exchange_discovery_and_interrupt_restrictions"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_action_discovery_out_of_turn_offers_and_exchange_not_unrelated_players"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-08",
+      "area": "STATE",
+      "scenario": "Older 1889 saves missing emergency-sale blocks rebuild the exact turn from complete accepted history without mutating input or changing revision",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_complete_legacy_history_restores_exact_sale_blocks_without_mutation",
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_legacy_turn_without_sales_recovers_an_empty_list"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "STATE-09",
+      "area": "STATE",
+      "scenario": "Incomplete, inconsistent, unreplayable or seeded legacy history cannot silently reset a consumed emergency-sale block",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_incomplete_inconsistent_or_unreplayable_history_is_rejected",
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_ambiguous_seeded_save_cannot_reset_a_used_emergency_block"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "STATE-10",
+      "area": "STATE",
+      "scenario": "History reconstruction excludes previous operators' sales and treats an Ehime seller end_turn as an interrupt resolution",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_previous_turn_sales_are_not_carried_into_new_operator",
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_ehime_seller_pass_alias_does_not_reset_current_operator_sale_block"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "STATE-11",
+      "area": "STATE",
+      "scenario": "Action-discovery results share no mutable train lists with the input or another response, including multiple pending discards",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_action_discovery_returns_independent_train_choices_and_preserves_state"
+        ],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.SharedReviewEdgeTests.test_action_discovery_returns_independent_train_choices_and_preserves_state"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-12",
+      "area": "STATE",
+      "scenario": "1889 emergency-sale bookkeeping must be a list of unique, known corporation IDs",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889EmergencySaveTests.test_bookkeeping_must_be_a_unique_list_of_known_corporations"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "STATE-13",
+      "area": "STATE",
+      "scenario": "Wrong or null variant and noninteger/unsupported schemas reject on validate, migration and action without input mutation",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.SavedMetadataTests.test_wrong_variant_or_noninteger_schema_rejected_by_load_validate_and_action"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.SavedMetadataTests.test_wrong_variant_or_noninteger_schema_rejected_by_load_validate_and_action"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-14",
+      "area": "STATE",
+      "scenario": "Reject broken money, share supply, president certificates, train ownership, tile inventory and unknown actor invariants",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.SavedMetadataTests.test_money_shares_trains_tiles_and_actor_corruption_are_rejected"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.SavedMetadataTests.test_money_shares_trains_tiles_and_actor_corruption_are_rejected"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-15",
+      "area": "STATE",
+      "scenario": "Wrong-round and unknown action types reject atomically during auction, stock and operating rounds",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_round_specific_action_dispatch_rejects_other_rounds_atomically"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_round_specific_action_dispatch_rejects_other_rounds_atomically"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "STATE-16",
+      "area": "STATE",
+      "scenario": "1889 exchange_dr and bankruptcy aliases produce canonical results and accepted history without changing input actions",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_1889_action_aliases_match_canonical_result_and_history"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 alias compatibility; 1830 uses exchange_mh."
+      }
+    },
+    {
+      "id": "STATE-17",
+      "area": "STATE",
+      "scenario": "1830 schema-1 snapshots with partially present home metadata validate and migrate without input changes, revision changes or loss of idempotence",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.SavedMetadataTests.test_partial_1830_legacy_home_metadata_validates_and_migrates_idempotently"
+        ],
+        "1889": []
+      },
+      "not_applicable": {
+        "1889": "1830-specific B&O auction or home-city schema migration."
+      }
+    },
+    {
+      "id": "HTTP-01",
+      "area": "HTTP",
+      "scenario": "Rooms before start return conflict; nonexistent rooms return not found",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_unstarted_rooms_missing_rooms_and_invalid_room_sizes"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_unstarted_rooms_missing_rooms_and_invalid_room_sizes"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-02",
+      "area": "HTTP",
+      "scenario": "Reject room sizes outside 2–6 and wrong slot count, blank or duplicate start names",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_unstarted_rooms_missing_rooms_and_invalid_room_sizes",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_start_rejects_wrong_slot_count_blank_and_duplicate_names"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_unstarted_rooms_missing_rooms_and_invalid_room_sizes",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_start_rejects_wrong_slot_count_blank_and_duplicate_names"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-03",
+      "area": "HTTP",
+      "scenario": "Only creator starts, no restart; concurrent starts initialize exactly once",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_only_creator_starts_and_cannot_restart",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_simultaneous_start_only_initializes_once"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_authentication_variant_and_legacy_room_isolation",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_simultaneous_start_only_initializes_once"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-04",
+      "area": "HTTP",
+      "scenario": "All authorized roles may read; no credential disclosure; missing/invalid token rejected",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_start_and_authenticated_state_no_tokens",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_cross_room_and_cross_variant_tokens_cannot_read_or_write"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_authentication_variant_and_legacy_room_isolation",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_cross_room_and_cross_variant_tokens_cannot_read_or_write"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-05",
+      "area": "HTTP",
+      "scenario": "Creator/spectator cannot submit player actions; impersonation and wrong-turn action rejected",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_actions_persist_and_reject_impersonation_stale_and_illegal_moves"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_authentication_variant_and_legacy_room_isolation",
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_rejected_stale_impersonated_actions_and_concurrent_writers"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-06",
+      "area": "HTTP",
+      "scenario": "Cross-room/variant credentials and legacy room cannot access Python room",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_start_and_authenticated_state_no_tokens",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_cross_room_and_cross_variant_tokens_cannot_read_or_write"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_authentication_variant_and_legacy_room_isolation",
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_cross_room_and_cross_variant_tokens_cannot_read_or_write"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-07",
+      "area": "HTTP",
+      "scenario": "Malformed envelopes/actions do not append snapshots",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_invalid_action_envelopes_do_not_create_snapshots"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_invalid_action_envelopes_do_not_create_snapshots"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-08",
+      "area": "HTTP",
+      "scenario": "Stale revisions and simultaneous writers produce one accepted append",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_actions_persist_and_reject_impersonation_stale_and_illegal_moves",
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_concurrent_compare_and_append_allows_one_writer"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_rejected_stale_impersonated_actions_and_concurrent_writers"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-09",
+      "area": "HTTP",
+      "scenario": "Fixed three-bidder auction selection and rejection persist through real HTTP",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_lowest_bidder_over_http"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_lowest_bidder_over_http"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-10",
+      "area": "HTTP",
+      "scenario": "1889 emergency-sale block survives SQLite reload and repeat rejection appends nothing",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_1889_repeat_emergency_block_is_rejected_after_database_reload"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific persistence or reference case."
+      }
+    },
+    {
+      "id": "HTTP-11",
+      "area": "HTTP",
+      "scenario": "Special interrupt uses correct actor and resumes after persistence",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830Followup.HTTPFollowupRegression.test_mh_exchange_can_continue_over_http"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_ehime_interrupt_rejects_corporation_actor_and_resumes"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-12",
+      "area": "HTTP",
+      "scenario": "Unknown saved schema returns conflict; 1830 supported migration persists on next action",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionHTTPTests.test_old_snapshot_is_migrated_on_read_and_persisted_on_action",
+          "app.unittests.test_Engine1830StateAndActions.StateAndActionHTTPTests.test_unknown_saved_schema_returns_conflict"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_1889_unknown_saved_schema_is_a_conflict"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-13",
+      "area": "HTTP",
+      "scenario": "Catalog contains full variant board and tiles; 1889 also supplies currency, phases, trains and par choices",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_catalog_board_and_variant_specific_metadata"
+        ],
+        "1889": [
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_catalog_board_and_variant_specific_metadata"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-14",
+      "area": "HTTP",
+      "scenario": "Legacy database engine-column migration is repeatable and preserves existing rooms",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_catalog_start_authority_and_legacy_database_migration"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific persistence or reference case."
+      }
+    },
+    {
+      "id": "HTTP-15",
+      "area": "HTTP",
+      "scenario": "1889 legacy history migration leaves stored snapshot unchanged on read and persists recovered sale blocks only with the next accepted action",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889SaveHTTPTests.test_old_snapshot_migrates_on_read_and_persists_only_on_accepted_action"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "HTTP-16",
+      "area": "HTTP",
+      "scenario": "Ambiguous 1889 legacy history returns conflict for reads/actions and appends no snapshot",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineReviewEdges.Old1889SaveHTTPTests.test_ambiguous_old_snapshot_returns_conflict_without_appending"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific saved turn bookkeeping."
+      }
+    },
+    {
+      "id": "HTTP-17",
+      "area": "HTTP",
+      "scenario": "Authenticated auction through first stock round for 2–6 players in both variants, including 1830 par interrupt",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_all_player_counts_complete_private_auction_through_authenticated_http"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_all_player_counts_complete_private_auction_through_authenticated_http"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-18",
+      "area": "HTTP",
+      "scenario": "Wrong-variant and boolean-schema saved states return conflict and preserve SQLite snapshot",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_wrong_variant_and_boolean_saved_schema_return_conflict"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_wrong_variant_and_boolean_saved_schema_return_conflict"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "HTTP-19",
+      "area": "HTTP",
+      "scenario": "Injected SQLite commit failure rolls back action; same revision can retry successfully in both variants",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_commit_failure_rolls_back_snapshot_and_same_revision_can_retry"
+        ],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.TransportBoundaryTests.test_commit_failure_rolls_back_snapshot_and_same_revision_can_retry"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "REPLAY-01",
+      "area": "REPLAY",
+      "scenario": "Independent full game matches final scores, ending and accepted-action count",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830FullGame.RecordedGame1830Tests.test_recorded_games_match_independent_final_scores"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_independent_complete_game_exact_scores_and_all_phases"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "REPLAY-02",
+      "area": "REPLAY",
+      "scenario": "Complete recording runs through HTTP, SQLite and reload to exact scores",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830API.Rules1830APITests.test_complete_recorded_game_over_authenticated_http"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889API.Rules1889APITests.test_complete_recorded_game_http_exact_scores_and_reload"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "REPLAY-03",
+      "area": "REPLAY",
+      "scenario": "All phases and corporations operate in a complete 1889 authored recording",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_Engine1830FullGame.RecordedGame1830Tests.test_recorded_games_match_independent_final_scores"
+        ],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_authored_complete_game_all_seven_corporations_and_every_phase"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "REPLAY-04",
+      "area": "REPLAY",
+      "scenario": "Known historical 1889 blocked-city recording is explicitly rejected, not accepted for score parity",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889.Rules1889Tests.test_historical_314_illegal_route_is_rejected_without_weakening_blocking"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific persistence or reference case."
+      }
+    },
+    {
+      "id": "REPLAY-05",
+      "area": "REPLAY",
+      "scenario": "Complete authored 1889 games at 2, 3, 5 and 6 players, with running/terminal restoration, bank/bankruptcy endings and terminal action rejection",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineCoverageLoop.GameplayCoverageTests.test_complete_authored_1889_games_for_remaining_player_counts"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889-specific private power or scenario."
+      }
+    }
+  ]
+}

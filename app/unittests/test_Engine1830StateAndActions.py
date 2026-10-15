@@ -46,6 +46,12 @@ class StateAndActionTests(unittest.TestCase):
         ):
             with self.subTest(action=kind):
                 f = fixture("ERIE")
+                original = deepcopy(f.s)
+                initial = legal_actions(f.s)
+                self.assertIn("skip", initial["types"])
+                self.assertIn("home_token", initial["types"])
+                self.assertNotIn("dividend", initial["types"])
+                self.assertEqual(f.s, original)
                 f.reject(kind, **args)
                 f.act("skip")
                 f.reject("skip")

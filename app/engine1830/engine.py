@@ -162,6 +162,7 @@ def migrate_state(state):
     Schema 1 did not always record home-city mappings. Infer these from printed
     home track and the current tile rather than assuming current city zero.
     """
+    require(state.get("variant") == "1830", "Wrong game variant")
     version = state.get("schema_version")
     require(
         type(version) is int and version in (1, SCHEMA_VERSION),
@@ -470,10 +471,8 @@ def _auction_action(state, action):
             if not state["pending_par"]:
                 _continue_auction(state)
         else:
-            order = state["player_order"]
             state["current_player"] = min(
-                bidders,
-                key=lambda p: (order.index(p) - order.index(actor) - 1) % len(order),
+                bidders, key=lambda p: auction["bids"][offered][p]
             )
     else:
         state["current_player"] = _next_player(state, actor)
@@ -1405,9 +1404,11 @@ def apply_action(state, action, expected_revision=None):
 def validate_state(state):
     """Validate accounting/component invariants after every successful action."""
     require(
-        state.get("schema_version") in (1, SCHEMA_VERSION),
+        type(state.get("schema_version")) is int
+        and state["schema_version"] in (1, SCHEMA_VERSION),
         "Unsupported 1830 state schema",
     )
+    require(state.get("variant") == "1830", "Wrong game variant")
     if state["schema_version"] == SCHEMA_VERSION:
         for corp in state["corporations"].values():
             city = corp.get("home_city")
@@ -1483,7 +1484,7 @@ def legal_actions(state, player=None):
     elif state["pending_discards"]:
         types = ["discard_train"]
         choices["corporations"] = {
-            cid: state["corporations"][cid]["trains"]
+            cid: list(state["corporations"][cid]["trains"])
             for cid in state["pending_discards"]
         }
         actors = [

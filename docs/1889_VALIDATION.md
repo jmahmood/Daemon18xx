@@ -1,5 +1,12 @@
 # 1889 readiness audit and dual-game implementation checklist
 
+> Historical preimplementation audit. The standard Python 1889 backend is now
+> implemented at `app.engine1889` and `/api/1889`. See the [current coverage and
+> reference-recording limitation](../app/engine1889/RULE_COVERAGE.md). The legacy
+> frontend still needs a separate update. Findings below describe the earlier
+> prototype; the two-reference-game gate was revised after game 314 proved to
+> contain a blocked-city route.
+
 ## Finding
 
 **1889 is not presently functional through a complete game.** The playable 1830

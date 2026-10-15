@@ -34,12 +34,14 @@ class Database:
     async def initialize(self):
         """Create database tables if they don't exist"""
         async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('BEGIN IMMEDIATE')
             # Games table
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS games (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     room_code TEXT UNIQUE NOT NULL,
                     variant TEXT NOT NULL,
+                    engine TEXT NOT NULL DEFAULT 'legacy',
                     status TEXT NOT NULL,
                     creator_token TEXT NOT NULL,
                     spectator_token TEXT NOT NULL,
@@ -48,6 +50,10 @@ class Database:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            columns = await (await db.execute('PRAGMA table_info(games)')).fetchall()
+            if 'engine' not in [column[1] for column in columns]:
+                await db.execute("ALTER TABLE games ADD COLUMN engine TEXT NOT NULL DEFAULT 'legacy'")
 
             # Players table
             await db.execute("""
@@ -80,7 +86,8 @@ class Database:
     async def create_game(
         self,
         variant: str = "1889",
-        max_players: int = 6
+        max_players: int = 6,
+        engine: str = "legacy"
     ) -> Dict[str, Any]:
         """Create a new game and return game info with tokens"""
         room_code = generate_room_code()
@@ -89,9 +96,9 @@ class Database:
 
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute("""
-                INSERT INTO games (room_code, variant, status, creator_token, spectator_token, max_players)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (room_code, variant, "waiting", creator_token, spectator_token, max_players))
+                INSERT INTO games (room_code, variant, status, creator_token, spectator_token, max_players, engine)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (room_code, variant, "waiting", creator_token, spectator_token, max_players, engine))
 
             game_id = cursor.lastrowid
 

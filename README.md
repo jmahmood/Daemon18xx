@@ -35,6 +35,15 @@ The coverage document records edition decisions, including correction of the
 printed tile 28 → 45 replacement to 28 → 46 to preserve track under §18.1.
 Station-token counts exclude the separately represented market marker.
 
+## 1889 engine
+
+`app.engine1889` implements standard Shikoku 1889 in pure Python, including its
+full game loop, seven private powers/components, unlimited Diesels and endings.
+Use the authenticated `/api/1889` API. It runs independently alongside 1830.
+
+- [1889 engine and API guide](app/engine1889/README.md)
+- [1889 acceptance coverage and reference limitations](app/engine1889/RULE_COVERAGE.md)
+
 ## Run the backend
 
 ```bash
@@ -44,7 +53,7 @@ cd multiplayer/backend
 ../../.venv/bin/python server.py
 ```
 
-Use the authenticated `/api/1830` endpoints; FastAPI documents them at `/docs`.
+Use the authenticated `/api/1830` or `/api/1889` endpoints; FastAPI documents them at `/docs`.
 The server persists JSON snapshots in SQLite and checks revisions transactionally
 to prevent concurrent actions from overwriting each other. Creator, player and
 spectator credentials have distinct permissions.
@@ -57,11 +66,15 @@ From the repository root, with backend dependencies installed:
 .venv/bin/python -m unittest discover -v
 ```
 
-The suite includes rule acceptance and rejection checks, three independent
-recorded games with exact final-score comparisons, deterministic replay, and
-an entire recorded game played through the authenticated HTTP API and SQLite.
+The suite includes rule acceptance/rejection checks, independent exact-score
+recordings for both variants, deterministic replay, an authored 1889 game through
+every train phase, authored 1889 endings for every player count, and complete recorded games through authenticated HTTP/SQLite.
 Cash, shares, trains and tile-supply invariants are checked after every accepted
 action.
+
+The [1830/1889 edge-case checklist](docs/ENGINE_EDGE_CASES.md) maps 202 rule and
+transport boundaries to named tests. Its [JSON source](docs/ENGINE_EDGE_CASES.json)
+is checked during normal discovery for missing tests and stale documentation.
 
 The core targets Python 3.8 compatibility. Runtime validation was performed on
 Python 3.12; Python 3.8 syntax compatibility is also checked.
@@ -69,8 +82,7 @@ Python 3.12; Python 3.8 syntax compatibility is also checked.
 ## Earlier prototypes
 
 The existing `app.state`, `app.base`, and minigame modules remain available for
-legacy consumers. New 1830 integrations use `app.engine1830`; the earlier modules
+legacy consumers. New integrations use `app.engine1830` or `app.engine1889`; the earlier modules
 are not the rules controller for the new API. The existing multiplayer frontend
-uses the earlier 1889 WebSocket interface; the new 1830 backend uses the API
-above. Completeness of 1846, 1889 or other 18xx titles is outside this 1830
-implementation.
+uses the earlier 1889 WebSocket interface and needs a separate update to connect
+to these JSON APIs. 1846 and other variants are not implemented by these backends.
