@@ -339,7 +339,9 @@ class Rules1889EdgeTests(unittest.TestCase):
         revenue = B.validate_routes(f.s, "IR", routes)
         f.act("run_routes", routes=routes, revenue=999999)
         self.assertEqual(f.s["operating_turn"]["revenue"], revenue)
-        f.reject("run_routes", routes=routes)
+        f.act(
+            "run_routes", routes=routes
+        )  # §8.3: claims may be corrected before dividends.
 
     def test_dividends_pool_versus_ipo_withhold_and_zero_revenue(self):
         for payout, revenue in ((True, 100), (False, 100), (True, 0)):
@@ -634,7 +636,9 @@ class Rules1889EdgeTests(unittest.TestCase):
         f = self.f
         f.operating()
         f.route()
-        f.reject("exchange_private", player="p2")
+        turn = deepcopy(f.s["operating_turn"])
+        f.act("exchange_private", player="p2")
+        self.assertEqual(f.s["operating_turn"], turn)
 
     def test_dougo_exchange_updates_current_president_without_changing_other_operator(
         self,
@@ -788,7 +792,7 @@ class Rules1889EdgeTests(unittest.TestCase):
         self.assertIn("exchange_private", legal_actions(f.s, "p2")["types"])
         self.assertIn("lay_tile", legal_actions(f.s, "p2")["types"])
         f.route()
-        self.assertNotIn("exchange_private", legal_actions(f.s, "p2")["types"])
+        self.assertIn("exchange_private", legal_actions(f.s, "p2")["types"])
         f.shares("AR", "p2", 50)
         f.give_train("AR", "2-0")
         offers = legal_actions(f.s, "p2")["choices"]["offers"]

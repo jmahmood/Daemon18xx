@@ -1,10 +1,11 @@
 # Standard 1889 backend coverage
 
 Target: standard/full Shikoku 1889 for 2–6 players, excluding the beginner option.
-The rule-policy and component cross-check is the pinned production `G1889` in
-`tobymao/18xx` revision `46a592e40494368390c9a731978a577ac4ecb1e0`, including its
-published-rulebook metadata link. No uploaded 1889 PDF was provided; the uploaded
-RTF specifies 1830. This document does not claim a page-by-page PDF comparison.
+The primary rule reference is the uploaded Japanese [1889 rulebook](../../docs/rules1889.pdf).
+The [clause-by-clause audit and implementation loop](../../docs/1889_RULEBOOK_AUDIT.md)
+records corrections, tests and edition decisions. The production `G1889` at
+`tobymao/18xx` revision `46a592e40494368390c9a731978a577ac4ecb1e0` remains the
+secondary policy/component reference; the translation omits its full tile chart.
 
 ## Acceptance evidence
 
@@ -34,7 +35,10 @@ steps. HTTP scenarios cover all player counts, invalid metadata conflicts and
 rollback/retry after a database commit failure. See the
 [iterative test audit](../../docs/ENGINE_TEST_AUDIT.md).
 
-Competitive auctions select the lowest standing bidder after every pass/raise.
+Competitive 1889 auctions follow clockwise order after the high bidder (§5.7).
+Capital is paid at the fifth IPO share (§5.6.4), with a fallback for older unfunded
+saves. The new rulebook suite also covers MF/DR timing, emergency ownership
+correction, retained bankruptcy private value and exact route allocation.
 Emergency sales record one block per corporation per operating turn, survive
 JSON/SQLite reload, and use the same restriction in bankruptcy funding estimates
 and liquidation. A new operating turn resets that bookkeeping.
@@ -45,19 +49,19 @@ and liquidation. A new operating turn resets that bookkeeping.
 | Auction | Ordered purchases, competitive bids, escrow, refunds, first-company discount, no first-stock-round sales. |
 | Stock | Legal par prices, president first, 50% float, full capital once, per-turn block sales, sell/buy ordering, sold-company restriction, market color exemptions. |
 | Homes | All floated companies place their free home station at OR start; future companies' home tokens already block rivals. |
-| Turns | Full auction/stock/OR loop, ordered operating steps, one normal lay and extra token, payouts/withholds, delayed 1/2/3-OR sets. Complete recordings exercise these together. |
+| Turns | Full auction/stock/OR loop, ordered operating steps, one normal lay and extra token, editable unpaid route claims, payouts/withholds, delayed 1/2/3-OR sets. Complete recordings exercise these together. |
 | Map | Standard flat coordinates; matching town/city/label and next color; every preserved path and station; finite tile accounting; terrain and map-edge constraints. |
 | Stations/routes | ¥40 extra stations, token supply, reservations and city blocking; legal railheads, no repeated vertices/track, no switching at junctions/crossings, train capacity and distinct trains/routes. |
 | TR | K4 block while player-owned; first-5 closure. |
-| MF | Unbuilt coastal-town port, player ownership and timing, once only, no connectivity, no closure on use, permanent port tile; exact reference game includes use. |
+| MF | Unbuilt coastal-town port, player ownership and timing, once only, no connectivity, no closure on use, permanent port tile; initial auction and entire owning-player OR supported. |
 | ER | Seller-controlled interrupt with optional green lay/pass; wrong actor/tile rejected; preserves normal lay and restores original actor. Both pure-engine and real HTTP tests. |
 | SMR | Pure mountain discount; mixed water/mountain excluded; repeated H-city construction costs preserved. |
-| DR | IPO-only 10% IR exchange, ownership/60%/timing restrictions and closure; between-turn actor discovery. |
+| DR | IPO-only 10% IR exchange, normal ownership/color exemptions, closure, stock/OR timing and immediate presidency/actor changes. |
 | SIR / UTF | Two-player SIR removal; UTF absent below four, survives as player-owned at first 5 with ¥50 revenue; corporation-owned closure. |
 | Trains | Ordered finite depot, returned trains, immediate excess discards, corporate transfers with consent, unlimited Diesel generation, Diesel trade-in at train limit, all rust events. |
 | Revenue | Real stop revenue; train-specific Diesel offboards; private income and corporate/player ownership; pool versus IPO payouts. |
 | Emergency | Cheapest depot alternative, necessary sales only, personal contribution only when mandatory, no subsidy of another company's train, no presidency swaps in any company; immediate bankruptcy and unsaleable-stock scoring. |
-| Endgame | Bank depletion finishes the required set, bankruptcy ends immediately, corporate treasury excluded, UTF included when eligible. |
+| Endgame | Bank depletion finishes the required set, bankruptcy ends immediately, corporate treasury excluded, remaining open privates valued even for bankrupt players. |
 | Isolation | Interleaved 1830/1889 games preserve each other's state and ¥7,000/$12,000 invariants; no module-global rule switching. |
 | Transport | All roles, wrong-room/variant tokens, creator-only start/restart rejection, stale revisions, concurrent writers, rejected-action atomicity, ER interrupts, JSON reload and continued play. |
 | Database | Additive legacy-engine migration is repeatable and preserves existing rows. Legacy endpoints cannot expose Python-room credentials or accept its gameplay. |
@@ -85,10 +89,13 @@ and liquidation. A new operating turn resets that bookkeeping.
   actions are retained as a regression fixture, and the recorded illegal route
   is explicitly rejected. Allowing it to match the old final scores would weaken
   the blocking rule. Accordingly there is only **one independent complete 1889
-  reference replay**, not two. Bankruptcy is covered by a rule-specific scenario;
+  reference replay**, not two. Bankruptcy is covered by rule-specific and complete authored scenarios;
   a second valid independent bankruptcy recording remains useful additional
   validation. The earlier preimplementation audit's two-replay expectation was
   based on recording metadata, before attempting either replay.
+
+Game 962 contains one non-maximal but already-paid historical route claim;
+see the rulebook audit for its treatment under the tabletop route policy.
 
 The existing three independent 1830 games and complete 1830 HTTP game remain
 part of normal discovery. Passing tests establish these scenarios, not a proof

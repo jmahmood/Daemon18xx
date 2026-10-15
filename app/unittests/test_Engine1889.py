@@ -381,7 +381,7 @@ class Rules1889Tests(unittest.TestCase):
         self.act("bankrupt")
         self.assertTrue(self.s["finished"])
         self.assertEqual(self.s["end_reason"], "bankruptcy")
-        self.assertEqual(self.s["result"]["p1"], 270)
+        self.assertEqual(self.s["result"]["p1"], 340)
 
     def test_parallel_variants_and_replay_isolation(self):
         from app.engine1830 import new_game as game1830, apply_action as action1830

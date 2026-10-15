@@ -119,7 +119,7 @@ class BackendAPIEdgeTests(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(current, initial)
 
-    async def test_competitive_auction_uses_lowest_bidder_over_http(self):
+    async def test_competitive_auction_uses_variant_bidder_order_over_http(self):
         for variant, company, face, preceding in (
             ("1830", "DH", 70, ("SV", "CS")),
             ("1889", "ER", 40, ("TR", "MF")),
@@ -142,14 +142,15 @@ class BackendAPIEdgeTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(status, 200, view)
             state = view["state"]
-            self.assertEqual(state["current_player"], "p3")
+            challenger = "p1" if variant == "1889" else "p3"
+            self.assertEqual(state["current_player"], challenger)
             status, _ = await self.submit(state["revision"], "p2", type="pass")
             self.assertEqual(status, 422)
             status, restored = await self.h.request(
                 "GET", self.path, token=self.info["spectator_token"]
             )
             self.assertEqual(restored["state"], state)
-            status, view = await self.submit(state["revision"], "p3", type="pass")
+            status, view = await self.submit(state["revision"], challenger, type="pass")
             self.assertEqual(status, 200, view)
             self.assertEqual(view["state"]["privates"][company]["owner"], "p2")
 

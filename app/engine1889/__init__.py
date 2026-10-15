@@ -11,6 +11,7 @@ from .engine import (
     scores,
     validate_state,
     replay,
+    best_routes,
     check_invariants,
 )
 from .errors import RuleError
@@ -24,5 +25,6 @@ __all__ = [
     "validate_state",
     "RuleError",
     "replay",
+    "best_routes",
     "check_invariants",
 ]

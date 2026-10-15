@@ -43,6 +43,7 @@ Use the authenticated `/api/1889` API. It runs independently alongside 1830.
 
 - [1889 engine and API guide](app/engine1889/README.md)
 - [1889 acceptance coverage and reference limitations](app/engine1889/RULE_COVERAGE.md)
+- [Uploaded 1889 rulebook audit and iteration results](docs/1889_RULEBOOK_AUDIT.md)
 
 ## Run the backend
 
@@ -72,7 +73,7 @@ every train phase, authored 1889 endings for every player count, and complete re
 Cash, shares, trains and tile-supply invariants are checked after every accepted
 action.
 
-The [1830/1889 edge-case checklist](docs/ENGINE_EDGE_CASES.md) maps 202 rule and
+The [1830/1889 edge-case checklist](docs/ENGINE_EDGE_CASES.md) maps 226 rule and
 transport boundaries to named tests. Its [JSON source](docs/ENGINE_EDGE_CASES.json)
 is checked during normal discovery for missing tests and stale documentation.
 

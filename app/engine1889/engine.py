@@ -352,9 +352,25 @@ def _check_president(state, corp):
     )
 
 
-def _float(corp):
+def _float(corp, state=None):
     if corp["par"] is not None and corp["ipo"] <= 50:
         corp["floated"] = True
+        if state is not None and not corp["funded"]:
+            _pay(state, "bank", corp["id"], corp["par"] * 10)
+            corp["funded"] = True
+
+
+def _next_auction_bidder(state, after):
+    """§5.7: clockwise among challengers, skipping the standing high bidder."""
+    auction = state["auction"]
+    bids = auction["bids"][auction["active"]]
+    bidders = auction["bidders"]
+    highest = max(bidders, key=lambda p: bids[p])
+    order = state["player_order"]
+    return min(
+        (p for p in bidders if p != highest),
+        key=lambda p: (order.index(p) - order.index(after) - 1) % len(order),
+    )
 
 
 def _award_private(state, private_id, player, price):
@@ -378,7 +394,10 @@ def _continue_auction(state):
     auction = state["auction"]
     auction["active"] = None
     auction["bidders"] = []
-    for pid, private in state["privates"].items():
+    for pid in PRIVATES:
+        if pid not in state["privates"]:
+            continue
+        private = state["privates"][pid]
         if private["owner"]:
             continue
         bids = auction["bids"][pid]
@@ -393,10 +412,13 @@ def _continue_auction(state):
         else:
             auction["active"] = pid
             auction["bidders"] = sorted(bids, key=lambda p: bids[p])
-            state["current_player"] = auction["bidders"][0]
+            highest = max(bids, key=bids.get)
+            state["current_player"] = _next_auction_bidder(state, highest)
             return
     if not state["pending_par"]:
-        state["priority"] = auction["resume"]
+        last = next(pid for pid in reversed(PRIVATES) if pid in state["privates"])
+        final_private = state["privates"][last]
+        state["priority"] = _next_player(state, final_private["owner"])
         _start_stock(state, first=True)
 
 
@@ -405,7 +427,9 @@ def _auction_action(state, action):
     auction = state["auction"]
     require(actor == state["current_player"], "Not your auction turn")
     unsold = [
-        pid for pid, private in state["privates"].items() if private["owner"] is None
+        pid
+        for pid in PRIVATES
+        if pid in state["privates"] and state["privates"][pid]["owner"] is None
     ]
     require(unsold, "No private companies remain")
     offered = auction["active"] or unsold[0]
@@ -467,14 +491,13 @@ def _auction_action(state, action):
             if not state["pending_par"]:
                 _continue_auction(state)
         else:
-            state["current_player"] = min(
-                bidders, key=lambda p: auction["bids"][offered][p]
-            )
+            state["current_player"] = _next_auction_bidder(state, actor)
     else:
         state["current_player"] = _next_player(state, actor)
         auction["resume"] = state["current_player"]
         if auction["passes"] >= len(state["players"]):
             auction["passes"] = 0
+            state["priority"] = state["current_player"]
             if offered == "TR":
                 auction["discount"] = min(20, auction["discount"] + 5)
                 if auction["discount"] == 20:
@@ -584,7 +607,7 @@ def _buy_shares(state, action, exchange=False):
             corp["id"] if _zone(corp) == "b" else None
         )
         _stock_deal(state)
-    _float(corp)
+    _float(corp, state)
 
 
 def _sell_shares(state, player, cid, amount, emergency=False):
@@ -598,6 +621,10 @@ def _sell_shares(state, player, cid, amount, emergency=False):
     require(corp["holdings"][player] >= amount, "You do not own these shares")
     require(corp["pool"] + amount <= 50, "Bank Pool cannot exceed 50%")
     if emergency:
+        require(
+            _zone(corp) == "o" or corp["holdings"][player] - amount <= 60,
+            "Emergency sale must correct holdings above 60% outside orange",
+        )
         sales = state["operating_turn"]["emergency_sales"]
         require(
             cid not in sales, "Sell this corporation in one emergency block per turn"
@@ -704,7 +731,8 @@ def _start_operating(state):
     _private_revenue(state)
     state["or_order"] = _operating_order(state)
     state["or_index"] = 0
-    # Capital is issued at the start of the corporation's first operating round.
+    # New corporations are funded at flotation (§5.6.4). Retain this fallback
+    # for older saved games that deferred their capital until the first OR.
     for cid in state["or_order"]:
         corp = state["corporations"][cid]
         if not corp["funded"]:
@@ -960,15 +988,7 @@ def _exchange_private(state, action):
         state["round"] in ("stock", "operating"),
         "Exchange requires stock or operating round",
     )
-    require(
-        (state["round"] == "stock" and state["current_player"] == player)
-        or not state["turn_started"],
-        "Exchange must occur on own stock turn or between turns",
-    )
     require(action.get("source", "ipo") == "ipo", "Dougo exchanges only for IPO shares")
-    require(
-        state["corporations"]["IR"]["holdings"][player] < 60, "Already holds 60% IR"
-    )
     private["closed"] = True
     _buy_shares(
         state, dict(action, corporation="IR", percent=10, source="ipo"), exchange=True
@@ -1095,16 +1115,10 @@ def _port_allowed(state, player):
         and not state["pending_par"]
         and not state["pending_special"]
         and (
-            state["round"] == "stock"
+            state["round"] in ("auction", "stock")
             or (
                 state["round"] == "operating"
-                and (
-                    not state["turn_started"]
-                    or (
-                        state["current_player"] == player
-                        and state["operating_turn"]["step"] == "track"
-                    )
-                )
+                and (not state["turn_started"] or state["current_player"] == player)
             )
         )
     )
@@ -1237,10 +1251,16 @@ def _operating_action(state, action):
         require(not turn["tokened"], "Only one additional station per turn")
         topology.place_token(state, cid, action.get("hex"), action.get("city", 0))
         turn["tokened"], turn["step"] = True, "routes"
-    elif kind == "run_routes":
+    elif kind in ("run_routes", "run_best_routes"):
+        if turn["step"] == "dividend" and not turn["dividend"]:
+            # §8.3 permits correcting the claim until its dividend is resolved.
+            turn["step"] = "routes"
         _skip_to(state, "routes")
-        require(turn["routes"] is None, "Trains already run this turn")
-        routes = action.get("routes")
+        routes = (
+            topology.best_routes(state, cid)["routes"]
+            if kind == "run_best_routes"
+            else action.get("routes")
+        )
         require(isinstance(routes, list), "Routes must be a list")
         routes = [
             (
@@ -1290,8 +1310,13 @@ def _operating_action(state, action):
             - corp["cash"]
             - state["players"][corp["president"]]["cash"]
         )
+        correction = (
+            max(0, selling["holdings"][action["player"]] - 60)
+            if _zone(selling) != "o"
+            else 0
+        )
         require(
-            (amount // 10 - 1) * _price(selling) < shortfall,
+            amount <= correction or (amount // 10 - 1) * _price(selling) < shortfall,
             "Emergency sales may raise only the funds needed for the cheapest train",
         )
         _sell_shares(
@@ -1327,6 +1352,12 @@ def _operating_action(state, action):
         raise RuleError("Illegal operating-round action")
 
 
+def best_routes(state, corporation=None):
+    """Return an exact maximum-revenue route allocation without changing state."""
+    cid = state["current_corporation"] if corporation is None else corporation
+    return topology.best_routes(state, cid)
+
+
 def scores(state):
     result = {}
     for pid, player in state["players"].items():
@@ -1334,12 +1365,11 @@ def scores(state):
         value += sum(
             c["holdings"][pid] // 10 * _price(c) for c in state["corporations"].values()
         )
-        if not player["bankrupt"]:
-            value += sum(
-                p["value"]
-                for p in state["privates"].values()
-                if p["owner"] == pid and not p["closed"]
-            )
+        value += sum(
+            p["value"]
+            for p in state["privates"].values()
+            if p["owner"] == pid and not p["closed"]
+        )
         result[pid] = value
     return result
 
@@ -1566,6 +1596,10 @@ def legal_actions(state, player=None):
             "train": ["buy_train", "end_turn", "emergency_sell", "bankrupt"],
         }[step]
         types += ["buy_private"]
+        if step in ("track", "token", "routes", "dividend"):
+            types.append("run_best_routes")
+        if step == "dividend":
+            types.append("run_routes")
         cid = state["current_corporation"]
         choices["depot"] = available_depot(state)
     requested = player if player is not None else actor

@@ -32,7 +32,8 @@ independent lists, so editing a response cannot alter a game's trains.
 
 - ¥7,000 total; starting cash ¥420 for 2–4 players and ¥390 for 5–6.
 - Seven corporations: AR, IR, SR, KO, TR, KU, UR. Flotation at 50%, full
-  capitalization at ten times par, and all floated home stations at OR start.
+  capitalization at ten times par paid at the fifth IPO share, and all floated
+  home stations at OR start.
 - Par ¥65/70/75/80/90/100; standard 11-row market and certificate limits.
 - The complete 52-hex flat-layout board and 63 physical tiles. City labels,
   preserved track, finite supplies, reservations, blocked cities and terrain
@@ -57,10 +58,10 @@ in [the 1830 API guide](../engine1830/README.md), with these 1889 policies:
 | Company | Behavior / action |
 |---|---|
 | TR | Blocks K4 while player-owned; normal closure at first 5. |
-| MF | Player owner uses `lay_tile`, `special: 'MF'`, `tile: '437'`, an unbuilt coastal town B11/G10/I12/J9 and `rotation`. Available in stock rounds, between OR turns, or the owner's corporation's track step. No connectivity required; once only; does not close MF. The port tile cannot be upgraded. |
+| MF | Player owner uses `lay_tile`, `special: 'MF'`, `tile: '437'`, an unbuilt coastal town B11/G10/I12/J9 and `rotation`. Available during the initial auction, stock rounds, between OR turns, or throughout the owner's corporation turn. No connectivity required; once only; does not close MF. The port tile cannot be upgraded. |
 | ER | Selling to a corporation starts a mandatory actor interrupt for the seller. Seller may `lay_tile` at C4 with green 12/13/14/15/205/206 and `special: 'ER'`, or `pass`. The seller pays construction costs; the corporation's normal lay is preserved. Its original president resumes afterward. |
 | SMR | Corporation ignores pure-mountain costs; mixed water/mountain and special-city costs remain payable. |
-| DR | Player uses `exchange_private` (alias `exchange_dr`) for one 10% **IPO** IR share, on their stock turn or between turns. Enforce ownership, timing and certificate limits; closes DR. |
+| DR | Player uses `exchange_private` (alias `exchange_dr`) for one 10% **IPO** IR share, during stock or operating turns, including out of turn. Normal ownership/color and certificate limits apply; closes DR and immediately updates the president/actor if necessary. |
 | SIR | No special power; absent at two players. |
 | UTF | Absent below four players. Player-owned UTF survives first 5, earns ¥50 and cannot subsequently be sold to a corporation. Corporation-owned UTF closes normally. |
 
@@ -73,8 +74,13 @@ train-discard interrupts. Phase 5 closes all other remaining privates.
 and MF port choices. Pending ER choices identify the **seller**, not the buying
 corporation president. Candidate parameters still undergo authoritative rule
 validation. Routes may use explicit vertices or ordered `[hex, path-index]`
-segments; revenue is computed from the actual stops. Suggestions are bounded,
-not a promise of globally optimal revenue.
+segments; revenue is computed from the actual stops. Suggestions are bounded. The separate `best_routes(state, corporation)` function
+exhaustively computes maximum combined revenue with disjoint track across all
+eligible trains. `run_best_routes` submits that allocation; it needs no client
+route parameters. Exact search can be expensive on dense boards. Before a
+dividend decision, `run_routes` can replace an earlier unpaid claim; payment
+locks the claim. Manual submissions follow the tabletop responsibility model:
+legal claims are accepted, with the president responsible for maximizing revenue.
 
 ## HTTP and persistence
 
@@ -106,6 +112,8 @@ separate update to use these APIs.
 ## Validation and sources
 
 Run `python -m unittest discover -q` with backend dependencies installed.
+The uploaded [Japanese rulebook](../../docs/rules1889.pdf) and
+[clause audit](../../docs/1889_RULEBOOK_AUDIT.md) are the primary policy reference.
 [Coverage and known reference limitations](RULE_COVERAGE.md) distinguishes exact
 independent results from authored scenarios. The catalog and reference recording
 derive from MIT-licensed `tobymao/18xx` at

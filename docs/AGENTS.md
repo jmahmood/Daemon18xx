@@ -1,6 +1,8 @@
 # AGENT Guidelines for Implementing 1830 Rules
 
-This directory contains the original 1830 rulebook (`rules1830.rtf`).
+This directory contains the original 1830 rulebook (`rules1830.rtf`) and the
+user-uploaded Japanese 1889 rulebook (`rules1889.pdf`). Use the matching variant
+source; see `1889_RULEBOOK_AUDIT.md` for the standard 1889 clause comparison.
 When adding game logic or tests, consult the rulebook so behaviour matches
 the official rules.
 

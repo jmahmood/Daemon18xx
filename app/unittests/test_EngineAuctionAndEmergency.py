@@ -38,7 +38,9 @@ class AuctionOrderingTests(unittest.TestCase):
         self.act("bid", company=self.company, price=self.face + 15)
         for company in preceding:
             self.act("buy_private", company=company)
-        self.assertEqual(self.s["current_player"], "p1")
+        self.assertEqual(
+            self.s["current_player"], "p3" if module is engine1889 else "p1"
+        )
 
     def act(self, kind, **args):
         actor = args.pop("player", self.s["current_player"])
@@ -50,12 +52,14 @@ class AuctionOrderingTests(unittest.TestCase):
             self.act(kind, **args)
         self.assertEqual(self.s, original)
 
-    def test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw(self):
+    def test_variant_bidder_order_after_pass_and_high_bid_cannot_withdraw(self):
         for module in (engine1830, engine1889):
             with self.subTest(variant=module.__name__):
                 self.auction(module)
                 self.act("pass")
-                self.assertEqual(self.s["current_player"], "p3")
+                self.assertEqual(
+                    self.s["current_player"], "p1" if module is engine1889 else "p3"
+                )
                 self.reject("pass", player="p2")
                 self.act("pass")
                 self.assertEqual(self.s["privates"][self.company]["owner"], "p2")
@@ -67,16 +71,20 @@ class AuctionOrderingTests(unittest.TestCase):
                 self.assertEqual(self.s["auction"]["bids"][self.company], {})
                 self.assertEqual(self.s["current_player"], "p1")
 
-    def test_raise_reorders_by_standing_bid_and_refunds_losers(self):
+    def test_raise_preserves_variant_bidder_order_and_refunds_losers(self):
         for module in (engine1830, engine1889):
             with self.subTest(variant=module.__name__):
                 self.auction(module)
                 self.act("bid", company=self.company, price=self.face + 20)
-                self.assertEqual(self.s["current_player"], "p3")
+                self.assertEqual(
+                    self.s["current_player"], "p1" if module is engine1889 else "p3"
+                )
                 self.act("pass")
                 self.assertEqual(self.s["current_player"], "p2")
                 self.act("bid", company=self.company, price=self.face + 25)
-                self.assertEqual(self.s["current_player"], "p1")
+                self.assertEqual(
+                    self.s["current_player"], "p3" if module is engine1889 else "p1"
+                )
                 self.act("pass")
                 self.assertEqual(self.s["privates"][self.company]["owner"], "p2")
                 start_cash = 420 if module is engine1889 else 600
@@ -95,10 +103,15 @@ class AuctionOrderingTests(unittest.TestCase):
                 self.reject("bid", company=self.company, price=self.face + 19)
                 self.act("pass")
                 self.reject(
-                    "bid", player="p1", company=self.company, price=self.face + 20
+                    "bid",
+                    player="p3" if module is engine1889 else "p1",
+                    company=self.company,
+                    price=self.face + 20,
                 )
                 self.s = json.loads(json.dumps(self.s))
-                self.assertEqual(self.s["current_player"], "p3")
+                self.assertEqual(
+                    self.s["current_player"], "p1" if module is engine1889 else "p3"
+                )
                 self.act("bid", company=self.company, price=self.face + 20)
                 self.assertEqual(self.s["current_player"], "p2")
 

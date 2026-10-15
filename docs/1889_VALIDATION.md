@@ -1,5 +1,9 @@
 # 1889 readiness audit and dual-game implementation checklist
 
+> Historical audit before the uploaded Japanese rulebook. See the
+> [current rulebook comparison and corrections](1889_RULEBOOK_AUDIT.md).
+
+
 > Historical preimplementation audit. The standard Python 1889 backend is now
 > implemented at `app.engine1889` and `/api/1889`. See the [current coverage and
 > reference-recording limitation](../app/engine1889/RULE_COVERAGE.md). The legacy

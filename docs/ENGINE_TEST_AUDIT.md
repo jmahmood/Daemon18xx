@@ -1,5 +1,9 @@
 # Iterative 1830 / 1889 backend test audit
 
+> Historical audit before the uploaded Japanese rulebook. See the
+> [current rulebook comparison and corrections](1889_RULEBOOK_AUDIT.md).
+
+
 Scope: the pure Python standard 1830 and Shikoku 1889 engines and their
 authenticated HTTP/SQLite backends. The case inventory is a finite set of reviewed
 rule boundaries and failure modes; it is not a proof over every possible game.

@@ -1,5 +1,5 @@
 {
-  "scope": "Standard 1830 (uploaded RTF) and standard Shikoku 1889 (pinned G1889 reference); pure Python engines and authenticated HTTP backends. Excludes 1846, beginner variants and browser UI.",
+  "scope": "Standard 1830 (uploaded RTF) and standard Shikoku 1889 (uploaded Japanese rulebook and pinned component reference); pure Python engines and authenticated HTTP backends. Excludes 1846, beginner variants and browser UI.",
   "interpretation": "A finite inventory of rule boundaries and observed failure modes, not an enumeration of every possible game state. Each row maps to executable tests whose assertions were reviewed; reference/API replays are labeled integration rather than unit tests.",
   "cases": [
     {
@@ -170,7 +170,7 @@
     {
       "id": "AUCTION-06",
       "area": "AUCTION",
-      "scenario": "Competitive auction starts with the lowest standing bidder",
+      "scenario": "Competitive auction starts by variant: lowest standing bid in 1830; clockwise after highest bidder in uploaded 1889 rules",
       "level": "unit",
       "tests": {
         "1830": [
@@ -185,14 +185,14 @@
     {
       "id": "AUCTION-07",
       "area": "AUCTION",
-      "scenario": "After a pass select lowest remaining bid, even when seating order differs",
+      "scenario": "After a pass, use the variant auction order and prevent the high bidder withdrawing",
       "level": "unit",
       "tests": {
         "1830": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_variant_bidder_order_after_pass_and_high_bid_cannot_withdraw"
         ],
         "1889": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_variant_bidder_order_after_pass_and_high_bid_cannot_withdraw"
         ]
       },
       "not_applicable": {}
@@ -204,10 +204,10 @@
       "level": "unit",
       "tests": {
         "1830": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_variant_bidder_order_after_pass_and_high_bid_cannot_withdraw"
         ],
         "1889": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_lowest_remaining_bidder_acts_after_pass_and_high_bid_cannot_withdraw"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_variant_bidder_order_after_pass_and_high_bid_cannot_withdraw"
         ]
       },
       "not_applicable": {}
@@ -215,14 +215,14 @@
     {
       "id": "AUCTION-09",
       "area": "AUCTION",
-      "scenario": "A raise changes the lowest-bidder order; losers receive escrow refunds",
+      "scenario": "After a raise, use the variant auction order and refund losing escrow",
       "level": "unit",
       "tests": {
         "1830": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_reorders_by_standing_bid_and_refunds_losers"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_preserves_variant_bidder_order_and_refunds_losers"
         ],
         "1889": [
-          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_reorders_by_standing_bid_and_refunds_losers"
+          "app.unittests.test_EngineAuctionAndEmergency.AuctionOrderingTests.test_raise_preserves_variant_bidder_order_and_refunds_losers"
         ]
       },
       "not_applicable": {}
@@ -776,14 +776,15 @@
     {
       "id": "OPERATING-02",
       "area": "OPERATING",
-      "scenario": "Full capitalization is issued once at first operation, never again",
+      "scenario": "Full capital paid once: first operation in 1830; fifth IPO share in 1889 (with legacy first-OR fallback)",
       "level": "unit",
       "tests": {
         "1830": [
           "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
         ],
         "1889": [
-          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once"
+          "app.unittests.test_EngineContractEdges.SharedContractEdgeTests.test_flotation_exact_threshold_and_capital_only_once",
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_6_4_capital_paid_at_fifth_share_and_never_repeated"
         ]
       },
       "not_applicable": {}
@@ -2879,10 +2880,10 @@
       "level": "integration",
       "tests": {
         "1830": [
-          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_lowest_bidder_over_http"
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_variant_bidder_order_over_http"
         ],
         "1889": [
-          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_lowest_bidder_over_http"
+          "app.unittests.test_EngineAPIEdges.BackendAPIEdgeTests.test_competitive_auction_uses_variant_bidder_order_over_http"
         ]
       },
       "not_applicable": {}
@@ -3111,6 +3112,366 @@
       },
       "not_applicable": {
         "1830": "1889-specific private power or scenario."
+      }
+    },
+    {
+      "id": "RULE1889-01",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 6 4 capital paid at fifth share and never repeated",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_6_4_capital_paid_at_fifth_share_and_never_repeated"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-02",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §12 2 flotation can break bank before stock round ends",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_12_2_flotation_can_break_bank_before_stock_round_ends"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-03",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 7 competitive auction uses clockwise order after high bidder",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_7_competitive_auction_uses_clockwise_order_after_high_bidder"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-04",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 7 last private winner determines first public stock actor",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_7_last_private_winner_determines_first_public_stock_actor"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-05",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 7 private only pass cycle updates priority before free purchase",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_7_private_only_pass_cycle_updates_priority_before_free_purchase"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-06",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §15 2 mitsubishi port can be used during initial stock auction",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_mitsubishi_port_can_be_used_during_initial_stock_auction"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-07",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §15 2 mitsubishi port is available throughout owners operating turn",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_mitsubishi_port_is_available_throughout_owners_operating_turn"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-08",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §15 2 dougo exchange during another players started stock turn",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_dougo_exchange_during_another_players_started_stock_turn"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-09",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §15 2 dougo mid operation can change president and resumes same step",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_dougo_mid_operation_can_change_president_and_resumes_same_step"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-10",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §15 2 dougo exchange uses normal orange holding exemption",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_dougo_exchange_uses_normal_orange_holding_exemption"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-11",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §10 6 2 excess holding sale must correct to sixty even if more than needed",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_10_6_2_excess_holding_sale_must_correct_to_sixty_even_if_more_than_needed"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-12",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §10 6 2 orange holdings need not be corrected to sixty",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_10_6_2_orange_holdings_need_not_be_corrected_to_sixty"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-13",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §12 1 bankrupt player keeps value of open privates and can win",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_12_1_bankrupt_player_keeps_value_of_open_privates_and_can_win"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-14",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §6 2 disjoint added track and junction reversal cannot justify upgrade",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UpgradeRulebookTests.test_6_2_disjoint_added_track_and_junction_reversal_cannot_justify_upgrade"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-15",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §6 2 reachable new branch is a legal upgrade",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UpgradeRulebookTests.test_6_2_reachable_new_branch_is_a_legal_upgrade"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-16",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §6 2 reachable city value change needs no new track",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UpgradeRulebookTests.test_6_2_reachable_city_value_change_needs_no_new_track"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-17",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 optimal allocation can shorten best train to improve total",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_optimal_allocation_can_shorten_best_train_to_improve_total"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-18",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 route claims can be corrected until dividend then are locked",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_route_claims_can_be_corrected_until_dividend_then_are_locked"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-19",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 optimizer assigns shared offboard to diesel",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_optimizer_assigns_shared_offboard_to_diesel"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-20",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 no routes or only newly bought trains produces zero",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_no_routes_or_only_newly_bought_trains_produces_zero"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-21",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 zero revenue still returns a runnable route",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_zero_revenue_still_returns_a_runnable_route"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-22",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 6 4 flotation capital is persisted before operating and not paid again",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookHTTPTests.test_5_6_4_flotation_capital_is_persisted_before_operating_and_not_paid_again"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-23",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §8 3 identical trains and unused extra trains keep track disjoint",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_identical_trains_and_unused_extra_trains_keep_track_disjoint"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "RULE1889-24",
+      "area": "RULE1889",
+      "scenario": "Uploaded 1889 rules §5 7 auction order and last winner survive reordered json",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_5_7_auction_order_and_last_winner_survive_reordered_json"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
       }
     }
   ]

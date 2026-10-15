@@ -2,6 +2,7 @@
 
 from collections import defaultdict, deque
 from itertools import permutations, product
+from functools import lru_cache
 
 from .data import BOARD_DATA, CORPORATIONS, PHASES, UPGRADES
 from .errors import require, RuleError
@@ -139,7 +140,7 @@ def token_vertices(board, corporation):
     ]
 
 
-def reachable(board, corporation):
+def _network(board, corporation):
     """Vertices reachable by a legal simple path from any company station.
 
     A directed-edge visit alone is insufficient: a loop can return to a junction
@@ -151,6 +152,7 @@ def reachable(board, corporation):
     starts = token_vertices(board, corporation)
     bits = {v: 1 << i for i, v in enumerate(set(adj).union(starts))}
     seen = set(starts)
+    connected_paths = set()
     queue = deque((v, None, bits[v]) for v in starts)
     visited = {(v, None): [bits[v]] for v in starts}
     while queue:
@@ -169,6 +171,7 @@ def reachable(board, corporation):
                 if previous.split(":")[0] == vertex.split(":")[0] == nxt.split(":")[0]:
                     continue
             next_path = path | bits[nxt]
+            connected_paths.add(frozenset((vertex, nxt)))
             key = (nxt, vertex)
             alternatives = visited.get(key, [])
             if any(old & next_path == old for old in alternatives):
@@ -177,7 +180,11 @@ def reachable(board, corporation):
             visited[key].append(next_path)
             seen.add(nxt)
             queue.append((nxt, vertex, next_path))
-    return seen
+    return seen, connected_paths
+
+
+def reachable(board, corporation):
+    return _network(board, corporation)[0]
 
 
 def reserved_home(state, coord, index, corporation):
@@ -310,6 +317,8 @@ def lay_tile(state, corporation, coord, tile_id, rotation, special=None, spender
     require(
         mapping is not None, "Upgrade must preserve every existing track and station"
     )
+    for i, j in enumerate(mapping):
+        new["tokens"][j].extend(old["tokens"][i])
     # Every exit must remain on the map and must not run into a blank gray side or lake.
     for endpoint in {v for p in new["paths"] for v in p if v.startswith("e")}:
         edge = int(endpoint[1:])
@@ -336,6 +345,33 @@ def lay_tile(state, corporation, coord, tile_id, rotation, special=None, spender
             coord + ":n" + str(i) in can_reach for i in range(len(old["nodes"]))
         )
         require(connected, "Construction must extend an available railhead route")
+        if old["paths"]:
+            candidate = dict(state["board"])
+            candidate[coord] = new
+            vertices, connected_paths = _network(candidate, corporation)
+
+            def remap(vertex):
+                return (
+                    "n" + str(mapping[int(vertex[1:])])
+                    if vertex.startswith("n")
+                    else vertex
+                )
+
+            old_paths = {frozenset(remap(v) for v in path) for path in old["paths"]}
+            used_new_track = any(
+                frozenset(path) not in old_paths
+                and frozenset(coord + ":" + v for v in path) in connected_paths
+                for path in new["paths"]
+            )
+            changed_city = any(
+                coord + ":n" + str(j) in vertices
+                and max(old["nodes"][i]["revenue"]) != max(new["nodes"][j]["revenue"])
+                for i, j in enumerate(mapping)
+            )
+            require(
+                used_new_track or changed_city,
+                "Upgrade must use new track or change a reachable city value",
+            )
     cost = old["cost"]
     smr = state["privates"]["SMR"]
     if (
@@ -350,8 +386,6 @@ def lay_tile(state, corporation, coord, tile_id, rotation, special=None, spender
         else state["players"][spender]
     )
     require(account["cash"] >= cost, "Insufficient construction funds")
-    for i, j in enumerate(mapping):
-        new["tokens"][j].extend(old["tokens"][i])
     for home_corp in state["corporations"].values():
         if home_corp["home"] == coord:
             home_corp["home_city"] = mapping[home_corp.get("home_city", 0)]
@@ -484,7 +518,7 @@ def route_candidates(state, corporation, train_id=None, limit=100):
                     if sig not in signatures and len(groups) == len(set(groups)):
                         signatures.add(sig)
                         results.append({"train": train_id, "vertices": path})
-                        if len(results) >= limit:
+                        if limit is not None and len(results) >= limit:
                             return results
                 if (
                     stops >= capacity
@@ -492,7 +526,7 @@ def route_candidates(state, corporation, train_id=None, limit=100):
                     or info["kind"] == "offboard"
                 ):
                     continue
-            for nxt in adj[current]:
+            for nxt in sorted(adj[current], reverse=True):
                 if nxt in path:
                     continue
                 if len(path) > 1 and current.split(":")[1].startswith("e"):
@@ -506,6 +540,91 @@ def route_candidates(state, corporation, train_id=None, limit=100):
                 if count <= capacity:
                     stack.append((nxt, path + [nxt], count, has_token or nxt in tokens))
     return results
+
+
+def best_routes(state, corporation):
+    """Find the maximum combined revenue over all legal, track-disjoint routes.
+
+    Unlike client suggestions, this search has no route-count cutoff. Enumeration
+    is finite over simple paths; allocation considers all trains together rather
+    than choosing each train's best route independently. Complex late-game boards
+    can require substantial computation.
+    """
+    require(
+        isinstance(corporation, str) and corporation in state["corporations"],
+        "Unknown corporation",
+    )
+    trains = list(state["corporations"][corporation]["trains"])
+    if state.get("current_corporation") == corporation and state.get("operating_turn"):
+        new_trains = state["operating_turn"]["new_trains"]
+        trains = [t for t in trains if t not in new_trains]
+    edges = sorted(
+        {
+            tuple(sorted((a, b)))
+            for a, neighbors in graph(state["board"]).items()
+            for b in neighbors
+        }
+    )
+    bits = {edge: 1 << i for i, edge in enumerate(edges)}
+    cached, options = {}, []
+    for tid in trains:
+        train = state["trains"][tid]
+        key = train["distance"], train["type"] == "D"
+        if key not in cached:
+            distinct = {}
+            for route in route_candidates(state, corporation, tid, limit=None):
+                forward = tuple(route["vertices"])
+                vertices = min(forward, tuple(reversed(forward)))
+                mask = 0
+                for a, b in zip(vertices, vertices[1:]):
+                    mask |= bits[tuple(sorted((a, b)))]
+                revenue = validate_routes(state, corporation, [route])
+                if mask not in distinct or revenue > distinct[mask][0]:
+                    distinct[mask] = revenue, vertices
+            cached[key] = sorted(
+                (
+                    (value, mask, vertices)
+                    for mask, (value, vertices) in distinct.items()
+                ),
+                reverse=True,
+            )
+        options.append(cached[key])
+    upper = [0] * (len(trains) + 1)
+    for i in range(len(trains) - 1, -1, -1):
+        upper[i] = upper[i + 1] + (options[i][0][0] if options[i] else 0)
+
+    @lru_cache(maxsize=None)
+    def allocate(index, used):
+        if index == len(trains):
+            return 0, ()
+        best_value, selected = 0, ()
+        for value, mask, vertices in options[index]:
+            if mask & used or value + upper[index + 1] <= best_value:
+                continue
+            rest, tail = allocate(index + 1, used | mask)
+            if value + rest > best_value:
+                best_value = value + rest
+                selected = ((trains[index], vertices),) + tail
+            if best_value == upper[index]:
+                break
+        if best_value < upper[index + 1]:
+            rest, tail = allocate(index + 1, used)
+            if rest > best_value:
+                best_value, selected = rest, tail
+        return best_value, selected
+
+    revenue, selected = allocate(0, 0)
+    if not selected:
+        for tid, choices in zip(trains, options):
+            if choices:
+                selected = ((tid, choices[0][2]),)
+                break
+    routes = [{"train": tid, "vertices": list(vertices)} for tid, vertices in selected]
+    require(
+        validate_routes(state, corporation, routes) == revenue,
+        "Invalid optimal route allocation",
+    )
+    return {"routes": routes, "revenue": revenue}
 
 
 def route_from_paths(state, route):

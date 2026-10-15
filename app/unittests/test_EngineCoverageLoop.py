@@ -581,7 +581,7 @@ class GameplayCoverageTests(unittest.TestCase):
             6: (
                 "bankruptcy",
                 "4",
-                {"p1": 445, "p2": 230, "p3": 375, "p4": 390, "p5": 395, "p6": 400},
+                {"p1": 445, "p2": 260, "p3": 375, "p4": 390, "p5": 395, "p6": 400},
             ),
         }
         for count, (ending, phase, result) in expected.items():
