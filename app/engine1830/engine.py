@@ -125,6 +125,7 @@ def new_game(names, player_ids=None):
             "floated": False,
             "funded": False,
             "home_placed": False,
+            "home_city": 0,
             "operated": False,
             "trains": [],
         }
@@ -664,7 +665,9 @@ def _start_corporation(state):
         "dh_free": False,
     }
     if not corp["home_placed"] and cid != "ERIE":
-        topology.place_token(state, cid, corp["home"], home=True)
+        topology.place_token(
+            state, cid, corp["home"], corp.get("home_city", 0), home=True
+        )
 
 
 def _finish_operating_set(state):
@@ -891,6 +894,10 @@ def _exchange_private(state, action):
     )
     private["closed"] = True
     _buy_shares(state, dict(action, corporation="NYC", percent=10), exchange=True)
+    if state["round"] == "operating" and state["current_corporation"] == "NYC":
+        # The exchange may transfer the presidency in the between-turn window.
+        # Continue the same scheduled turn, with its new controller.
+        state["current_player"] = state["corporations"]["NYC"]["president"]
 
 
 def _controller(state, entity):
@@ -992,9 +999,22 @@ def _buy_private(state, action):
         )
     else:
         _player(state, buyer)
+        emergency = False
+        if state["round"] == "operating":
+            corp = _corp(state, state["current_corporation"])
+            depot = available_depot(state)
+            emergency = (
+                state["operating_turn"]["step"] == "train"
+                and seller == action["player"] == corp["president"]
+                and not corp["trains"]
+                and bool(topology.route_candidates(state, corp["id"], limit=1))
+                and bool(depot)
+                and corp["cash"] + state["players"][seller]["cash"]
+                < min(state["trains"][t]["price"] for t in depot)
+            )
         require(
-            state["round"] == "stock" and state["stock_round"] > 1,
-            "Player sales only after first stock round",
+            (state["round"] == "stock" and state["stock_round"] > 1) or emergency,
+            "Player sales require a stock round or mandatory emergency train funding",
         )
         require(
             state["current_player"] in (buyer, seller),
@@ -1008,7 +1028,22 @@ def _buy_private(state, action):
             certificate_count(state, buyer) <= CERT_LIMITS[len(state["players"])],
             "Buyer certificate limit exceeded",
         )
-        _stock_deal(state)
+        if state["round"] == "stock":
+            _stock_deal(state)
+
+
+def _maximum_emergency_sale(state, player, cid):
+    """Use the actual sale rules for funding estimates and liquidation alike."""
+    corp = state["corporations"][cid]
+    maximum = min(corp["holdings"][player], 50 - corp["pool"])
+    for amount in range(maximum, 0, -10):
+        trial = deepcopy(state)
+        try:
+            _sell_shares(trial, player, cid, amount, emergency=True)
+        except RuleError:
+            continue
+        return amount
+    return 0
 
 
 def _bankrupt(state, action):
@@ -1022,21 +1057,12 @@ def _bankrupt(state, action):
     require(depot, "No depot train available")
     cheapest = min(state["trains"][t]["price"] for t in depot)
     pid = corp["president"]
-    # Search all legal forced stock sales. Proceeds depend on sale order within each corporation.
     potential = corp["cash"] + state["players"][pid]["cash"]
     for other in state["corporations"].values():
-        owned = other["holdings"][pid]
-        if not other["par"]:
-            continue
-        max_sale = min(owned, 50 - other["pool"])
-        if other["president"] == pid:
-            if other["id"] == cid or not any(
-                p != pid and n >= 20 for p, n in other["holdings"].items()
-            ):
-                max_sale = min(max_sale, max(0, owned - 20))
-            elif other["id"] == cid:
-                max_sale = 0
-        potential += max_sale // 10 * _price(other)
+        if other["par"]:
+            potential += (
+                _maximum_emergency_sale(state, pid, other["id"]) // 10 * _price(other)
+            )
     require(
         potential < cheapest,
         "Must use personal cash and legally saleable stock before bankruptcy",
@@ -1046,16 +1072,9 @@ def _bankrupt(state, action):
     # This is part of the bankruptcy action, so presidencies and market falls
     # remain deterministic even when the player cannot afford any train.
     for other_id in state["corporations"]:
-        other = state["corporations"][other_id]
-        maximum = min(other["holdings"][pid], 50 - other["pool"])
-        for amount in range(maximum, 0, -10):
-            trial = deepcopy(state)
-            try:
-                _sell_shares(trial, pid, other_id, amount, emergency=True)
-            except RuleError:
-                continue
+        amount = _maximum_emergency_sale(state, pid, other_id)
+        if amount:
             _sell_shares(state, pid, other_id, amount, emergency=True)
-            break
     _pay(state, pid, "bank", state["players"][pid]["cash"])
     _end_game(state, "bankruptcy")
 
@@ -1278,6 +1297,7 @@ def apply_action(state, action, expected_revision=None):
         "special",
         "trade_in",
         "tile",
+        "hex",
     ):
         require(
             field not in action or isinstance(action[field], str),

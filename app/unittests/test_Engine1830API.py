@@ -90,6 +90,36 @@ class Rules1830APITests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, 200, result)
         return result
 
+    async def test_malformed_hex_rejected_without_persistence(self):
+        await self.start()
+        from app.unittests import test_Engine1830 as fixtures
+
+        fixture = fixtures.Rules1830Tests("runTest")
+        fixture.setUp()
+        fixture.operating("B&O")
+        game = await self.db.get_game_by_room_code(self.room["room_code"])
+        await self.db.save_rules_state(game["id"], fixture.s, 0)
+        # Reach the operating-round board lookup that originally raised TypeError.
+        # An auction-only request would reject the action before inspecting hex.
+        initial = fixture.s
+        for coord in ([], {}, 7, None):
+            with self.subTest(hex=coord):
+                status, result = await self.request(
+                    "POST",
+                    self.path + "/actions",
+                    {
+                        "expected_action_id": initial["revision"],
+                        "action": {"type": "lay_tile", "hex": coord, "tile": "57"},
+                    },
+                    self.room["player_tokens"][2],
+                )
+                self.assertEqual(status, 422, result)
+                status, current = await self.request(
+                    "GET", self.path, token=self.room["player_tokens"][0]
+                )
+                self.assertEqual(status, 200)
+                self.assertEqual(current["state"], initial)
+
     async def test_start_and_authenticated_state_no_tokens(self):
         result = await self.start()
         self.assertEqual(result["state"]["round"], "auction")

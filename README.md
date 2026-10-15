@@ -1,6 +1,10 @@
 # Daemon18xx
 
-A railroad board-game backend. The complete **1830** implementation follows the
+> **Review status:** The reported 1830 review defects are corrected, including
+> loop connectivity and M&H turn control. See [the follow-up validation](docs/1830_FOLLOWUP_REVIEW.md).
+
+
+A railroad board-game backend. The **1830** implementation follows the
 uploaded [rules of play](docs/rules1830.rtf) and is written entirely in Python.
 It uses JSON-compatible state and actions, with no dependencies outside the
 standard library in the rules engine.

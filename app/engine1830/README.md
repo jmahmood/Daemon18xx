@@ -52,7 +52,7 @@ corporation IDs are `PRR`, `NYC`, `CPR`, `B&O`, `C&O`, `ERIE`, `NYNH`, `B&M`.
 | Operating `end_turn` | Finishes a corporation after dividends and required train purchase; advances the complete round sequence. |
 | `exchange_private` | M&H owner's action, optional `source` (`ipo` / `pool`); during their stock turn or between turns. Does not consume a normal stock buy. |
 | `offer` | `kind` (`private` / `train`), `item`, `seller`, `buyer`, `price`. One party submits an authenticated offer; the other accepts by submitting the matching purchase. Offers are consumed on acceptance. |
-| `buy_private` after auction | `company`, `buyer`, `price`. Negotiated player or corporate purchase requires the other party's recorded offer. A president buying their own private needs no second identity. |
+| `buy_private` after auction | `company`, `buyer`, `price`. Negotiated player or corporate purchase requires the other party's recorded offer. A president facing a mandatory train purchase may sell a private to another player during the train step when treasury plus personal cash is insufficient; this does not consume a stock turn. A president buying their own private needs no second identity. |
 
 Optional `par` is accepted as an alias for the new presidency's `price`.
 `dividend` also accepts `kind: payout` / `withhold`. The aliases `exchange_mh`
@@ -136,3 +136,12 @@ here is Python. Attribution and the upstream license are in
 fixture translation from an upstream recording, checks the independent result,
 and writes accepted public actions. No network or upstream checkout is needed
 for the regression suite.
+
+Home-city indices are stored as `corporations[cid]["home_city"]` and remapped with station tokens on upgrades, including reservations for corporations that have not floated. Older states without this field default to printed city zero.
+
+Railhead connectivity follows simple paths: cities and track vertices cannot be
+revisited to unlock a branch through a loop. The search retains non-dominated
+visited-path masks for each directed edge, so valid alternate paths remain
+available. An M&H exchange transferring the presidency of NYC immediately before
+its operating turn updates the active player while preserving that turn's steps,
+funds, home token and operating order.

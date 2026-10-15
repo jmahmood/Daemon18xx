@@ -1,5 +1,11 @@
 # 1830 rule coverage and validation
 
+> **Review update:** The original and follow-up review defects are corrected.
+> Normal discovery includes `test_Engine1830Regressions.py` and
+> `test_Engine1830Followup.py`, including the HTTP presidency-transfer regression.
+> See [the follow-up validation](../../docs/1830_FOLLOWUP_REVIEW.md).
+
+
 Specification: `docs/rules1830.rtf`, including its Tables 1–8. The backend is
 `app.engine1830`, served by `multiplayer/backend/rules1830_api.py`. The older
 `app.state` / minigame code is retained for existing consumers and is not the

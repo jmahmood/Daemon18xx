@@ -1,7 +1,7 @@
 """Hex topology, finite tiles, station reservations and route validation (§§18–20)."""
 
 from collections import defaultdict, deque
-from itertools import product
+from itertools import permutations, product
 
 from .data import BOARD_DATA, CORPORATIONS, PHASES, UPGRADES
 from .errors import require, RuleError
@@ -128,28 +128,43 @@ def token_vertices(board, corporation):
 
 
 def reachable(board, corporation):
+    """Vertices reachable by a legal simple path from any company station.
+
+    A directed-edge visit alone is insufficient: a loop can return to a junction
+    and falsely unlock another branch by repeating track. Keep the visited path
+    as a bit mask. At the same directed edge, a path using a subset of another
+    path's vertices dominates it, since it leaves every continuation available.
+    """
     adj = graph(board)
     starts = token_vertices(board, corporation)
+    bits = {v: 1 << i for i, v in enumerate(set(adj).union(starts))}
     seen = set(starts)
-    queue = deque((v, None) for v in starts)
-    visited = set(queue)
+    queue = deque((v, None, bits[v]) for v in starts)
+    visited = {(v, None): [bits[v]] for v in starts}
     while queue:
-        vertex, previous = queue.popleft()
+        vertex, previous, path = queue.popleft()
+        if path not in visited[(vertex, previous)]:
+            continue
         info = node_info(board, vertex)
         if vertex not in starts and (
             blocked(board, vertex, corporation) or (info and info["kind"] == "offboard")
         ):
             continue
         for nxt in adj[vertex]:
+            if path & bits[nxt]:
+                continue
             if previous and vertex.split(":")[1].startswith("e"):
-                # An edge cannot be used to reverse into another track on the same tile.
                 if previous.split(":")[0] == vertex.split(":")[0] == nxt.split(":")[0]:
                     continue
-            state = (nxt, vertex)
-            if state not in visited:
-                visited.add(state)
-                seen.add(nxt)
-                queue.append(state)
+            next_path = path | bits[nxt]
+            key = (nxt, vertex)
+            alternatives = visited.get(key, [])
+            if any(old & next_path == old for old in alternatives):
+                continue
+            visited[key] = [old for old in alternatives if old & next_path != next_path]
+            visited[key].append(next_path)
+            seen.add(nxt)
+            queue.append((nxt, vertex, next_path))
     return seen
 
 
@@ -157,7 +172,9 @@ def reserved_home(state, coord, index, corporation):
     for cid, corp in state["corporations"].items():
         if cid == corporation or corp["home_placed"]:
             continue
-        if corp["home"] == coord and (cid == "ERIE" or index == 0):
+        if corp["home"] == coord and (
+            cid == "ERIE" or index == corp.get("home_city", 0)
+        ):
             return True
     return False
 
@@ -166,7 +183,7 @@ def place_token(
     state, corporation, coord, index=0, home=False, free=False, teleport=False
 ):
     corp = state["corporations"][corporation]
-    require(coord in state["board"], "Unknown hex")
+    require(isinstance(coord, str) and coord in state["board"], "Unknown hex")
     tile = state["board"][coord]
     require(type(index) is int and 0 <= index < len(tile["nodes"]), "Unknown city")
     node, tokens = tile["nodes"][index], tile["tokens"][index]
@@ -197,7 +214,10 @@ def place_token(
         )
     else:
         require(coord == corp["home"] and not corp["home_placed"], "Invalid home token")
-        require(corporation == "ERIE" or index == 0, "Wrong home city")
+        require(
+            corporation == "ERIE" or index == corp.get("home_city", 0),
+            "Wrong home city",
+        )
     used = sum(corporation in ts for t in state["board"].values() for ts in t["tokens"])
     require(used < corp["token_supply"], "No station tokens remaining")
     cost = 0 if home or free else (40 if used == 1 else 100)
@@ -207,6 +227,7 @@ def place_token(
     tokens.append(corporation)
     if home:
         corp["home_placed"] = True
+        corp["home_city"] = index
     return cost
 
 
@@ -217,6 +238,13 @@ def preserved_mapping(old, new):
         mappings = [()]
     elif not new_nodes:
         return None
+    elif len(old_nodes) == len(new_nodes):
+        # Printed blank double cities retain their chosen station identities.
+        mappings = (
+            [tuple(range(len(old_nodes)))]
+            if not old["paths"]
+            else permutations(range(len(new_nodes)))
+        )
     else:
         mappings = product(range(len(new_nodes)), repeat=len(old_nodes))
     new_paths = {frozenset(p) for p in new["paths"]}
@@ -246,7 +274,7 @@ def preserved_mapping(old, new):
 
 
 def lay_tile(state, corporation, coord, tile_id, rotation, special=None):
-    require(coord in state["board"], "Unknown hex")
+    require(isinstance(coord, str) and coord in state["board"], "Unknown hex")
     old = state["board"][coord]
     new = tile_for(tile_id, rotation)
     require(
@@ -318,6 +346,9 @@ def lay_tile(state, corporation, coord, tile_id, rotation, special=None):
     require(corp["cash"] >= cost, "Insufficient treasury for construction")
     for i, j in enumerate(mapping):
         new["tokens"][j].extend(old["tokens"][i])
+    for home_corp in state["corporations"].values():
+        if home_corp["home"] == coord:
+            home_corp["home_city"] = mapping[home_corp.get("home_city", 0)]
     new["borders"] = list(old["borders"])
     new["cost"] = 0
     state["board"][coord] = new
