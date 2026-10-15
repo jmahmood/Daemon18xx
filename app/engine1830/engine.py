@@ -23,7 +23,7 @@ from .data import (
 )
 from . import board as topology
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def new_game(names, player_ids=None):
@@ -154,6 +154,52 @@ def new_game(names, player_ids=None):
             }
     validate_state(state)
     return state
+
+
+def migrate_state(state):
+    """Copy and upgrade a saved state without changing its action revision.
+
+    Schema 1 did not always record home-city mappings. Infer these from printed
+    home track and the current tile rather than assuming current city zero.
+    """
+    version = state.get("schema_version")
+    require(
+        type(version) is int and version in (1, SCHEMA_VERSION),
+        "Unsupported 1830 state schema",
+    )
+    result = deepcopy(state)
+    if version == 1:
+        printed = topology.initial_board()
+        for cid, corp in result["corporations"].items():
+            if "home_city" in corp:
+                continue
+            tile = result["board"][corp["home"]]
+            positions = [i for i, tokens in enumerate(tile["tokens"]) if cid in tokens]
+            if cid == "ERIE" and corp["home_placed"]:
+                require(len(positions) == 1, "Cannot migrate missing Erie home token")
+                city = positions[0]
+            else:
+                mapping = topology.preserved_mapping(printed[corp["home"]], tile)
+                require(mapping is not None, "Cannot migrate home-city track mapping")
+                city = mapping[0]
+            if corp["home_placed"]:
+                require(len(positions) == 1, "Cannot migrate missing home token")
+                if positions[0] != city:
+                    require(
+                        len(tile["tokens"][city]) < tile["nodes"][city]["slots"],
+                        "Cannot migrate occupied home city",
+                    )
+                    tile["tokens"][positions[0]].remove(cid)
+                    tile["tokens"][city].append(cid)
+            else:
+                require(
+                    len(tile["tokens"][city]) < tile["nodes"][city]["slots"],
+                    "Cannot migrate blocked home reservation",
+                )
+            corp["home_city"] = city
+        result["schema_version"] = SCHEMA_VERSION
+    validate_state(result)
+    return result
 
 
 def _player(state, pid):
@@ -1090,6 +1136,12 @@ def _operating_action(state, action):
         corp["president"] == action["player"], "Only president may operate corporation"
     )
     turn, kind = state["operating_turn"], action["type"]
+    if not corp["home_placed"]:
+        require(
+            kind in ("home_token", "lay_tile")
+            or (kind == "skip" and turn["step"] == "track"),
+            "Place the home token before continuing operations",
+        )
     if kind == "home_token":
         require(cid == "ERIE" and not corp["home_placed"], "Home token already placed")
         require(
@@ -1304,7 +1356,7 @@ def apply_action(state, action, expected_revision=None):
             field + " must be a string",
         )
     _player(state, action.get("player"))
-    candidate = deepcopy(state)
+    candidate = migrate_state(state)
     kind = action["type"]
     if kind in ("exchange_mh", "bankruptcy"):
         kind = {"exchange_mh": "exchange_private", "bankruptcy": "bankrupt"}[kind]
@@ -1352,6 +1404,18 @@ def apply_action(state, action, expected_revision=None):
 
 def validate_state(state):
     """Validate accounting/component invariants after every successful action."""
+    require(
+        state.get("schema_version") in (1, SCHEMA_VERSION),
+        "Unsupported 1830 state schema",
+    )
+    if state["schema_version"] == SCHEMA_VERSION:
+        for corp in state["corporations"].values():
+            city = corp.get("home_city")
+            nodes = state["board"][corp["home"]]["nodes"]
+            require(
+                type(city) is int and 0 <= city < len(nodes),
+                "Invalid home-city mapping",
+            )
     escrow = sum(sum(bids.values()) for bids in state["auction"]["bids"].values())
     money = state["bank"] + escrow
     money += sum(p["cash"] for p in state["players"].values())
@@ -1437,7 +1501,6 @@ def legal_actions(state, player=None):
             "sell_shares",
             "end_turn",
             "buy_private",
-            "exchange_private",
         ]
         choices["corporations"] = list(state["corporations"])
     else:
@@ -1449,14 +1512,71 @@ def legal_actions(state, player=None):
             "dividend": ["dividend"],
             "train": ["buy_train", "end_turn", "emergency_sell", "bankrupt"],
         }[step]
-        types += ["buy_private", "exchange_private"]
+        types += ["buy_private"]
         cid = state["current_corporation"]
         if cid == "ERIE" and not state["corporations"][cid]["home_placed"]:
-            types.append("home_token")
+            types = ["lay_tile", "home_token", "buy_private"]
+            if step == "track":
+                types.append("skip")
         choices["depot"] = available_depot(state)
-    if player is not None and player != actor:
-        return {"player": actor, "types": [], "choices": {}}
-    return {"player": actor, "types": types, "choices": choices}
+    requested = player if player is not None else actor
+    active = actor
+    if requested != actor:
+        types, choices = [], {}
+    if (
+        not state["pending_par"]
+        and not state["pending_discards"]
+        and requested in state["players"]
+    ):
+        offers = _offer_choices(state, requested)
+        if offers:
+            types.append("offer")
+            choices["offers"] = offers
+        exchanges = []
+        for source in ("ipo", "pool"):
+            trial = deepcopy(state)
+            try:
+                _exchange_private(trial, {"player": requested, "source": source})
+            except RuleError:
+                continue
+            exchanges.append(source)
+        if exchanges:
+            types.append("exchange_private")
+            choices["exchange_sources"] = exchanges
+        if types:
+            actor = requested
+    return {
+        "player": actor,
+        "active_player": active,
+        "types": types,
+        "choices": choices,
+    }
+
+
+def _offer_choices(state, player):
+    """Transaction parties available to this player; prices are negotiated."""
+    corporations = [cid for cid, c in state["corporations"].items() if c["president"]]
+    offers = []
+    items = [
+        ("private", p["id"], p["owner"], list(state["players"]) + corporations)
+        for p in state["privates"].values()
+        if not p["closed"] and p["owner"] in state["players"]
+    ]
+    items += [
+        ("train", t["id"], t["owner"], corporations)
+        for t in state["trains"].values()
+        if t["owner"] in corporations and not t["rusted"]
+    ]
+    for kind, item, seller, buyers in items:
+        for buyer in buyers:
+            if buyer != seller and player in (
+                _controller(state, seller),
+                _controller(state, buyer),
+            ):
+                offers.append(
+                    {"kind": kind, "item": item, "seller": seller, "buyer": buyer}
+                )
+    return offers
 
 
 def replay(names, actions, player_ids=None):

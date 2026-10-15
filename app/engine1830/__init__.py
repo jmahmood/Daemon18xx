@@ -5,6 +5,7 @@
 
 from .engine import (
     new_game,
+    migrate_state,
     apply_action,
     legal_actions,
     scores,
@@ -16,6 +17,7 @@ from .errors import RuleError
 
 __all__ = [
     "new_game",
+    "migrate_state",
     "apply_action",
     "legal_actions",
     "scores",

@@ -58,8 +58,12 @@ Optional `par` is accepted as an alias for the new presidency's `price`.
 `dividend` also accepts `kind: payout` / `withhold`. The aliases `exchange_mh`
 and `bankruptcy` are accepted. Clients should prefer the primary names above.
 
-`legal_actions(state, player)` provides the active identity, action categories,
-and candidate choices. Parameterized candidates still require validation by
+`legal_actions(state, player)` provides action categories and candidate choices
+for the requested player, including authenticated offers and legal between-turn
+M&H exchanges. `player` identifies who may perform the returned actions;
+`active_player` identifies the current turn or mandatory interrupt controller.
+Offers include candidate `kind`, `item`, `seller` and `buyer` fields in
+`choices.offers`, and valid M&H sources appear in `choices.exchange_sources`. Parameterized candidates still require validation by
 `apply_action`; it does not enumerate every legal rotation, negotiated price,
 or combination of routes.
 
@@ -137,7 +141,7 @@ fixture translation from an upstream recording, checks the independent result,
 and writes accepted public actions. No network or upstream checkout is needed
 for the regression suite.
 
-Home-city indices are stored as `corporations[cid]["home_city"]` and remapped with station tokens on upgrades, including reservations for corporations that have not floated. Older states without this field default to printed city zero.
+Home-city indices are stored as `corporations[cid]["home_city"]` and remapped with station tokens on upgrades, including reservations for corporations that have not floated. Schema-1 saves without this field are migrated to schema 2 using printed home track and the current tile. Existing Erie home tokens preserve their chosen city. Misplaced NYNH home tokens move to the correct city when its slot is free; conflicting occupied slots return a migration error.
 
 Railhead connectivity follows simple paths: cities and track vertices cannot be
 revisited to unlock a branch through a loop. The search retains non-dominated
@@ -145,3 +149,13 @@ visited-path masks for each directed edge, so valid alternate paths remain
 available. An M&H exchange transferring the presidency of NYC immediately before
 its operating turn updates the active player while preserving that turn's steps,
 funds, home token and operating order.
+
+Erie must choose its home city before placing an additional token, running trains
+or declaring dividends. It may lay its initial home tile or skip construction
+before making that choice. Unsafe advances are rejected atomically.
+
+`migrate_state(state)` returns an independent schema-2 snapshot without changing
+revision or history; `apply_action` also migrates legacy library inputs. HTTP
+reads migrate in memory, and the next accepted action persists the upgraded
+state at the next revision. Unsupported schemas and unrepairable home mappings
+return HTTP 409 without changing the saved snapshot.

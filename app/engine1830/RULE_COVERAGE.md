@@ -126,3 +126,12 @@ after every accepted action, not only at game end.
 
 A passing suite is reproducible evidence for these scenarios and the numbered
 rule coverage; it is not a mathematical proof over every possible game state.
+
+## Home progression, saved states and action discovery
+
+`test_Engine1830StateAndActions.py` covers Erie's mandatory home-token choice
+before routes/dividends, schema-1 home-city migration and safe token repair,
+unknown schemas and blocked repairs, out-of-turn private/train offer discovery,
+M&H exchange timing and pending-par/discard interruptions. HTTP cases verify
+atomic Erie rejection, migration without a revision change on read, persistence
+on the next accepted action and conflict responses for unsupported saves.

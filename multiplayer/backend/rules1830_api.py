@@ -9,7 +9,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from app.engine1830 import new_game, apply_action, check_invariants, RuleError
+from app.engine1830 import (
+    new_game,
+    apply_action,
+    migrate_state,
+    RuleError,
+)
 from app.engine1830.board_data import DATA
 from app.engine1830.engine import available_depot, certificate_count, _price
 from app.engine1830.data import PHASES
@@ -47,9 +52,12 @@ async def load_state(game):
     record = await db.get_latest_game_state(game["id"])
     if not record:
         raise HTTPException(409, "Game has not started")
-    state = json.loads(record["state_json"])
-    check_invariants(state)
-    return state
+    try:
+        return migrate_state(json.loads(record["state_json"]))
+    except RuleError as error:
+        raise HTTPException(
+            409, "Saved game migration failed: " + str(error)
+        ) from error
 
 
 def view(state):
