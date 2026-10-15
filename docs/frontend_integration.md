@@ -1,797 +1,331 @@
-# Frontend Integration Guide
+# Building a frontend for Daemon18xx
 
-Building user interfaces for Daemon18xx games.
+This is the integration contract for an external browser, desktop, mobile or AI
+client. Start the backend using [README.md](../README.md). The backend owns rules,
+turn progression, revenue, ownership and scoring. Your application owns its UI,
+lobby, credential distribution and polling. No frontend code belongs in this
+repository.
 
-## Overview
+## HTTP contract
 
-Daemon18xx is designed to be frontend-agnostic. The stateless architecture makes it perfect for:
+Use one base URL and one variant (`1830` or `1889`) per room. Bodies and responses
+are JSON. Send `Content-Type: application/json` on POST requests and
+`Authorization: Bearer <room-token>` on authenticated requests. Cookie sessions
+are not used. `/docs` and `/openapi.json` describe the request envelopes; the
+`action` object uses the field reference below.
 
-- **Web Applications** (React, Vue, Angular, etc.)
-- **Mobile Apps** (React Native, Flutter, etc.)
-- **Desktop Applications** (Electron, Qt, etc.)
-- **REST APIs** (Flask, FastAPI, Django, etc.)
+| Method | Path | Credential | Body / response |
+|---|---|---|---|
+| GET | `/api/{variant}/catalog` | none | Static board/tile catalog; see rendering below. |
+| POST | `/api/{variant}/games` | none | `{"max_players":3}` → room and credentials. Integer seat count 2–6, default 3. |
+| POST | `/api/{variant}/games/{room}/start` | creator | `{"player_names":["Alice","Bob","Carol"]}` → game view. Starts once. |
+| GET | `/api/{variant}/games/{room}` | any token for this room | Current game view. |
+| POST | `/api/{variant}/games/{room}/actions` | player | `{"expected_action_id":0,"action":{"type":"pass"}}` → committed game view. |
+| GET | `/health` | none | `{"status":"ok"}` if the database/schema is readable; otherwise 503. |
 
-This guide shows you how to integrate the game engine with your frontend.
+Creation returns exactly these credential fields:
 
-## Architecture Patterns
-
-### Pattern 1: REST API Backend
-
-Most common pattern for web/mobile apps.
-
-```
-Frontend (React/Vue/etc.)
-    ↓ HTTP
-Backend (Flask/FastAPI)
-    ↓ Python
-Daemon18xx Engine
-```
-
-### Pattern 2: Direct Integration
-
-For Python-based frontends (e.g., Qt, Kivy).
-
-```
-Frontend (Qt/Kivy)
-    ↓ Direct calls
-Daemon18xx Engine
+```json
+{
+  "room_code": "ABC123",
+  "creator_token": "opaque-secret",
+  "spectator_token": "different-secret",
+  "player_tokens": ["seat-1-secret", "seat-2-secret", "seat-3-secret"]
+}
 ```
 
-### Pattern 3: WebSocket Real-time
+Values above are illustrative. Keep the creation response private. Give each
+player only their own token. Give observers the spectator token. The creator can
+start and read but cannot play; a person who creates and plays needs both their
+creator token and their seat token. Tokens belong to one room and remain valid
+across server restarts; there is no recovery, revocation or rotation endpoint.
 
-For multiplayer games requiring real-time updates.
+The number of names must equal the room's seat count. Names must be distinct and
+nonblank. Array order is seating order: `player_tokens[0]` controls `p1`, the first
+name, and so on. Retain the room code, variant and seat mapping in your client.
+Do not put credentials in public URLs, analytics or shared logs. Browsers need
+an allowed origin configured through `DAEMON18XX_CORS_ORIGINS` when using a
+separate origin. Use HTTPS outside local development.
 
-```
-Frontend
-    ↓ WebSocket
-Backend (with pub/sub)
-    ↓ Python
-Daemon18xx Engine
-```
+## Working JavaScript example
 
-## REST API Example
-
-Here's a minimal Flask API for the game engine:
-
-### Basic Flask API
-
-```python
-from flask import Flask, request, jsonify
-from app.state import Game
-from app.logging_config import setup_logging
-from app.game_history import GameHistory
-
-app = Flask(__name__)
-setup_logging(level='INFO', log_file='api.log')
-
-# In-memory game storage (use Redis/DB for production)
-games = {}
-histories = {}
-
-@app.route('/api/games', methods=['POST'])
-def create_game():
-    """Create a new game."""
-    data = request.json
-    players = data.get('players', [])
-    variant = data.get('variant', '1830')
-
-    if len(players) < 2:
-        return jsonify({'error': 'Need at least 2 players'}), 400
-
-    # Create game
-    game = Game.start(players, variant)
-    game_id = str(len(games) + 1)  # Simple ID generation
-
-    # Store game and history
-    games[game_id] = game
-    histories[game_id] = GameHistory()
-    histories[game_id].initialize(variant, players)
-
-    return jsonify({
-        'game_id': game_id,
-        'variant': variant,
-        'players': players,
-        'current_phase': game.minigame_class,
-        'current_player': game.current_player.name
-    })
-
-@app.route('/api/games/<game_id>', methods=['GET'])
-def get_game_state(game_id):
-    """Get current game state."""
-    game = games.get(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-
-    # Serialize game state
-    return jsonify({
-        'game_id': game_id,
-        'phase': game.minigame_class,
-        'current_player': {
-            'id': game.current_player.id,
-            'name': game.current_player.name,
-            'cash': game.current_player.cash
-        },
-        'players': [
-            {
-                'id': p.id,
-                'name': p.name,
-                'cash': p.cash,
-                'companies': [c.id for c in p.portfolio]
-            }
-            for p in game.state.players
-        ],
-        'companies': [
-            {
-                'id': c.id,
-                'name': c.name,
-                'price': c.get_current_price(),
-                'president': c.president.name if c.president else None,
-                'floated': c.isFloated(),
-                'cash': c.cash
-            }
-            for c in game.state.public_companies
-        ],
-        'phase_summary': game.phase_validator.get_phase_summary() if game.phase_validator else {}
-    })
-
-@app.route('/api/games/<game_id>/moves', methods=['POST'])
-def execute_move(game_id):
-    """Execute a move."""
-    game = games.get(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-
-    data = request.json
-    move_type = data.get('move_type')
-    move_data = data.get('move_data', {})
-
-    # Create move object based on type
-    move = create_move_from_json(move_type, move_data, game)
-    if not move:
-        return jsonify({'error': 'Invalid move type'}), 400
-
-    # Execute move
-    success = game.performedMove(move)
-
-    # Record in history
-    histories[game_id].record_move(
-        move=move,
-        state=game.state,
-        success=success,
-        errors=game.errors() if not success else None,
-        phase=game.minigame_class
-    )
-
-    if success:
-        return jsonify({
-            'success': True,
-            'new_phase': game.minigame_class,
-            'next_player': game.current_player.name
-        })
-    else:
-        return jsonify({
-            'success': False,
-            'errors': game.errors()
-        }), 400
-
-@app.route('/api/games/<game_id>/valid-moves', methods=['GET'])
-def get_valid_moves(game_id):
-    """Get valid moves for current player."""
-    game = games.get(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-
-    # Generate valid moves based on current phase
-    valid_moves = generate_valid_moves(game)
-
-    return jsonify({
-        'phase': game.minigame_class,
-        'player': game.current_player.name,
-        'moves': valid_moves
-    })
-
-@app.route('/api/games/<game_id>/history', methods=['GET'])
-def get_game_history(game_id):
-    """Get game history."""
-    history = histories.get(game_id)
-    if not history:
-        return jsonify({'error': 'History not found'}), 404
-
-    return jsonify(history.export_dict())
-
-def create_move_from_json(move_type, move_data, game):
-    """Helper to create move objects from JSON."""
-    if move_type == 'buy_private':
-        from app.minigames.PrivateCompanyInitialAuction.minigame_buy import BuyPrivateCompanyMove
-        move = BuyPrivateCompanyMove()
-        move.player_id = move_data['player_id']
-        move.company_id = move_data['company_id']
-        return move
-
-    elif move_type == 'pass':
-        from app.minigames.PrivateCompanyInitialAuction.minigame_buy import PassMove
-        move = PassMove()
-        move.player_id = move_data['player_id']
-        return move
-
-    elif move_type == 'buy_stock':
-        from app.minigames.StockRound.minigame_stockround import BuyStockMove
-        move = BuyStockMove()
-        move.player_id = move_data['player_id']
-        move.company_id = move_data['company_id']
-        move.amount = move_data['amount']
-        move.source = move_data['source']
-        move.price = move_data['price']
-        return move
-
-    # Add more move types as needed
-    return None
-
-def generate_valid_moves(game):
-    """Generate list of valid moves for current phase."""
-    phase = game.minigame_class
-    player = game.current_player
-
-    if phase == "BuyPrivateCompany":
-        # List available private companies
-        available = [
-            {
-                'type': 'buy_private',
-                'company_id': pc.name,
-                'company_name': pc.name,
-                'cost': pc.cost,
-                'revenue': pc.revenue
-            }
-            for pc in game.state.private_companies
-            if not pc.belongs_to and player.cash >= pc.cost
-        ]
-        available.append({'type': 'pass'})
-        return available
-
-    elif phase == "StockRound":
-        # List available stock purchases
-        moves = []
-        for company in game.state.public_companies:
-            if company.isFloated():
-                # Can buy from IPO or BANK
-                for source in ['IPO', 'BANK']:
-                    price = company.get_current_price()
-                    if player.cash >= price * 10:  # Cost for 10%
-                        moves.append({
-                            'type': 'buy_stock',
-                            'company_id': company.id,
-                            'company_name': company.name,
-                            'source': source,
-                            'price': price
-                        })
-
-        moves.append({'type': 'pass'})
-        return moves
-
-    return [{'type': 'pass'}]
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-```
-
-### Frontend React Example
+This uses standard `fetch`; no framework or backend-specific SDK is required.
+Run it against a local server from an allowed browser origin or a JavaScript
+runtime with fetch support. Replace the base URL for your deployment.
 
 ```javascript
-import React, { useState, useEffect } from 'react';
+const base = "http://127.0.0.1:8000";
+const variant = "1889"; // Change to "1830" for the other game.
+const prefix = `${base}/api/${variant}`;
 
-function GameBoard({ gameId }) {
-  const [gameState, setGameState] = useState(null);
-  const [validMoves, setValidMoves] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Fetch game state
-  useEffect(() => {
-    fetchGameState();
-    const interval = setInterval(fetchGameState, 5000); // Poll every 5s
-    return () => clearInterval(interval);
-  }, [gameId]);
-
-  async function fetchGameState() {
-    try {
-      const response = await fetch(`/api/games/${gameId}`);
-      const data = await response.json();
-      setGameState(data);
-
-      // Fetch valid moves
-      const movesResponse = await fetch(`/api/games/${gameId}/valid-moves`);
-      const movesData = await movesResponse.json();
-      setValidMoves(movesData.moves);
-
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
+async function request(path, { method = "GET", token, body } = {}) {
+  const response = await fetch(prefix + path, {
+    method,
+    headers: {
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(JSON.stringify(data.detail ?? data));
+    error.status = response.status;
+    throw error;
   }
-
-  async function executeMove(move) {
-    try {
-      const response = await fetch(`/api/games/${gameId}/moves`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          move_type: move.type,
-          move_data: move
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Refresh game state
-        fetchGameState();
-      } else {
-        alert(`Move failed: ${result.errors.join(', ')}`);
-      }
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  }
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!gameState) return <div>No game found</div>;
-
-  return (
-    <div className="game-board">
-      <h1>18XX Game - {gameState.phase}</h1>
-
-      <div className="current-player">
-        <h2>Current Player: {gameState.current_player.name}</h2>
-        <p>Cash: ${gameState.current_player.cash}</p>
-      </div>
-
-      <div className="players">
-        <h3>Players</h3>
-        {gameState.players.map(player => (
-          <div key={player.id} className="player">
-            <strong>{player.name}</strong>: ${player.cash}
-            {player.companies.length > 0 && (
-              <span> ({player.companies.join(', ')})</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="companies">
-        <h3>Public Companies</h3>
-        {gameState.companies.map(company => (
-          <div key={company.id} className="company">
-            <strong>{company.name}</strong> - ${company.price}
-            <br />
-            President: {company.president || 'None'}
-            {company.floated && <span> ✓ Floated</span>}
-          </div>
-        ))}
-      </div>
-
-      <div className="valid-moves">
-        <h3>Available Moves</h3>
-        {validMoves.map((move, index) => (
-          <button
-            key={index}
-            onClick={() => executeMove(move)}
-            className="move-button"
-          >
-            {move.type === 'buy_private' && `Buy ${move.company_name} ($${move.cost})`}
-            {move.type === 'buy_stock' && `Buy ${move.company_name} stock ($${move.price})`}
-            {move.type === 'pass' && 'Pass'}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return data;
 }
 
-export default GameBoard;
-```
+const room = await request("/games", {
+  method: "POST", body: { max_players: 3 },
+});
+const path = `/games/${encodeURIComponent(room.room_code)}`;
+await request(path + "/start", {
+  method: "POST", token: room.creator_token,
+  body: { player_names: ["Alice", "Bob", "Carol"] },
+});
 
-## State Serialization
-
-### Serializing Game State
-
-The game state needs to be serialized for transmission:
-
-```python
-def serialize_game_state(game: Game) -> dict:
-    """Serialize full game state to JSON-compatible dict."""
-    return {
-        'phase': game.minigame_class,
-        'variant': game.variant,
-        'current_player_id': game.current_player.id if game.current_player else None,
-        'players': [serialize_player(p) for p in game.state.players],
-        'public_companies': [serialize_public_company(c) for c in game.state.public_companies],
-        'private_companies': [serialize_private_company(c) for c in game.state.private_companies],
-        'phase_info': game.phase_validator.get_phase_summary() if game.phase_validator else {}
-    }
-
-def serialize_player(player: Player) -> dict:
-    """Serialize a player."""
-    return {
-        'id': player.id,
-        'name': player.name,
-        'cash': player.cash,
-        'order': player.order,
-        'portfolio': [c.id for c in player.portfolio],
-        'private_companies': [pc.name for pc in player.private_companies],
-        'passed': player.passed
-    }
-
-def serialize_public_company(company: PublicCompany) -> dict:
-    """Serialize a public company."""
-    return {
-        'id': company.id,
-        'name': company.name,
-        'short_name': company.short_name,
-        'cash': company.cash,
-        'price': company.get_current_price(),
-        'president': company.president.id if company.president else None,
-        'floated': company.isFloated(),
-        'shares_available': {
-            'IPO': company.stocks.get(StockPurchaseSource.IPO, 0),
-            'BANK': company.stocks.get(StockPurchaseSource.BANK, 0)
-        },
-        'trains': [t.type for t in company.trains],
-        'tokens_available': company.tokens_available,
-        'bankrupt': company.bankrupt,
-        'total_debt': company.total_debt(),
-        'price_history': [
-            {
-                'round': e.round_number,
-                'old_price': e.old_price,
-                'new_price': e.new_price,
-                'reason': e.reason
-            }
-            for e in company.get_price_history(limit=10)  # Last 10 changes
-        ]
-    }
-
-def serialize_private_company(pc: PrivateCompany) -> dict:
-    """Serialize a private company."""
-    return {
-        'name': pc.name,
-        'short_name': pc.short_name,
-        'cost': pc.cost,
-        'revenue': pc.revenue,
-        'owner': pc.belongs_to.id if pc.belongs_to else None,
-        'company_owner': pc.belongs_to_company.id if pc.belongs_to_company else None,
-        'power': {
-            'type': pc.power.power_type.name,
-            'value': pc.power.value
-        } if pc.power else None
-    }
-```
-
-## Real-Time Updates (WebSocket)
-
-For multiplayer games, use WebSockets for real-time updates:
-
-```python
-from flask import Flask
-from flask_socketio import SocketIO, emit, join_room
-
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-@socketio.on('join_game')
-def on_join(data):
-    """Player joins a game room."""
-    game_id = data['game_id']
-    player_id = data['player_id']
-    join_room(game_id)
-
-    emit('player_joined', {
-        'player_id': player_id,
-        'game_id': game_id
-    }, room=game_id)
-
-@socketio.on('execute_move')
-def on_move(data):
-    """Player executes a move."""
-    game_id = data['game_id']
-    game = games.get(game_id)
-
-    if not game:
-        emit('error', {'message': 'Game not found'})
-        return
-
-    # Create and execute move
-    move = create_move_from_json(data['move_type'], data['move_data'], game)
-    success = game.performedMove(move)
-
-    if success:
-        # Broadcast new state to all players in room
-        emit('game_updated', {
-            'game_state': serialize_game_state(game),
-            'move_by': data['move_data']['player_id']
-        }, room=game_id)
-    else:
-        emit('move_failed', {
-            'errors': game.errors()
-        })
-
-if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5000)
-```
-
-## UI Components Needed
-
-### Essential Components
-
-1. **Game Board**
-   - Stock market grid
-   - Company information cards
-   - Player information panel
-
-2. **Move Interface**
-   - Buy/sell stock buttons
-   - Private company auction
-   - Operating round controls
-
-3. **Information Displays**
-   - Phase indicator
-   - Current player
-   - Available actions
-
-4. **History Viewer**
-   - Move log
-   - Price history charts
-   - Game timeline
-
-### Component Data Flow
-
-```
-Backend (Daemon18xx)
-    ↓ Serialize State
-REST API / WebSocket
-    ↓ JSON
-Frontend State Management (Redux/Context)
-    ↓ Props
-React Components
-    ↓ Render
-User Interface
-```
-
-## Performance Considerations
-
-### Caching
-
-```python
-from functools import lru_cache
-
-@lru_cache(maxsize=100)
-def get_valid_moves_cached(game_id, phase, player_id):
-    """Cache valid moves calculation."""
-    game = games.get(game_id)
-    return generate_valid_moves(game)
-```
-
-### Pagination
-
-For large game histories:
-
-```python
-@app.route('/api/games/<game_id>/history')
-def get_game_history_paginated(game_id):
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-
-    history = histories.get(game_id)
-    if not history:
-        return jsonify({'error': 'Not found'}), 404
-
-    total_moves = history.get_move_count()
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    return jsonify({
-        'moves': history.moves[start:end],
-        'page': page,
-        'per_page': per_page,
-        'total': total_moves,
-        'pages': (total_moves + per_page - 1) // per_page
-    })
-```
-
-### Delta Updates
-
-Only send what changed:
-
-```python
-def compute_state_delta(old_state, new_state):
-    """Compute delta between states."""
-    delta = {}
-
-    if old_state['phase'] != new_state['phase']:
-        delta['phase'] = new_state['phase']
-
-    # Compare players
-    for old_p, new_p in zip(old_state['players'], new_state['players']):
-        if old_p['cash'] != new_p['cash']:
-            delta.setdefault('players', {})[new_p['id']] = {
-                'cash': new_p['cash']
-            }
-
-    # Add more delta logic...
-
-    return delta
-```
-
-## Error Handling
-
-### Frontend Error Handling
-
-```javascript
-async function executeMove(move) {
+// In a real client, creation/hosting is separate from the player's session.
+const playerToken = room.player_tokens[0];
+let view = await request(path, { token: playerToken });
+async function submit(action) {
   try {
-    const response = await fetch(`/api/games/${gameId}/moves`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ move_type: move.type, move_data: move })
+    view = await request(path + "/actions", {
+      method: "POST", token: playerToken,
+      body: { expected_action_id: view.state.revision, action },
     });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      // Backend validation error
-      showError(`Move invalid: ${result.errors.join(', ')}`);
-      return;
-    }
-
-    if (!result.success) {
-      // Game engine validation error
-      showError(`Move failed: ${result.errors.join(', ')}`);
-      return;
-    }
-
-    // Success - update UI
-    updateGameState(result);
-
   } catch (error) {
-    // Network or other error
-    showError(`Network error: ${error.message}`);
+    if (error.status === 409) {
+      view = await request(path, { token: playerToken });
+      // Re-render and ask the player to reconsider the action against this state.
+    }
+    throw error;
   }
+  return view;
+}
+
+await submit({
+  type: "buy_private", company: variant === "1889" ? "TR" : "SV",
+});
+```
+
+Read state after starting using the player's token: 1889's start response contains
+hints for the active actor, whereas subsequent authenticated reads/actions
+contain hints for that player. The server supplies `action.player` from the
+credential. Omit it from requests; attempting to impersonate another player
+returns 403. Money, percentages, city indices, rotations and revisions use JSON
+integers; revisions specifically reject strings, floats and booleans.
+
+## Synchronization and failures
+
+Poll the authenticated GET endpoint approximately every 1–2 seconds while a
+room is open, backing off on failures. Stop polling when the client is closed.
+There are no WebSocket/SSE subscriptions or automatic server notifications.
+
+Only one request should be in flight per client session initially. Serialize
+polls and submissions, or ignore responses older than the latest displayed
+`state.revision`. Keep the revision returned by the server. Accepted actions
+increment it exactly once, and the action response is sent after persistence.
+Rejected actions do not append a snapshot. Competing writers at the same
+revision produce one accepted successor and a conflict for the other writer.
+
+| Status | Meaning | Client behavior |
+|---|---|---|
+| 200 | Successful read, creation, start or action | Render/retain the returned result. |
+| 401 | Missing/malformed Bearer header | Obtain the room credential. |
+| 403 | Wrong credential, insufficient role or impersonation | Correct the session/role; do not retry unchanged. |
+| 404 | Missing room or wrong variant; unsupported endpoint | Check the code and variant. Prototype 1889 rooms are also rejected. |
+| 409 | Stale revision, competing write, writer busy, not started, already started, or invalid saved-state migration | Inspect `detail`. Refresh if started; show waiting state before start. Migration errors require server-side attention. |
+| 422 | Invalid request or illegal game action | Show `detail`; state remains unchanged. Validation details may be an array rather than a string. |
+| 503 | Room allocation/writer unavailable, or failed readiness | Back off; do not assume a room was created. |
+
+After a network timeout on a write, fetch the latest state before attempting
+anything else. The write may have committed. There are no idempotency keys.
+Never automatically rebase a move onto a new revision: another action may have
+changed its price, actor or meaning. Refresh again after reconnecting.
+
+## Game view and state
+
+Both variants return:
+
+```text
+{
+  state: { ...authoritative snapshot... },
+  prices: { corporationId: integerMarketPrice, ... },
+  certificates: { playerId: integerCount, ... },
+  available_depot_trains: [trainId, ...],
+  train_limit: integer
 }
 ```
 
-### Backend Error Handling
+1889 additionally returns `currency: "JPY"` and `legal_actions`. 1830 amounts
+are dollars and its HTTP view currently has no `legal_actions` field. Do not
+assume the response shapes are identical. Its Python library exposes discovery,
+but an HTTP-only 1830 client uses the action reference and state below, with
+server validation authoritative. 1889 `legal_actions` contains `player`,
+`active_player` (absent when finished), `types` and `choices`.
+These are action categories and candidate parameters, not an exhaustive list of
+legal tile rotations, prices or routes; a suggested category can still be
+rejected for specific parameters. `buy_private` during the initial auction is
+accepted even though discovery advertises `bid` instead.
 
-```python
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler."""
-    logger.error(f"Unhandled exception: {e}", exc_info=True)
+Treat snapshots as read-only and replace them after accepted actions/refreshes.
+Useful state fields are:
 
-    return jsonify({
-        'error': 'Internal server error',
-        'message': str(e) if app.debug else 'An error occurred'
-    }), 500
+| Fields | Meaning |
+|---|---|
+| `variant`, `schema_version`, `revision` | Variant, save format version and concurrency version. The API path is not a versioned API contract. |
+| `players`, `player_order`, `priority` | Players keyed by ID (`id`, `name`, `cash`, `bankrupt`), seating order and priority deal. Do not derive seats from JSON object iteration order. |
+| `round`, `phase` | Round is `auction`, `stock`, `operating` or `finished`; train phase is a string such as `"2"`, `"6"`, `"D"`. |
+| `current_player`, `current_corporation` | Normal current actor/operator. Interrupts and private powers can require another actor; see below. |
+| `stock_round`, `or_number`, `or_total`, `operating_turn` | Round counters and the operator's `step`, routes, revenue and construction bookkeeping. |
+| `pending_par`, `pending_discards`, `pending_special` | Required interruptions. `pending_special` exists only in 1889. |
+| `corporations`, `privates`, `trains` | Components keyed by stable IDs. Corporation `holdings` are percentages; `ipo` and `pool` are remaining percentages. Use the view's `prices` for current share prices; `par` is separate. Train ownership and rust status are authoritative. |
+| `board`, `tiles` | Current map hexes and remaining physical tile counts. |
+| `bank`, `bank_broken`, `end_after_set` | Bank and deferred ending flags. A negative bank does not by itself mean the game is over. |
+| `offers`, `history`, `log` | Outstanding negotiation records, accepted actions and readable event messages. The response includes full history; there is no pagination endpoint. |
+| `finished`, `end_reason`, `result` | Terminal flag, reason (`bank` or `bankruptcy`) and scores keyed by player ID. Display final scores from `result`. |
 
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({'error': 'Not found'}), 404
+Resolve required interrupts before normal controls: a pending par choice,
+excess-train discards by the affected presidents, or 1889's ER seller choice.
+Use fresh state after each action; presidents, actors and steps can change during
+a private exchange or train purchase. Do not hide every action merely because
+`current_player` is another seat: permitted offers, M&H/DR exchanges and MF lays
+can occur out of turn. For 1889, use the authenticated player's discovery hints
+and `active_player` to distinguish personal options from the main turn.
+
+## Action field reference
+
+All entries below are `action` objects inside the revision envelope. Identifiers
+are case-sensitive strings. A train ID such as `"2-0"` identifies a physical train;
+`"2"` is its type. Optional means the field may be omitted, not sent as null.
+The rules engine decides which actions and prices are permitted in current state.
+
+| Action `type` | Fields and usage |
+|---|---|
+| `buy_private` (auction) | `company`; optional `price` must equal the current offered price. First company is SV in 1830, TR in 1889. |
+| `bid` | `company`, integer `price`. Bids on later companies escrow cash. |
+| `pass` | Auction pass/withdrawal; stock pass; ER decline in 1889. Prefer `end_turn` to complete stock/operating turns. |
+| `par` | `price`; resolves 1830 B&O's pending gift par choice. |
+| `buy_shares` | `corporation`, optional `source` (`ipo` default or `pool`), optional `percent`; a new presidency also needs `price` (par). Normal shares are 10%; a new presidency is 20%. |
+| `sell_shares` | `corporation`, `percent` in 10% units. |
+| `end_turn` | Finish a stock turn or a corporation's operating turn, subject to mandatory steps. |
+| `lay_tile` | `hex`, base catalog ID `tile`, optional `rotation` 0–5 (default 0), optional `special`; see private powers. 1830 DH may also set `place_token: true`. |
+| `home_token` | 1830 Erie: `city` 0 or 1; resolves its home choice before later required operations. Other homes are automatic. |
+| `place_token` | `hex`, optional `city` index (default 0). |
+| `skip` | Skip a track/token step, or routes only if no train can run. Cannot skip required dividends or train funding. |
+| `run_routes` | `routes` array of train/path objects; see geometry below. Server computes revenue. |
+| `run_best_routes` | 1889 only, no route parameters; exact maximum combined allocation. Search can be expensive on dense boards. |
+| `dividend` | Boolean `payout`; distribute or withhold computed revenue. |
+| `buy_train` | `train`, optional negotiated `price` for a corporate transfer, optional `trade_in` train ID for a Diesel. Required legal personal contributions are calculated by the engine. |
+| `discard_train` | `corporation`, `train`; required excess-train interrupt controlled by its president. |
+| `emergency_sell` | `corporation`, `percent`; sell shares during mandatory train funding. |
+| `bankrupt` | Declare inability to fund the required train; allowed only after the engine's funding checks. |
+| `exchange_private` | M&H (1830) or DR (1889); optional `source`. M&H uses `ipo` or `pool`, DR only `ipo`. |
+| `offer` | `kind` (`private` or `train`), `item` ID, `seller`, `buyer`, integer `price`. The other party accepts with the matching purchase. IDs identify actual owners/buying corporation, not always human actors. |
+| `buy_private` (negotiated) | `company`, `buyer`, `price`. Usually requires the other party's matching offer; a president buying their own private needs no separate actor's consent. Normal interplayer sales are prohibited in 1889. |
+
+Use these primary action names. Compatibility aliases exist but are unnecessary
+for new clients. Negotiated offers are stateful and checked against current
+ownership/presidency; submitting a purchase does not bypass consent.
+
+1830 corporation IDs: `PRR`, `NYC`, `CPR`, `B&O`, `C&O`, `ERIE`, `NYNH`, `B&M`.
+Private IDs: `SV`, `CS`, `DH`, `MH`, `CA`, `BO`.
+1889 corporation IDs: `AR`, `IR`, `SR`, `KO`, `TR`, `KU`, `UR`.
+Private IDs: `TR`, `MF`, `ER`, `SMR`, `DR`, `SIR`, `UTF` (some absent by player
+count). A private and a corporation can share an ID; keep component types distinct.
+
+Private-power controls must account for these differences:
+
+- 1830 CS/DH construction uses `lay_tile` with `special: "CS"` or `"DH"`.
+  M&H uses `exchange_private`; B&O's gift can interrupt the auction for `par`.
+- 1889 MF uses `lay_tile`, `special: "MF"`, `tile: "437"`, `hex` and `rotation`.
+  Its one-time port option is available to its player owner on eligible coastal
+  town hexes, including permitted out-of-turn windows.
+- 1889 ER sale creates `pending_special` for the **seller**. Submit `lay_tile`
+  with `special: "ER"`, `hex: "C4"`, tile and rotation, or `pass`. Seller pays
+  costs; then the buying corporation's president resumes.
+- 1889 DR uses `exchange_private` for an IPO IR share, including permitted
+  out-of-turn windows. SMR's terrain benefit is automatic; TR/SIR/UTF require
+  no extra power button. UTF survival/revenue depends on its owner at phase 5.
+
+## Board, tiles and routes
+
+Fetch the catalog once per variant per server release. Both expose raw `hexes` and
+`tiles`: entries have `color` and a compact track `code`; tile entries also have
+`count`. 1889 additionally exposes `layout: "flat"` (1830 uses pointy layout),
+currency, market, par prices, corporations, privates, certificate limits, train
+types and phases. 1830's catalog contains
+board/tile definitions rather than those additional market/component tables;
+its static tables live in `app/engine1830/data.py` if needed by an external
+client build. Never load Python server modules in a browser.
+
+Draw the **current** geometry from `state.board[hex]`: `color`, `nodes`, `paths`,
+`rotation`, `tokens`, `label`, `tile`, and terrain/cost information where present.
+Draw available tiles from the catalog and remaining counts from `state.tiles`.
+Cities/offboards/towns are distinct revenue nodes. `tokens[cityIndex]` lists
+corporations occupying that node; do not flatten multi-city hexes.
+
+Nodes use `n0`, `n1`, etc.; tile edges use `e0`–`e5`. Rotation adds its integer
+value modulo 6 to each printed edge number. Current state paths already have
+rotated edge numbers; do not rotate those paths a second time. Map a coordinate
+to letter-row and numeric-column. The neighbor deltas for edges 0 through 5 are:
+
+| Variant | `(row delta, column delta)` for edges 0, 1, 2, 3, 4, 5 |
+|---|---|
+| 1830 | `(1,-1), (0,-2), (-1,-1), (-1,1), (0,2), (1,1)` |
+| 1889 | `(0,2), (-1,1), (-1,-1), (0,-2), (1,-1), (1,1)` |
+
+The opposite edge is `(edge + 3) % 6`. Only coordinates in `state.board` exist.
+For catalog tile previews, parse semicolon-separated `code` clauses: `city`,
+`town` and `offboard` append revenue nodes in order; `path=a:0,b:_0` joins edge 0
+to node 0; `path=a:0,b:3` joins two edges. Underscore-prefixed values identify
+node indices. `revenue:20`, `slots:2`, `label=Y`, `upgrade=cost:80,terrain:mountain`,
+and `border=edge:0,type:impassable` supply display metadata. Tiered revenue such
+as `yellow_30|brown_60|diesel_100` supplies phase/train values. Refer to the
+variant's `board.decode` for the full parser. Gameplay geometry already comes
+parsed in `state.board`; clients never need to re-parse it.
+
+Submit either explicit vertices or ordered tile path indices, per train:
+
+```json
+{
+  "type": "run_routes",
+  "routes": [
+    {"train": "2-0", "paths": [["I15", 1], ["J14", 1]]}
+  ]
+}
 ```
 
-## Security Considerations
+The example is a representation example, not a universally legal route. Path
+indices refer to that hex's current `paths` array and do not change merely
+because of rotation. Vertex form uses e.g.
+`{"train":"2-0","vertices":["I15:n0","I15:e0","J14:e3","J14:n0"]}`.
+Routes must follow real contiguous track, include the operator's station and
+satisfy stop limits/blocking; routes in one allocation cannot share track.
+Client-provided revenue is ignored. In 1889 an unpaid route claim may be replaced
+before dividends; 1830 allows one route submission per turn. Manual legal routes
+are accepted under tabletop responsibility for maximizing revenue; only 1889's
+`run_best_routes` promises an exact automatic allocation.
 
-### Player Authentication
+## Implementation checklist for an AI coding agent
 
-```python
-from functools import wraps
-from flask import request
+1. Keep the frontend in its own repository. Configure a server base URL and variant.
+2. Implement create/start or accept an existing room code, variant and seat token.
+   Do not invent account, join, list-room, rename, undo or subscription endpoints.
+3. Build one transport adapter with the revision envelope, structured errors,
+   sequential requests, polling, reconnect refresh and private credential storage.
+4. Render current state and catalog data. Preserve IDs, strings, integer amounts,
+   node indices and per-variant response differences.
+5. Provide auction, stock, track/token, route/dividend, train/funding, negotiation,
+   private-power and mandatory-interrupt controls. Treat discovery as advisory.
+6. Handle spectators, non-active players, waiting rooms and finished scores.
+7. Verify both variants against a real server: a legal action, wrong-player move,
+   stale submission, two competing clients, reconnect, server restart, an
+   interrupt and a finished-game view. Server fixtures in `app/unittests/fixtures/`
+   and API tests provide complete action sequences; tests sometimes seed special
+   states directly and are not all client setup recipes.
 
-def require_player_auth(f):
-    """Decorator to require player authentication."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        game_id = kwargs.get('game_id')
-        player_id = request.json.get('player_id')
-
-        # Verify player is in game
-        game = games.get(game_id)
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-
-        if not any(p.id == player_id for p in game.state.players):
-            return jsonify({'error': 'Unauthorized'}), 403
-
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-@app.route('/api/games/<game_id>/moves', methods=['POST'])
-@require_player_auth
-def execute_move(game_id):
-    # ... move execution ...
-    pass
-```
-
-### Move Validation
-
-Always validate on backend, never trust frontend:
-
-```python
-@app.route('/api/games/<game_id>/moves', methods=['POST'])
-def execute_move(game_id):
-    # Frontend validation is just UX
-    # Backend must validate everything
-
-    game = games.get(game_id)
-    move = create_move_from_json(...)
-
-    # Engine handles validation
-    success = game.performedMove(move)
-
-    if not success:
-        # Don't expose internal errors to users
-        return jsonify({
-            'success': False,
-            'errors': sanitize_errors(game.errors())
-        }), 400
-```
-
-## Testing Your Integration
-
-### API Testing
-
-```python
-import unittest
-from app import app
-
-class APITests(unittest.TestCase):
-    def setUp(self):
-        self.client = app.test_client()
-
-    def test_create_game(self):
-        response = self.client.post('/api/games', json={
-            'players': ['Alice', 'Bob', 'Charlie'],
-            'variant': '1830'
-        })
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json
-        self.assertIn('game_id', data)
-
-    def test_execute_move(self):
-        # Create game
-        create_response = self.client.post('/api/games', json={
-            'players': ['Alice', 'Bob'],
-            'variant': '1830'
-        })
-        game_id = create_response.json['game_id']
-
-        # Execute move
-        move_response = self.client.post(f'/api/games/{game_id}/moves', json={
-            'move_type': 'pass',
-            'move_data': {'player_id': 'Alice'}
-        })
-
-        self.assertEqual(move_response.status_code, 200)
-```
-
-## Example Projects
-
-### Minimal Web App
-
-See `examples/web_app/` for a minimal Flask + React example.
-
-### Mobile App
-
-See `examples/mobile_app/` for React Native example.
-
-### Desktop App
-
-See `examples/desktop_app/` for Electron example.
-
----
-
-**Navigation:**
-- [← Back to API Reference](api_reference.md)
-- [Examples →](examples/)
-- [Main Documentation](README.md)
+For engine changes, consult the variant RULE_COVERAGE.md files, source rulebooks
+and [edge inventory](ENGINE_EDGE_CASES.md). Those are validation references;
+this document and runtime OpenAPI are the client integration entry points.

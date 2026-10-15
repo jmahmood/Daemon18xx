@@ -1,82 +1,135 @@
-*18xx Game Engine*
+# Daemon18xx
 
-The 18xx series of board games is of great fascination to me.  
+Daemon18xx is an authoritative Python backend for **1830** and **standard/full
+Shikoku 1889**, for 2–6 players. It validates actions, advances the complete game
+sequence, calculates revenue and scoring, and persists games behind an
+HTTP/JSON API. The supported server is backend-only; new frontends belong in
+independent projects.
 
-However, the parts which are interesting are the human interaction; 
-the actual physical actions (computing best paths, keeping tabs on other players and their cash) don't appeal to me.
+Use it as a running server or import its stateless, standard-library-only rules
+engines. The server handles credentials, SQLite snapshots and concurrent-action
+conflicts. Clients submit actions and render the returned state.
 
-This is a quiet experiment with implementing the rules as a daemon in Python. 
-With some effort, I assume different front-ends will be able to hook into the Daemon, giving us much more flexibility
-when creating front ends for the game.
+## Third-party credit
 
-## Configuration Modules
+Board/tile definitions and selected reference-game test recordings were adapted
+from **[tobymao/18xx](https://github.com/tobymao/18xx)**, by **Tobias Mao and
+contributors**, at revision `46a592e40494368390c9a731978a577ac4ecb1e0`.
+That is the open-source project behind 18xx.Games. Daemon18xx runs its own Python
+rules engine locally and has no dependency on their hosted service or affiliation
+with it.
 
-Each game variant under `app/config/` exposes a configuration module. In
-addition to the lists of private and public companies, the modules now provide:
+The upstream software is MIT-licensed, with copyright `(c) 2021 Tobias Mao`.
+MIT permits reuse, modification and redistribution subject to preserving its
+copyright and permission notice. The complete notices accompanying the imported
+material are retained for [1830](app/engine1830/UPSTREAM_LICENSE) and
+[1889](app/engine1889/UPSTREAM_LICENSE). The upstream notice distinguishes the
+software license from rights associated with the underlying game titles; it is
+not a license declaration for all Daemon18xx code.
 
-* `TOKEN_COUNTS` – mapping of public company IDs to their starting token supply.
-  Each `PublicCompany` instance created from the module also has a
-  `token_count` attribute populated from this mapping.
-* `TRACK_LAYING_COSTS` – the cost in currency for laying track tiles by
-  `Color`.
-* `SPECIAL_HEX_RULES` – a dictionary mapping hex identifiers to rule
-  dictionaries or messages. Rules can specify `no_lay`, `no_upgrade` or
-  `allowed_colors` to fine tune what track placements are allowed.
+## Start
 
-## Token Availability
+From the repository root, using Python 3.12:
 
-Public companies now track how many station tokens they have left using a
-`tokens_available` counter. Each token can also have a different cost as defined
-in the company configuration. When a token is purchased during an operating
-round its cost is deducted from the company's cash and the available count is
-reduced.
-The total number of tokens a company begins with is stored in the
-`token_count` attribute. At the start of a game `tokens_available` will equal
-`token_count`. Purchasing station tokens decreases `tokens_available` but does
-not change `token_count`. Each company also tracks whether it has already placed
-a station token in the current operating round and the engine enforces the rule
-that at most one token may be placed per round.
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000
+```
 
-## Dividend Payouts
+The interactive API reference is at `/docs`, its OpenAPI schema at `/openapi.json`,
+and database readiness at `/health`. No external database or Node installation
+is required. Stop with Ctrl+C; restarting with the same database resumes games.
 
-Operating round moves must explicitly state whether dividends will be paid with
-the `pay_dividend` flag. This value must be `True` or `False` and a company can
-only choose once it has calculated income by running routes. When creating an
-`OperatingRoundMove` the flag defaults to `False` so tests and simple
-integrations may omit it. When dividends are distributed that income is removed
-from the company and credited directly to the players according to their share
-percentage. Any portion corresponding to unsold IPO shares is added to the
-company's treasury instead. Shares sitting in the bank pool do not pay anyone.
-If no players hold stock in the company at all, a dividend choice is treated as
-a withhold: the revenue goes to the company and the stock marker moves left (or
-down-left on arrow spaces).
+For a background service with persistent storage and automatic restart:
 
-## Changelog
+```bash
+docker compose up -d --build
+```
 
-* Recent updates include initial handling of bankrupt companies when trains rust.
-Public companies now track placed station tokens and expose a ``hasValidRoute``
-helper used during operating rounds to determine whether a company can continue
-operating once its trains are gone.
-Token placement is now limited to one per operating round and the flag resets at
-the start of each round.
-Track placement now checks each variant's `SPECIAL_HEX_RULES`. Hex rules can
-forbid initial placement (`no_lay`), upgrades (`no_upgrade`) or limit allowed
-tile colours. Moves violating these restrictions are rejected.
+Compose binds port 8000 to localhost and stores games in its `games` volume.
+Use `docker compose logs -f backend` for logs and `docker compose down` to stop.
+`docker compose down -v` deletes the game volume. Put an HTTPS reverse proxy in
+front of the server when hosting it publicly.
 
-* Routes are now checked against the capacity of the trains assigned to a company.
-Each list of stops must form a continuous path across existing track tiles and
-cannot exceed the length of any available train. Invalid routes are rejected
-during the operating round.
+## Connect a frontend
 
-* The presidency of a public company transfers only to the largest shareholder
-  who holds at least 20% of its stock.
-* Certificate limits now follow the 1830 rules. The maximum number of
-  certificates depends on player count and includes both private and public
-  holdings.
+Read **[Frontend integration](docs/frontend_integration.md)**. This is the
+client contract for humans and AI coding agents: endpoints, authentication,
+working JavaScript, action fields, state/board rendering, and recovery behavior.
 
-* If you sell shares of a company during a stock round, you cannot buy shares in
-  that same company again until the next stock round begins.
-* Stock prices now move on a 12×5 grid. Each space has a band colour and
-  optional arrows. Dividends move the marker right (or up-right in brown),
-  withholds move left and share sales push the price down. Reaching the board
-  edge simply stops further movement in that direction.
+The basic flow is:
+
+1. Create a room at `POST /api/{variant}/games` (`1830` or `1889`).
+2. Distribute the returned player credentials privately; retain the creator token.
+3. Start with the creator token and one name per seat.
+4. Read state, submit player actions with the current revision, and poll for updates.
+
+There are no accounts, join service, WebSocket subscriptions, or turn timers.
+Clients own their lobby and credential distribution. The game advances when an
+accepted action requires it; no separate game-loop worker is needed.
+
+## Configuration
+
+Set environment variables before starting the process:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DAEMON18XX_DATABASE` | `data/games.sqlite3` | SQLite path; relative paths resolve from the working directory. Startup creates its parent directory. |
+| `DAEMON18XX_CORS_ORIGINS` | empty | Comma-separated browser frontend origins, e.g. `http://localhost:5173,https://play.example.com`. Empty means no cross-origin browser access. |
+
+Compose sets the database path to `/data/games.sqlite3` inside the container.
+Back up the database using SQLite's backup facility; it contains both games and
+room credentials. To resume an existing installation, explicitly point the server
+at its existing SQLite file. The original database is now located under
+`old/multiplayer/backend/game.db`; that location is not
+the default. Existing Python-engine snapshots retain their migration support;
+prototype pickle games are unsupported.
+
+## Use the library
+
+```python
+from app.engine1889 import new_game, apply_action, legal_actions, replay
+
+state = new_game(["Alice", "Bob", "Carol"])
+next_state = apply_action(state, {
+    "type": "buy_private", "player": "p1", "company": "TR",
+}, expected_revision=0)
+assert state["revision"] == 0
+assert next_state["revision"] == 1
+assert replay(["Alice", "Bob", "Carol"], next_state["history"]) == next_state
+```
+
+`app.engine1830` exposes the same core functions. Accepted actions return an
+independent JSON-compatible state; rejected actions raise the variant's
+`RuleError` without modifying the input. Library callers supply trusted player
+identities and persistence. Core syntax targets Python 3.8; the server and test
+workflow are validated on Python 3.12.
+
+## Develop and validate
+
+With the server dependencies installed, run from the repository root:
+
+```bash
+python -m unittest discover -q
+python tools/render_edge_cases.py --check
+```
+
+`app/engine1830/` and `app/engine1889/` contain rules and board data; `backend/`
+contains HTTP and persistence; `app/unittests/` contains engine, replay, API and
+server tests. `tools/` contains optional fixture/catalog importers and the
+edge-inventory renderer.
+
+The original implementation and its tests, configuration and browser client are
+preserved in [old/](old/README.md). The documented server entry point continues
+to use `backend/` and the `app.engine1830` / `app.engine1889` engines. Deprecated
+tests are retained in `old/tests/` for historical reference and are not part of
+the current test workflow.
+
+The [1830 coverage](app/engine1830/RULE_COVERAGE.md),
+[1889 coverage](app/engine1889/RULE_COVERAGE.md), and
+[executable edge-case inventory](docs/ENGINE_EDGE_CASES.md) record validation and
+its limits. The source rules are [1830](docs/rules1830.rtf) and
+[1889](docs/rules1889.pdf); the [1889 audit](docs/1889_RULEBOOK_AUDIT.md) records
+edition decisions. Optional beginner 1889 and other 18xx titles are outside scope.

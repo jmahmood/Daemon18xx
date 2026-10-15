@@ -139,3 +139,11 @@ ENV/
 # Rope project settings
 .ropeproject
 
+
+# Runtime game data (contains room credentials)
+/data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
