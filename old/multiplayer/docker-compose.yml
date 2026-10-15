@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: multiplayer/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/game.db:/app/game.db
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - daemon18xx
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - BACKEND_URL=http://backend:8000
+    restart: unless-stopped
+    networks:
+      - daemon18xx
+
+networks:
+  daemon18xx:
+    driver: bridge
+
+volumes:
+  db-data:

@@ -4,5 +4,6 @@
 *.pyc
 .env
 data
+old
 **/*.db
 **/*.sqlite*
