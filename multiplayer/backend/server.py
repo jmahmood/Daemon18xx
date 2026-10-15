@@ -27,6 +27,9 @@ from app.minigames.operating_round import OperatingRoundMove
 # Initialize FastAPI
 app = FastAPI(title="Daemon18xx Multiplayer Server")
 
+from rules1830_api import router as rules1830_router
+app.include_router(rules1830_router)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -98,6 +101,8 @@ async def get_game_info(room_code: str):
     game = await db.get_game_by_room_code(room_code)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    if game['variant'] == '1830':
+        raise HTTPException(status_code=404, detail='Use the authenticated /api/1830 API')
 
     players = await db.get_players_in_game(game["id"])
 
@@ -148,6 +153,10 @@ async def authenticate(sid, data):
         game = await db.get_game_by_room_code(room_code)
         if not game:
             await sio.emit("error", {"message": "Game not found"}, room=sid)
+            return
+
+        if game['variant'] == '1830':
+            await sio.emit('error', {'message': 'Use the authenticated /api/1830 API'}, room=sid)
             return
 
         # Verify token

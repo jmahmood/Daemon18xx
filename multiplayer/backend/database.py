@@ -255,6 +255,30 @@ class Database:
                 return dict(row)
             return None
 
+    async def save_rules_state(self, game_id: int, state: dict, expected_version: Optional[int]):
+        """Compare and append a JSON rules state in one SQLite transaction.
+
+        BEGIN IMMEDIATE serializes writers across processes, not just coroutines.
+        Rejected/stale actions never become snapshots or overwrite accepted moves.
+        """
+        async with aiosqlite.connect(self.db_path) as connection:
+            await connection.execute('BEGIN IMMEDIATE')
+            cursor = await connection.execute(
+                'SELECT move_number FROM game_states WHERE game_id = ? ORDER BY move_number DESC, id DESC LIMIT 1',
+                (game_id,))
+            latest = await cursor.fetchone()
+            actual = latest[0] if latest else None
+            if actual != expected_version:
+                await connection.rollback()
+                raise ValueError('State changed; reload before submitting another action')
+            await connection.execute(
+                'INSERT INTO game_states (game_id,state_json,move_number) VALUES (?,?,?)',
+                (game_id,json.dumps(state,separators=(',',':')),state['revision']))
+            await connection.execute(
+                'UPDATE games SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                ('completed' if state['finished'] else 'in_progress',game_id))
+            await connection.commit()
+
     async def update_game_status(self, game_id: int, status: str):
         """Update game status (waiting, in_progress, completed)"""
         async with aiosqlite.connect(self.db_path) as db:
