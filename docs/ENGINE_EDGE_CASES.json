@@ -838,7 +838,7 @@
     {
       "id": "OPERATING-06",
       "area": "OPERATING",
-      "scenario": "One normal lay, one additional station, one route submission and one dividend per turn",
+      "scenario": "One normal lay, one additional station and one dividend per turn; one route claim in 1830, editable unpaid claims in 1889",
       "level": "unit",
       "tests": {
         "1830": [
@@ -848,7 +848,8 @@
         "1889": [
           "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_wrong_operating_actor_and_out_of_order_or_duplicate_steps",
           "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_runnable_train_cannot_be_skipped_and_revenue_is_computed",
-          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_home_reservation_and_one_additional_station_per_turn"
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_home_reservation_and_one_additional_station_per_turn",
+          "app.unittests.test_Engine1889Rulebook.RouteRulebookTests.test_8_3_route_claims_can_be_corrected_until_dividend_then_are_locked"
         ]
       },
       "not_applicable": {}
@@ -2002,13 +2003,14 @@
     {
       "id": "PRIVATE-13",
       "area": "PRIVATE",
-      "scenario": "1889 MF timing: stock, between OR turns or own track step; no other-turn interruption",
+      "scenario": "1889 MF timing: initial auction, stock, between OR turns and any own operating step; no other-player active OR interruption",
       "level": "unit",
       "tests": {
         "1830": [],
         "1889": [
           "app.unittests.test_Engine1889.Rules1889Tests.test_mitsubishi_port_timing_permanence_and_one_use",
-          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special"
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_mitsubishi_wrong_owner_tile_auction_interrupt_and_pending_special",
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_mitsubishi_port_is_available_throughout_owners_operating_turn"
         ]
       },
       "not_applicable": {
@@ -2081,13 +2083,14 @@
     {
       "id": "PRIVATE-18",
       "area": "PRIVATE",
-      "scenario": "1889 DR exchange uses IPO only, rejects pool/exhausted IPO and 60% ownership excess",
+      "scenario": "1889 DR exchange uses IPO only, rejects pool/exhausted IPO and holdings over 60% outside orange; orange exemption applies",
       "level": "unit",
       "tests": {
         "1830": [],
         "1889": [
           "app.unittests.test_Engine1889.Rules1889Tests.test_dougo_ipo_exchange_and_limits",
-          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_cannot_exchange_when_only_pool_shares_remain"
+          "app.unittests.test_Engine1889Edges.Rules1889EdgeTests.test_dougo_cannot_exchange_when_only_pool_shares_remain",
+          "app.unittests.test_Engine1889Rulebook.UploadedRulebookTests.test_15_2_dougo_exchange_uses_normal_orange_holding_exemption"
         ]
       },
       "not_applicable": {
@@ -3472,6 +3475,550 @@
       },
       "not_applicable": {
         "1830": "1889 uploaded-rulebook audit; standard 1830 rules remain unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-01",
+      "area": "INTERACT1889",
+      "scenario": "ER upgrades after route declaration use current stop values for payout/withhold; previously paid claims remain final, including restoration and invalid interrupt actions",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionTests.test_ehime_revalues_unpaid_routes_but_never_changes_paid_dividends"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-02",
+      "area": "INTERACT1889",
+      "scenario": "MF creates a runnable route after an empty declaration or skipped route step; payout and withhold require a replacement claim",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionTests.test_port_after_empty_route_claim_requires_newly_available_train_to_run"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-03",
+      "area": "INTERACT1889",
+      "scenario": "Invalid replacement claims (empty, reused/unowned train, repeated vertex, malformed route/path) preserve prior routes, revenue and revision; legal reversal remains accepted",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionTests.test_invalid_route_corrections_keep_the_previous_claim_and_revision"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-04",
+      "area": "INTERACT1889",
+      "scenario": "DR floats IR during another corporation operation; capital paid once, existing order preserved, home deferred, next round includes IR, and bank exhaustion ends the required set",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionTests.test_dougo_flotation_during_operation_funds_once_and_waits_for_next_round"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-05",
+      "area": "INTERACT1889",
+      "scenario": "Exact allocation matches an independent branch-based oracle across 320 combinations of weights, train mixes, railheads, city blocking and offboard groups/Diesel values",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.RouteAllocationOracleTests.test_allocator_matches_independent_oracle_across_weighted_network_family"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-06",
+      "area": "INTERACT1889",
+      "scenario": "Exact allocation finds a known best route absent from the first 100 bounded suggestions",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.RouteAllocationOracleTests.test_exact_allocator_is_not_limited_to_first_hundred_suggestions"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-07",
+      "area": "INTERACT1889",
+      "scenario": "HTTP/SQLite ER seller interrupt, current-value dividend persistence, wrong actor, stale retry and post-payment correction rejection",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionHTTPTests.test_ehime_interrupt_and_revalued_payment_persist_with_stale_retry_rejected"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-08",
+      "area": "INTERACT1889",
+      "scenario": "HTTP/SQLite MF-created route invalidates empty declaration; rejected payment preserves stored snapshot and successful replacement/payout persists exact balances",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionHTTPTests.test_port_invalidates_empty_claim_without_persisting_rejected_payment"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 private-ability and exact-route allocation audit; 1830 behavior unchanged."
+      }
+    },
+    {
+      "id": "INTERACT1889-09",
+      "area": "INTERACT1889",
+      "scenario": "MF port after a paid zero dividend preserves the route/payment lock; a trainless corporation must buy a train on its newly connected route, while an existing train permits turn completion",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_Engine1889InteractionAudit.OperatingInteractionTests.test_port_after_paid_zero_revenue_preserves_lock_and_new_train_obligation"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 Mitsubishi Ferry timing and train obligation interaction."
+      }
+    },
+    {
+      "id": "BACKLOG-01",
+      "area": "BACKLOG",
+      "scenario": "Emergency share sales commit 1889 to a depot train despite an affordable negotiated corporate price",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_emergency_sale_commits_to_depot_even_if_corporate_price_is_affordable"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-02",
+      "area": "BACKLOG",
+      "scenario": "Bankruptcy liquidation and HTTP restore are independent of corporation dictionary order",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_bankruptcy_liquidation_is_independent_of_dictionary_order_in_both_games",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_bankruptcy_after_reordered_restore_matches_library"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_bankruptcy_liquidation_is_independent_of_dictionary_order_in_both_games",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_bankruptcy_after_reordered_restore_matches_library"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-03",
+      "area": "BACKLOG",
+      "scenario": "Strict nonnegative integer revisions, complete accepted history, and noncoercing HTTP versions",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_revision_types_ranges_and_history_consistency",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_action_revision_types_and_ranges",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_boolean_and_float_revisions_are_not_coerced_over_http"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_revision_types_ranges_and_history_consistency",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_action_revision_types_and_ranges",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_boolean_and_float_revisions_are_not_coerced_over_http"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-04",
+      "area": "BACKLOG",
+      "scenario": "Saved phase/round/finished/operating order, step and actor consistency; malformed structure rejects as RuleError",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_unknown_phase_round_and_inconsistent_finished_state",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_nonobject_and_missing_required_structure_are_rule_errors",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_operating_lifecycle_and_actor_consistency"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_unknown_phase_round_and_inconsistent_finished_state",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_nonobject_and_missing_required_structure_are_rule_errors",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_operating_lifecycle_and_actor_consistency"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-05",
+      "area": "BACKLOG",
+      "scenario": "Malformed stored JSON, nonobject roots and invalid lifecycle return HTTP conflict without a new snapshot",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_malformed_saved_json_and_lifecycle_return_conflict_without_append"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_malformed_saved_json_and_lifecycle_return_conflict_without_append"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-06",
+      "area": "BACKLOG",
+      "scenario": "Bank and bid escrow require whole currency units; balanced corruptions reject and negative bank remains valid",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_bank_requires_integer_but_zero_and_negative_are_valid",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_balanced_invalid_escrow"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_bank_requires_integer_but_zero_and_negative_are_valid",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_balanced_invalid_escrow"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-07",
+      "area": "BACKLOG",
+      "scenario": "Share ledger requires complete holders, 10% IPO/pool units and a largest-holder presidency",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_share_supply_units_and_holder_catalog"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_share_supply_units_and_holder_catalog"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-08",
+      "area": "BACKLOG",
+      "scenario": "Owned train IDs are unique and known, owners valid and rusted trains unowned",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_duplicate_unknown_and_rusted_owned_trains"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_duplicate_unknown_and_rusted_owned_trains"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-09",
+      "area": "BACKLOG",
+      "scenario": "Restored station arrays, corporation IDs, city slots, uniqueness, home token and supply are consistent",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_unknown_overfull_duplicate_and_noncity_tokens",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_station_supply_and_town_tokens"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_unknown_overfull_duplicate_and_noncity_tokens",
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_station_supply_and_town_tokens"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-10",
+      "area": "BACKLOG",
+      "scenario": "Restored tile/board catalogs are complete with known laid tiles and integer physical counts",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_tile_catalog_and_count_integrity"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogSnapshotTests.test_tile_catalog_and_count_integrity"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-11",
+      "area": "BACKLOG",
+      "scenario": "Route helpers accept zero/None limits and empty quotations; malformed limits, IDs and collections reject atomically",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogValidation.BacklogHelperTests.test_limits_identifiers_and_malformed_quotations"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogValidation.BacklogHelperTests.test_limits_identifiers_and_malformed_quotations"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-12",
+      "area": "BACKLOG",
+      "scenario": "DR consumes the last IPO certificate and never falls back to a nonempty pool, including HTTP persistence",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_dougo_last_ipo_share_and_no_pool_fallback",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_dougo_last_ipo_and_pool_rejection_persist_atomically"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-13",
+      "area": "BACKLOG",
+      "scenario": "DR before par retains its granted share through president purchase and funds exactly once at flotation",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_dougo_before_par_retains_share_and_funds_once_at_flotation"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-14",
+      "area": "BACKLOG",
+      "scenario": "DR presidency transfer before a nonzero dividend preserves routes, changes the actor and pays current holdings",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_dougo_unpaid_claim_transfers_actor_and_pays_current_holdings"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-15",
+      "area": "BACKLOG",
+      "scenario": "DR flotation joins OR2 of the same phase-3/4 set, with one capital payment and correct latched-bank ending",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_dougo_flotation_joins_next_operation_in_same_set_and_bank_end_waits"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-16",
+      "area": "BACKLOG",
+      "scenario": "MF during a live competitive private auction preserves bidder order, escrow, counters and resume across restore",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_port_during_competitive_auction_keeps_bidding_and_escrow_intact"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-17",
+      "area": "BACKLOG",
+      "scenario": "ER can resolve by passing after all special green tiles are exhausted; failed lay is atomic and normal lay remains",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_ehime_with_exhausted_green_supply_can_pass_and_resume"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-18",
+      "area": "BACKLOG",
+      "scenario": "100% holding emergency correction outside orange requires 40%; orange minimum funding and bankruptcy estimate remain correct",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_emergency_maximum_ownership_correction_and_orange_control"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-19",
+      "area": "BACKLOG",
+      "scenario": "Exact route optima on cyclic/junction/crossing networks match an independent oracle and exclude disconnected richness/blocked continuations",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklogRoutes.BacklogRouteTests.test_cyclic_junction_and_crossing_optima_against_independent_oracle"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-20",
+      "area": "BACKLOG",
+      "scenario": "Explicit route query for an inactive corporation does not inherit the active corporation new-train exclusion",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_foreign_route_query_does_not_inherit_active_new_train_exclusion"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-21",
+      "area": "BACKLOG",
+      "scenario": "Bankruptcy ends immediately even with an already latched bank ending, retaining final valuation",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_bankruptcy_takes_precedence_over_previously_broken_bank"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-22",
+      "area": "BACKLOG",
+      "scenario": "Independent server processes serialize concurrent starts/actions; SQLite lock timeout is controlled and same revision retries",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_separate_server_processes_serialize_starts_and_actions",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_locked_writer_is_controlled_and_same_revision_retries"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_separate_server_processes_serialize_starts_and_actions",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_locked_writer_is_controlled_and_same_revision_retries"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-23",
+      "area": "BACKLOG",
+      "scenario": "Room/credential collisions retry atomically across credential roles; failed slot insert rolls back and exhaustion returns controlled error",
+      "level": "integration",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_room_and_token_collisions_retry_without_partial_registration",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_creation_retries_collisions_across_credential_roles"
+        ],
+        "1889": [
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_room_and_token_collisions_retry_without_partial_registration",
+          "app.unittests.test_EngineBacklogAPI.BacklogHTTPTests.test_creation_retries_collisions_across_credential_roles"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-24",
+      "area": "BACKLOG",
+      "scenario": "DR stock exchanges reset passes and priority without consuming a normal buy or another actor turn; MF does not",
+      "level": "unit",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklog1889.Backlog1889Tests.test_stock_exchange_resets_passes_and_priority_but_port_does_not"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
+      }
+    },
+    {
+      "id": "BACKLOG-25",
+      "area": "BACKLOG",
+      "scenario": "Reviewed inventory wording matches variant-specific route corrections, full MF timing and orange DR holding exemption",
+      "level": "unit",
+      "tests": {
+        "1830": [
+          "app.unittests.test_EngineEdgeCaseInventory.EdgeCaseInventoryTests.test_readable_checklist_matches_machine_readable_inventory"
+        ],
+        "1889": [
+          "app.unittests.test_EngineEdgeCaseInventory.EdgeCaseInventoryTests.test_readable_checklist_matches_machine_readable_inventory"
+        ]
+      },
+      "not_applicable": {}
+    },
+    {
+      "id": "BACKLOG-26",
+      "area": "BACKLOG",
+      "scenario": "All 18 late-game two-train mixes on a 27-tile recorded board match an independent exact oracle under resource bounds",
+      "level": "integration",
+      "tests": {
+        "1830": [],
+        "1889": [
+          "app.unittests.test_EngineBacklogRoutes.BacklogRouteTests.test_recorded_late_board_exact_optima_with_bounded_resources"
+        ]
+      },
+      "not_applicable": {
+        "1830": "1889 rules, private powers or exact route allocator; standard 1830 behavior remains separate."
       }
     }
   ]

@@ -61,10 +61,9 @@ class Rules1889APITests(unittest.IsolatedAsyncioTestCase):
             "GET", h.path.replace("/1889/", "/1830/"), token=h.room["player_tokens"][0]
         )
         self.assertEqual(status, 404)
-        status, legacy = await h.request(
-            "POST", "/api/games/create", {"max_players": 3}
-        )
-        self.assertEqual(status, 200)
+        status, _ = await h.request("POST", "/api/games/create", {"max_players": 3})
+        self.assertEqual(status, 404)
+        legacy = await h.db.create_game(variant="1889", max_players=3, engine="legacy")
         status, _ = await h.request(
             "GET",
             "/api/1889/games/" + legacy["room_code"],

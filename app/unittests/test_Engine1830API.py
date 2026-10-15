@@ -2,22 +2,18 @@
 
 import asyncio
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parents[2] / "multiplayer" / "backend"
-
 
 class Rules1830APITests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        sys.path.insert(0, str(BACKEND))
         try:
-            from server import app
-            from database import db
+            from backend.server import app
+            from backend.database import db
         except ImportError as error:
-            self.skipTest("Multiplayer dependencies required: %s" % error)
+            self.skipTest("Server dependencies required: %s" % error)
         self.app, self.db = app, db
         self.directory = tempfile.TemporaryDirectory()
         self.original_path = db.db_path
@@ -33,8 +29,6 @@ class Rules1830APITests(unittest.IsolatedAsyncioTestCase):
         if hasattr(self, "original_path"):
             self.db.db_path = self.original_path
             self.directory.cleanup()
-        if str(BACKEND) in sys.path:
-            sys.path.remove(str(BACKEND))
 
     async def request(self, method, path, data=None, token=None):
         messages = []

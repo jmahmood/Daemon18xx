@@ -22,12 +22,23 @@ new findings, implemented fixes, executed the tests and compared the rules again
 | 5 | Update priority after private-only pass cycles (§5.7); make optimizer output independent of dictionary order; handle identical and excess unrunnable trains. | All targeted regressions pass. |
 | 6 | Recompare all numbered rules and rerun both games' full acceptance suites. | Full suite passed 565, then 566 tests. |
 | 7 | Final source review: auction order and final-private priority must survive JSON key reordering. | New failing regression corrected with canonical printed-company order; final full suite rerun. |
+| 8 | Review private abilities between route declaration and dividend: ER changes stop values, and MF can create a route after an empty claim. | Reproduced four failing subcases; payments now revalue nonempty claims and reject empty claims when trains can run. Paid dividends remain final. |
+| 9 | Independently check allocation and remaining recent-change interactions. | A branch-based oracle matches all 320 combinations of stop values, train mixes, railheads, city blocking, grouped offboards and Diesel values. Added a known optimum beyond the first 100 suggestions, invalid correction atomicity and DR flotation during another operation. No additional rules defects found. |
+| 10 | Exercise both fixes through authenticated HTTP/SQLite and restore; fault-check regression assertions. | Both transport scenarios pass, including wrong actor, stale retry and rejected-action persistence. Removing either production fix in memory causes its regression assertions to fail. |
+| 11 | Recheck MF after an already-paid zero dividend, with and without an owned train. | Payment/route correction stays locked; a newly connected trainless corporation must buy a train before ending its turn. Both boundaries pass without further code changes. |
+| 12 | Implement the 26-item review backlog with strict restore/ledger contracts, emergency depot commitment, deterministic bankruptcy and DR/MF stock-pass policy. | Named unit and HTTP regressions cover every item; existing 1830 and 1889 rules/migrations remain in full discovery. |
+| 13 | Independently validate cyclic and late-game routes; test process-level persistence, allocation collisions and lock retries. | Four known cyclic/blocking maxima and all 18 eligible late-game train pairs agree with a separate exhaustive oracle; separate ASGI workers produce one SQLite commit and one conflict. |
+| 14 | Recheck helper tests on runnable paths instead of empty networks, refresh the inventory and run final discovery. | Corrected the 1830 unbounded-route comparison; both variants cover zero/bounded/unbounded limits and nonzero quotations. |
 
-The new tests are in
-[test_Engine1889Rulebook.py](../app/unittests/test_Engine1889Rulebook.py).
-The [executable inventory](ENGINE_EDGE_CASES.md) now maps **226 cases**:
-201 unit cases and 25 HTTP/replay cases. It checks that all named test references
+The rulebook tests are in
+[test_Engine1889Rulebook.py](../app/unittests/test_Engine1889Rulebook.py), with
+follow-up interactions and the independent allocator oracle in
+[test_Engine1889InteractionAudit.py](../app/unittests/test_Engine1889InteractionAudit.py).
+The [executable inventory](ENGINE_EDGE_CASES.md) now maps **261 cases**:
+227 unit cases and 34 HTTP/replay cases. It checks that all named test references
 exist and its readable checklist matches the JSON source.
+The [resolved backlog](ENGINE_EDGE_CASE_BACKLOG.md) records the new contracts,
+individual completion evidence, resource bounds and remaining reference limits.
 
 ## Clause-to-implementation comparison
 
@@ -91,6 +102,13 @@ for legality, not automatically rejected for being suboptimal. Automatic
 optimality rejection was offered as a preference question; without an answer,
 the existing tabletop model is retained rather than silently changing it.
 
+Private abilities may change the board before payment. Dividends recompute
+nonempty claims using the current stops, and an earlier empty claim no longer
+suffices if an MF port has made an owned train runnable. The president must
+submit routes before paying. A port after an already-paid zero dividend keeps
+that payment final, but a trainless corporation must buy a train if the port
+creates a route. Pure-engine and HTTP/SQLite regressions cover these boundaries.
+
 The exact solver enumerates all legal simple routes without a suggestion-count
 limit, then jointly allocates disjoint track among trains. It handles shorter
 routes improving the total, identical trains, Diesel-specific offboards, unused
@@ -119,6 +137,14 @@ continues to use the pinned, licensed G1889 component catalog.
 
 - The 24 new rulebook tests pass, including authenticated HTTP/SQLite, restoration,
   actor checks, terminal restrictions, global allocation and money conservation.
+- Nine follow-up interaction tests cover the two dividend fixes, invalid route
+  replacements, DR flotation/bank exhaustion, paid-zero MF/train obligations,
+  the 320-scenario independent oracle and the beyond-100 optimum. Two use real
+  authenticated HTTP/SQLite with full library-state comparison after each action;
+  their starting board/holdings are seeded fixtures, not independent game records.
+- Three in-memory fault checks omit each dividend fix or cap exact allocation at
+  100 routes. Each causes the corresponding regression's value/rule assertions to
+  fail. Production files are unchanged by these fault checks.
 - The six-player authored bankruptcy score changes from p2=230 to **260**:
   §12.1 retains MF's ¥30 face value. Its action history is unchanged. Other
   authored and independently recorded final scores remain unchanged.
@@ -133,9 +159,14 @@ continues to use the pinned, licensed G1889 component catalog.
   strengthen cross-validation; authored full games already cover both endings,
   all phases, all seven corporations and all supported player counts.
 
-Final stable validation on Python 3.12: **567 tests passed, no skips**, in
-53.305 seconds. Preceding full iterations passed 565 and 566 tests without skips.
-The 226 inventory mappings/generated-document check passes, changed Python files
+Rulebook, interaction and backlog regressions remain in the backend suite.
+The obsolete prototype and its tests have been removed; historical aggregate
+test counts no longer describe the current repository.
+Reproduce with `python -m unittest discover -q`. Both games' complete acceptance
+and HTTP suites remain in discovery. No further implementation or missing-test
+defects were identified in the follow-up scope; the independent-recording limit
+above remains additional validation work rather than an uncovered rule boundary.
+The 261 inventory mappings/generated-document check passes, changed Python files
 parse under Python 3.8 grammar, formatting checks pass, and `git diff --check`
 reports no whitespace errors. Passing this finite audit is not a mathematical
 proof over every possible play sequence.

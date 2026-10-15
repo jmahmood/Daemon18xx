@@ -47,6 +47,7 @@ class ReviewRepros(unittest.TestCase):
                 f.cash(f.s["players"]["p3"], 0)
                 if condition == "before_train":
                     f.s["operating_turn"]["step"] = "track"
+                    f.s["operating_turn"]["dividend"] = False
                 elif condition == "affordable":
                     f.cash(f.s["players"]["p3"], 80)
                 elif condition == "has_train":

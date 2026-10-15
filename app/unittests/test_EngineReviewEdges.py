@@ -14,7 +14,7 @@ from app.unittests import test_EngineAuctionAndEmergency as emergency
 from app.unittests import test_Engine1830API as api_fixtures
 
 
-def public_emergency_state():
+def public_emergency_state(private_price=300):
     """A legal public-action prefix, modified to require emergency funding.
 
     Give AR a route before its first 5 purchase and buy UTF at twice face.
@@ -52,9 +52,15 @@ def public_emergency_state():
             item="UTF",
             seller=seller,
             buyer="AR",
-            price=300,
+            price=private_price,
         ),
-        dict(type="buy_private", player=actor, company="UTF", buyer="AR", price=300),
+        dict(
+            type="buy_private",
+            player=actor,
+            company="UTF",
+            buyer="AR",
+            price=private_price,
+        ),
         dict(type="emergency_sell", player=actor, corporation="TR", percent=10),
     ):
         state = engine1889.apply_action(state, action)
@@ -132,11 +138,25 @@ class Old1889EmergencySaveTests(unittest.TestCase):
         self.assertEqual(state["operating_turn"]["emergency_sales"], [])
 
     def test_previous_turn_sales_are_not_carried_into_new_operator(self):
-        state = deepcopy(self.canonical)
+        # Leave enough cash after the necessary sale for a legal depot purchase.
+        # A cheap corporate transfer after emergency funding is prohibited.
+        state = public_emergency_state(private_price=250)
         actor = state["current_player"]
         state = engine1889.apply_action(
-            state, dict(type="buy_train", player=actor, train="4-2", price=1)
+            state, dict(type="buy_train", player=actor, train="5-0")
         )
+        while state["pending_discards"]:
+            cid = state["pending_discards"][0]
+            corp = state["corporations"][cid]
+            state = engine1889.apply_action(
+                state,
+                dict(
+                    type="discard_train",
+                    player=corp["president"],
+                    corporation=cid,
+                    train=corp["trains"][0],
+                ),
+            )
         state = engine1889.apply_action(state, dict(type="end_turn", player=actor))
         self.assertEqual(state["round"], "operating")
         self.assertNotEqual(state["current_corporation"], "AR")

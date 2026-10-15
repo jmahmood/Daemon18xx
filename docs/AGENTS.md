@@ -1,33 +1,12 @@
-# AGENT Guidelines for Implementing 1830 Rules
+# Documentation and rules sources
 
-This directory contains the original 1830 rulebook (`rules1830.rtf`) and the
-user-uploaded Japanese 1889 rulebook (`rules1889.pdf`). Use the matching variant
-source; see `1889_RULEBOOK_AUDIT.md` for the standard 1889 clause comparison.
-When adding game logic or tests, consult the rulebook so behaviour matches
-the official rules.
+README.md is the project overview and startup guide. frontend_integration.md is
+the sole external-client integration guide. Other documents here are rulebooks
+and validation evidence, not alternative API or setup instructions.
 
-## Core Sequence
-1. **Private Company Auction** – See rule `7.1`.
-2. **Stock Round** – Players may buy one certificate and optionally sell
-   permitted shares (no sales in the first Stock Round).
-3. **Operating Round** – Private companies pay revenue first, then each
-   railroad may construct track, optionally place a station token, run trains
-   and buy trains. Follow tile colour progression and token placement rules.
+Use rules1830.rtf for 1830 and rules1889.pdf for standard/full Shikoku 1889.
+1889_RULEBOOK_AUDIT.md records translation and edition decisions. The engine
+configuration is in app/engine1830/data.py and app/engine1889/data.py.
 
-## Key Rules to Observe
-- **Track Construction** (`18.0`): only one tile per OR, observing colour
-  order (yellow → green → brown → red) and connectivity requirements.
-- **Tokens** (`19.0`): one token may be placed per OR, costs escalate and a
-  route must include at least one of the company's tokens.
-- **Running Trains** (`20.0`): routes must be legal and each requires an
-  available train. Train purchases may rust older trains (`22.0`).
-- **Stock Market** (`10.0`–`16.0`): tokens move down when shares are sold into
-  the bank pool and up when all shares are player-owned. No stock sales are
-  allowed in the first Stock Round.
-
-## Implementation Notes
-- Use the variant configuration modules in `app/config` to define starting
-  cash, token counts and train rosters.
-- Keep the engine stateless as directed in the repository root `AGENTS.md`.
-- Expand README files when implementing new sections of the rules.
-- Cover new behaviour with tests under `app/unittests/`.
+Keep human and AI instructions consistent with the actual HTTP API. Preserve
+the source rulebooks, upstream licenses and executable edge-case inventory.

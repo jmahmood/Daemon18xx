@@ -7,6 +7,15 @@ records corrections, tests and edition decisions. The production `G1889` at
 `tobymao/18xx` revision `46a592e40494368390c9a731978a577ac4ecb1e0` remains the
 secondary policy/component reference; the translation omits its full tile chart.
 
+The [26-item follow-up backlog](../../docs/ENGINE_EDGE_CASE_BACKLOG.md) is now
+resolved with named coverage in the 261-case inventory. It adds strict shared
+snapshot validation, deterministic bankruptcy, emergency depot commitment,
+DR/MF pass/priority rules and private-ability interaction regressions. Real HTTP
+tests include malformed saves, collision rollback and separate-process writers.
+An independent route oracle checks cyclic networks and all 18 late-game train
+mixes on a 27-tile recorded board, with explicit resource bounds. Phase-6/D board
+projections remain distinct from independent complete-game reference evidence.
+
 ## Acceptance evidence
 
 Tests are in `test_Engine1889.py` and `test_Engine1889API.py`.
@@ -33,12 +42,18 @@ consent after a presidency change, strict snapshot metadata, invariant failures,
 round dispatch and alias normalization, route quotations and required operating
 steps. HTTP scenarios cover all player counts, invalid metadata conflicts and
 rollback/retry after a database commit failure. See the
-[iterative test audit](../../docs/ENGINE_TEST_AUDIT.md).
+[executable edge inventory](../../docs/ENGINE_EDGE_CASES.md).
 
 Competitive 1889 auctions follow clockwise order after the high bidder (§5.7).
 Capital is paid at the fifth IPO share (§5.6.4), with a fallback for older unfunded
 saves. The new rulebook suite also covers MF/DR timing, emergency ownership
 correction, retained bankruptcy private value and exact route allocation.
+`test_Engine1889InteractionAudit.py` adds cross-step ER/MF dividend regressions,
+DR flotation during another operation, rejected route-correction atomicity and
+HTTP/SQLite persistence. Payments revalidate unpaid routes against the current
+board, including newly runnable trains after a port lay; paid claims stay final.
+An independent branch-based oracle checks 320 route-allocation combinations,
+and a separate regression requires the optimum beyond 100 bounded suggestions.
 Emergency sales record one block per corporation per operating turn, survive
 JSON/SQLite reload, and use the same restriction in bankruptcy funding estimates
 and liquidation. A new operating turn resets that bookkeeping.
@@ -64,7 +79,7 @@ and liquidation. A new operating turn resets that bookkeeping.
 | Endgame | Bank depletion finishes the required set, bankruptcy ends immediately, corporate treasury excluded, remaining open privates valued even for bankrupt players. |
 | Isolation | Interleaved 1830/1889 games preserve each other's state and ¥7,000/$12,000 invariants; no module-global rule switching. |
 | Transport | All roles, wrong-room/variant tokens, creator-only start/restart rejection, stale revisions, concurrent writers, rejected-action atomicity, ER interrupts, JSON reload and continued play. |
-| Database | Additive legacy-engine migration is repeatable and preserves existing rows. Legacy endpoints cannot expose Python-room credentials or accept its gameplay. |
+| Database | Additive legacy-engine migration is repeatable and preserves existing rows. The prototype endpoints are removed; the API rejects prototype 1889 rooms. |
 
 ## Complete games and reference limitations
 
@@ -99,4 +114,4 @@ see the rulebook audit for its treatment under the tabletop route policy.
 
 The existing three independent 1830 games and complete 1830 HTTP game remain
 part of normal discovery. Passing tests establish these scenarios, not a proof
-over every possible play sequence. Browser/frontend gameplay is separate work.
+over every possible play sequence. Frontends are separate projects and outside this repository's scope.

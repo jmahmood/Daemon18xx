@@ -8,6 +8,8 @@ balance after bank exhaustion.
 
 from copy import deepcopy
 
+from app.engine_validation import state_errors, validate_snapshot
+
 from .errors import RuleError, require
 from .data import (
     BOARD_DATA,
@@ -165,8 +167,10 @@ def new_game(names, player_ids=None):
     return state
 
 
+@state_errors(RuleError)
 def migrate_state(state):
     """Load JSON saves, recovering old turn bookkeeping from verified history."""
+    require(isinstance(state, dict), "State must be an object")
     require(
         state.get("variant") == "1889"
         and type(state.get("schema_version")) is int
@@ -830,6 +834,18 @@ def _dividend(state, payout):
     _skip_to(state, "dividend")
     require(not turn["dividend"], "Dividend decision already made")
     corp = _corp(state, state["current_corporation"])
+    # MF/ER may change the board after a claim (§§11,15.2). Until payment
+    # locks it (§8.3), score against the current board and recheck empty claims.
+    if turn["routes"]:
+        turn["revenue"] = topology.validate_routes(state, corp["id"], turn["routes"])
+    else:
+        require(
+            not any(
+                topology.route_candidates(state, corp["id"], tid, limit=1)
+                for tid in corp["trains"]
+            ),
+            "Available trains must run",
+        )
     revenue = turn["revenue"]
     if payout and revenue:
         for pid, percent in corp["holdings"].items():
@@ -926,6 +942,10 @@ def _buy_train(state, action):
             "Depot trains must be bought at the fixed price",
         )
     else:
+        require(
+            not state["operating_turn"]["emergency_sales"],
+            "Emergency funding requires a depot train",
+        )
         _agreement(state, action["player"], "train", tid, seller, cid, price)
     if corp["cash"] < price:
         require(
@@ -993,6 +1013,13 @@ def _exchange_private(state, action):
     _buy_shares(
         state, dict(action, corporation="IR", percent=10, source="ipo"), exchange=True
     )
+    if state["round"] == "stock":
+        # An exchange acquires stock (§4.1.1); a port lay does not. An
+        # out-of-turn exchange must not mark somebody else's turn as dealt.
+        state["stock_passes"] = 0
+        state["last_deal"] = player
+        if state["current_player"] == player:
+            state["stock_turn"]["dealt"] = True
     if state["round"] == "operating" and state["current_corporation"] == "IR":
         state["current_player"] = state["corporations"]["IR"]["president"]
 
@@ -1216,7 +1243,7 @@ def _bankrupt(state, action):
     # Liquidate each legally saleable bundle at its pre-sale market price.
     # This is part of the bankruptcy action, so presidencies and market falls
     # remain deterministic even when the player cannot afford any train.
-    for other_id in state["corporations"]:
+    for other_id in CORPORATIONS:
         amount = _maximum_emergency_sale(state, pid, other_id)
         if amount:
             _sell_shares(state, pid, other_id, amount, emergency=True)
@@ -1391,6 +1418,11 @@ def apply_action(state, action, expected_revision=None):
     transport. Optional revision protects against stale concurrent submissions.
     """
     require(isinstance(action, dict), "Action must be an object")
+    candidate = migrate_state(state)
+    if expected_revision is not None:
+        _integer(expected_revision, "Revision")
+    if "expected_action_id" in action:
+        _integer(action["expected_action_id"], "Action revision")
     require(not state["finished"], "Game has ended")
     require(
         expected_revision is None or expected_revision == state["revision"],
@@ -1421,7 +1453,6 @@ def apply_action(state, action, expected_revision=None):
             field + " must be a string",
         )
     _player(state, action.get("player"))
-    candidate = migrate_state(state)
     kind = action["type"]
     if kind in ("exchange_dr", "bankruptcy"):
         kind = {"exchange_dr": "exchange_private", "bankruptcy": "bankrupt"}[kind]
@@ -1463,14 +1494,17 @@ def apply_action(state, action, expected_revision=None):
     return candidate
 
 
+@state_errors(RuleError)
 def validate_state(state):
     """Validate accounting/component invariants after every successful action."""
+    require(isinstance(state, dict), "State must be an object")
     require(
         type(state.get("schema_version")) is int
         and state["schema_version"] in (1, SCHEMA_VERSION),
         "Unsupported 1889 state schema",
     )
     require(state.get("variant") == "1889", "Wrong game variant")
+    validate_snapshot(state, require, CORPORATIONS, BOARD_DATA, PHASES, MARKET)
     if state.get("round") == "operating":
         turn = state.get("operating_turn")
         require(isinstance(turn, dict), "Missing operating turn")

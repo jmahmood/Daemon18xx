@@ -652,7 +652,9 @@ class Rules1889EdgeTests(unittest.TestCase):
             c["president"] = "p1"
             if not operating_ir:
                 f.shares("AR", "p3", 50)
-                f.s.update(current_corporation="AR", current_player="p3")
+                E._market_move(f.s, f.s["corporations"]["AR"], "right")
+                E._start_operating(f.s)
+                self.assertEqual(f.s["current_corporation"], "AR")
             f.act("exchange_private", player="p2")
             self.assertEqual(f.s["corporations"]["IR"]["president"], "p2")
             self.assertEqual(f.s["current_player"], "p2" if operating_ir else "p3")

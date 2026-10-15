@@ -3,14 +3,18 @@
 > **Review update:** The original and follow-up review defects are corrected.
 > Normal discovery includes `test_Engine1830Regressions.py` and
 > `test_Engine1830Followup.py`, including the HTTP presidency-transfer regression.
-> See [the follow-up validation](../../docs/1830_FOLLOWUP_REVIEW.md).
+
+The [resolved backend backlog](../../docs/ENGINE_EDGE_CASE_BACKLOG.md) also adds
+shared restore/ledger validation, strict HTTP revisions, canonical bankruptcy
+liquidation, route-helper input contracts and unbounded suggestions. New tests
+exercise malformed SQLite saves, collision rollback and writers in independent
+server processes. The existing complete 1830 replays and supported home-schema
+migrations remain in full discovery.
 
 
 Specification: `docs/rules1830.rtf`, including its Tables 1–8. The backend is
-`app.engine1830`, served by `multiplayer/backend/rules1830_api.py`. The older
-`app.state` / minigame code is retained for existing consumers and is not the
-implementation covered by this checklist. This work covers 1830; it does not
-establish rules completeness for 1846, 1889, or every other 18xx title.
+`app.engine1830`, served by `backend/rules1830_api.py`. This checklist covers 1830; 1889 has its own coverage document. Other titles
+are outside this repository's scope.
 
 The [dual-game edge-case inventory](../../docs/ENGINE_EDGE_CASES.md) adds explicit
 boundary-to-test mapping. The auction now advances to the lowest standing bid
@@ -27,7 +31,7 @@ and invariants, wrong-round action rejection, and auction/terminal discovery.
 Authenticated HTTP cases cover all player counts and SQLite rollback/retry.
 1830 now rejects a snapshot tagged as another variant, and both validators
 require an integer schema version. See the
-[iterative test audit](../../docs/ENGINE_TEST_AUDIT.md).
+[executable edge inventory](../../docs/ENGINE_EDGE_CASES.md).
 
 ## Numbered rules
 

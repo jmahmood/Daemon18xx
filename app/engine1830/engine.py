@@ -8,6 +8,8 @@ balance after bank exhaustion (§25).
 
 from copy import deepcopy
 
+from app.engine_validation import state_errors, validate_snapshot
+
 from .errors import RuleError, require
 from .data import (
     BOARD_DATA,
@@ -156,12 +158,14 @@ def new_game(names, player_ids=None):
     return state
 
 
+@state_errors(RuleError)
 def migrate_state(state):
     """Copy and upgrade a saved state without changing its action revision.
 
     Schema 1 did not always record home-city mappings. Infer these from printed
     home track and the current tile rather than assuming current city zero.
     """
+    require(isinstance(state, dict), "State must be an object")
     require(state.get("variant") == "1830", "Wrong game variant")
     version = state.get("schema_version")
     require(
@@ -1116,7 +1120,7 @@ def _bankrupt(state, action):
     # Liquidate each legally saleable bundle at its pre-sale market price.
     # This is part of the bankruptcy action, so presidencies and market falls
     # remain deterministic even when the player cannot afford any train.
-    for other_id in state["corporations"]:
+    for other_id in CORPORATIONS:
         amount = _maximum_emergency_sale(state, pid, other_id)
         if amount:
             _sell_shares(state, pid, other_id, amount, emergency=True)
@@ -1325,6 +1329,11 @@ def apply_action(state, action, expected_revision=None):
     transport. Optional revision protects against stale concurrent submissions.
     """
     require(isinstance(action, dict), "Action must be an object")
+    candidate = migrate_state(state)
+    if expected_revision is not None:
+        _integer(expected_revision, "Revision")
+    if "expected_action_id" in action:
+        _integer(action["expected_action_id"], "Action revision")
     require(not state["finished"], "Game has ended")
     require(
         expected_revision is None or expected_revision == state["revision"],
@@ -1355,7 +1364,6 @@ def apply_action(state, action, expected_revision=None):
             field + " must be a string",
         )
     _player(state, action.get("player"))
-    candidate = migrate_state(state)
     kind = action["type"]
     if kind in ("exchange_mh", "bankruptcy"):
         kind = {"exchange_mh": "exchange_private", "bankruptcy": "bankrupt"}[kind]
@@ -1401,14 +1409,17 @@ def apply_action(state, action, expected_revision=None):
     return candidate
 
 
+@state_errors(RuleError)
 def validate_state(state):
     """Validate accounting/component invariants after every successful action."""
+    require(isinstance(state, dict), "State must be an object")
     require(
         type(state.get("schema_version")) is int
         and state["schema_version"] in (1, SCHEMA_VERSION),
         "Unsupported 1830 state schema",
     )
     require(state.get("variant") == "1830", "Wrong game variant")
+    validate_snapshot(state, require, CORPORATIONS, BOARD_DATA, PHASES, MARKET)
     if state["schema_version"] == SCHEMA_VERSION:
         for corp in state["corporations"].values():
             city = corp.get("home_city")

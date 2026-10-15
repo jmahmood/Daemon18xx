@@ -1,23 +1,21 @@
-# AGENT Instructions for Daemon18xx
+# Working on Daemon18xx
 
-This repository aims to implement a stateless 18xx engine in Python that can power online games of 1830, 1846 and 1889. The engine should be usable as a library; persistence and networking layers will be handled separately.
+Daemon18xx is a backend-only project for standard 1830 and full Shikoku 1889.
+Frontends live in separate projects. Read README.md and docs/frontend_integration.md
+before changing the public interface. Do not add frontend assets, Node tooling,
+Socket.IO gameplay, or another competing quickstart/API guide.
 
-## Guidelines
-
-- Keep the engine **stateless**. Functions should accept a game state and a move, returning the updated state without side effects.
-- Avoid file, database, or network operations in the core code. Any saving or player notification logic belongs outside this repo.
-- Implement missing rules starting with the operating round of 1830. Structure the code so variants (1846, 1889) can swap in their own configurations.
-- Expand documentation (README files) when you add or change functionality.
-- Add or update unit tests under `app/unittests/` to cover new behaviors.
-- Avoid using items outside the standard python library wherever possible
-- Keep compatibility with Python 3.8
-
-## Pull Requests
-
-- Summarize code changes and reference impacted files.
-- Include the results of running unit tests. If tests cannot run because dependencies are missing or the environment lacks network access, note this in the PR description.
-- Ensure the working tree is clean (`git status`) before opening a PR.
-
-## Running Tests
-
-You can run tests using the command `python -m unittest discover`
+- Keep app/engine1830 and app/engine1889 stateless and standard-library-only:
+  input state plus action produces a new independent JSON-compatible state.
+  File, database, authentication and network operations belong in backend/.
+- Core syntax remains compatible with Python 3.8; the documented server runtime
+  is Python 3.12. Do not promise 1846 or optional beginner rules.
+- Consult docs/rules1830.rtf or docs/rules1889.pdf for the matching rules. Preserve
+  attribution and recorded fixtures. See variant RULE_COVERAGE.md files for
+  edition decisions and validation limits.
+- Add meaningful regression tests under app/unittests/. Install requirements.txt
+  and run python -m unittest discover -q. Report skips or unrun checks accurately.
+- Keep the README concise. Document external-client behavior in the integration
+  guide and action examples alongside interface changes. If the edge inventory
+  changes, run python tools/render_edge_cases.py and its --check mode.
+- Preserve unrelated user changes. Do not commit or push without authorization.

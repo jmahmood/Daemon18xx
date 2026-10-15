@@ -488,6 +488,20 @@ def route_candidates(state, corporation, train_id=None, limit=100):
 
     ``limit`` limits returned routes, not validity of submitted route actions.
     """
+    require(
+        isinstance(corporation, str) and corporation in state["corporations"],
+        "Unknown corporation",
+    )
+    require(
+        limit is None or (type(limit) is int and limit >= 0),
+        "Route limit must be a nonnegative integer or None",
+    )
+    require(
+        train_id is None or (isinstance(train_id, str) and train_id in state["trains"]),
+        "Unknown train",
+    )
+    if limit == 0:
+        return []
     board = state["board"]
     adj = graph(board)
     tokens = set(token_vertices(board, corporation))
@@ -677,6 +691,14 @@ def route_from_paths(state, route):
 
 
 def route_revenue(state, corporation, routes):
+    require(
+        isinstance(corporation, str) and corporation in state["corporations"],
+        "Unknown corporation",
+    )
+    require(
+        isinstance(routes, list) and all(isinstance(route, dict) for route in routes),
+        "Routes must be a list of objects",
+    )
     expanded = [
         route_from_paths(state, route) if "paths" in route else route
         for route in routes
