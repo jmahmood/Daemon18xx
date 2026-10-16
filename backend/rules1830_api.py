@@ -6,19 +6,22 @@ The server owns credentials and persistence. Engine states contain neither.
 import json
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header
 from pydantic import BaseModel, Field, StrictInt
 
 from app.engine1830 import (
     new_game,
     apply_action,
     migrate_state,
+    legal_actions,
     RuleError,
 )
-from app.engine1830.board_data import DATA
 from app.engine1830.engine import available_depot, certificate_count, _price
 from app.engine1830.data import PHASES
 from backend.database import db
+from backend.catalog import catalog as game_catalog
+from backend.contracts import action_contract
+from backend.errors import APIError
 
 router = APIRouter(prefix="/api/1830", tags=["1830"])
 
@@ -38,20 +41,20 @@ class SubmitAction(BaseModel):
 
 async def authenticate(room_code, authorization):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "Bearer token required")
+        raise APIError(401, "AUTH_REQUIRED", "Bearer token required")
     game = await db.get_game_by_room_code(room_code)
     if not game or game["variant"] != "1830":
-        raise HTTPException(404, "1830 room not found")
+        raise APIError(404, "ROOM_NOT_FOUND", "1830 room not found")
     auth = await db.verify_token(game["id"], authorization[7:])
     if not auth["valid"]:
-        raise HTTPException(403, "Invalid room token")
+        raise APIError(403, "INVALID_CREDENTIAL", "Invalid room token")
     return game, auth
 
 
 async def load_state(game):
     record = await db.get_latest_game_state(game["id"])
     if not record:
-        raise HTTPException(409, "Game has not started")
+        raise APIError(409, "GAME_NOT_STARTED", "Game has not started")
     try:
         return migrate_state(json.loads(record["state_json"]))
     except (
@@ -61,15 +64,17 @@ async def load_state(game):
         KeyError,
         AttributeError,
     ) as error:
-        raise HTTPException(
-            409, "Saved game migration failed: " + str(error)
+        raise APIError(
+            409, "SAVED_STATE_INVALID", "Saved game migration failed: " + str(error)
         ) from error
 
 
-def view(state):
+def view(state, player=None):
     """Return the board, state, and derived prices; credentials never enter state."""
     return {
         "state": state,
+        "currency": "USD",
+        "legal_actions": legal_actions(state, player),
         "prices": {cid: _price(c) for cid, c in state["corporations"].items()},
         "certificates": {p: certificate_count(state, p) for p in state["players"]},
         "available_depot_trains": available_depot(state),
@@ -84,7 +89,7 @@ async def create_room(request: CreateRoom):
             variant="1830", max_players=request.max_players, engine="python"
         )
     except ValueError as error:
-        raise HTTPException(503, str(error)) from error
+        raise APIError(503, "ROOM_ALLOCATION_UNAVAILABLE", str(error)) from error
     return {
         k: info[k]
         for k in ("room_code", "creator_token", "spectator_token", "player_tokens")
@@ -99,16 +104,18 @@ async def start(
 ):
     game, auth = await authenticate(room_code, authorization)
     if auth["type"] != "creator":
-        raise HTTPException(403, "Only the creator may start a game")
+        raise APIError(403, "ROLE_FORBIDDEN", "Only the creator may start a game")
     if len(request.player_names) != game["max_players"]:
-        raise HTTPException(422, "Provide one name per registered player slot")
+        raise APIError(
+            422, "INVALID_PLAYER_NAMES", "Provide one name per registered player slot"
+        )
     try:
         state = new_game(request.player_names)
         await db.save_rules_state(game["id"], state, None)
     except RuleError as error:
-        raise HTTPException(422, str(error)) from error
+        raise APIError(422, "RULE_VIOLATION", str(error)) from error
     except ValueError as error:
-        raise HTTPException(409, str(error)) from error
+        raise APIError(409, "STATE_CONFLICT", str(error)) from error
     return view(state)
 
 
@@ -116,11 +123,23 @@ async def start(
 async def get_state(
     room_code: str, authorization: Optional[str] = Header(default=None)
 ):
-    game, _ = await authenticate(room_code, authorization)
-    return view(await load_state(game))
+    game, auth = await authenticate(room_code, authorization)
+    player = (
+        "p" + str(auth["player"]["player_order"] + 1)
+        if auth["type"] == "player"
+        else None
+    )
+    return view(await load_state(game), player)
 
 
-@router.post("/games/{room_code}/actions")
+@router.post(
+    "/games/{room_code}/actions",
+    openapi_extra={
+        "requestBody": {
+            "content": {"application/json": {"schema": action_contract("1830")}}
+        }
+    },
+)
 async def submit(
     room_code: str,
     request: SubmitAction,
@@ -128,25 +147,32 @@ async def submit(
 ):
     game, auth = await authenticate(room_code, authorization)
     if auth["type"] != "player":
-        raise HTTPException(403, "Only a player may submit actions")
+        raise APIError(403, "ROLE_FORBIDDEN", "Only a player may submit actions")
     actor = "p" + str(auth["player"]["player_order"] + 1)
     action = dict(request.action)
     if "player" in action and action["player"] != actor:
-        raise HTTPException(403, "Cannot act as another player")
+        raise APIError(403, "PLAYER_MISMATCH", "Cannot act as another player")
     action.update(player=actor, expected_action_id=request.expected_action_id)
     state = await load_state(game)
     if request.expected_action_id != state["revision"]:
-        raise HTTPException(409, "Stale action version; reload the current state")
+        raise APIError(
+            409, "STALE_REVISION", "Stale action version; reload the current state"
+        )
     try:
         result = apply_action(state, action)
         await db.save_rules_state(game["id"], result, state["revision"])
     except RuleError as error:
-        raise HTTPException(422, str(error)) from error
+        raise APIError(422, "RULE_VIOLATION", str(error)) from error
     except ValueError as error:
-        raise HTTPException(409, str(error)) from error
-    return view(result)
+        raise APIError(409, "STATE_CONFLICT", str(error)) from error
+    return view(result, actor)
 
 
 @router.get("/catalog")
 async def catalog():
-    return DATA
+    return game_catalog("1830")
+
+
+@router.get("/schema")
+async def schema():
+    return action_contract("1830")

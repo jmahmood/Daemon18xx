@@ -39,7 +39,8 @@ python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000
 ```
 
 The interactive API reference is at `/docs`, its OpenAPI schema at `/openapi.json`,
-and database readiness at `/health`. No external database or Node installation
+and database readiness at `/health`. Both variants publish action-request
+JSON Schemas at `/api/{variant}/schema` and client metadata at `/api/{variant}/catalog`. No external database or Node installation
 is required. Stop with Ctrl+C; restarting with the same database resumes games.
 
 For a background service with persistent storage and automatic restart:
@@ -50,6 +51,8 @@ docker compose up -d --build
 
 Compose binds port 8000 to localhost and stores games in its `games` volume.
 Use `docker compose logs -f backend` for logs and `docker compose down` to stop.
+See [operations and recovery](docs/operations.md) for backup/restore and the
+repeatable deployment check.
 `docker compose down -v` deletes the game volume. Put an HTTPS reverse proxy in
 front of the server when hosting it publicly.
 
@@ -109,9 +112,10 @@ workflow are validated on Python 3.12.
 
 ## Develop and validate
 
-With the server dependencies installed, run from the repository root:
+Install the development dependencies, then run from the repository root:
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python -m unittest discover -q
 python tools/render_edge_cases.py --check
 ```
@@ -133,3 +137,6 @@ The [1830 coverage](app/engine1830/RULE_COVERAGE.md),
 its limits. The source rules are [1830](docs/rules1830.rtf) and
 [1889](docs/rules1889.pdf); the [1889 audit](docs/1889_RULEBOOK_AUDIT.md) records
 edition decisions. Optional beginner 1889 and other 18xx titles are outside scope.
+
+[Deferred work](TODO.md) records route-optimization and performance items outside
+the current scope. Players continue to choose routes in normal play.

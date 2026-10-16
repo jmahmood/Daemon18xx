@@ -11,12 +11,18 @@ repository.
 Use one base URL and one variant (`1830` or `1889`) per room. Bodies and responses
 are JSON. Send `Content-Type: application/json` on POST requests and
 `Authorization: Bearer <room-token>` on authenticated requests. Cookie sessions
-are not used. `/docs` and `/openapi.json` describe the request envelopes; the
-`action` object uses the field reference below.
+are not used. `/docs` and `/openapi.json` describe the request envelopes and
+variant-specific action schemas. `GET /api/{variant}/schema` returns a standalone
+JSON Schema (Draft 2020-12) for the full action request, including required fields,
+parameter types, examples and accepted aliases. Its `x-contract-version` is 1.
+Schemas describe payload structure; the rules engine still checks whether the
+action is legal in the current game state. Existing action payloads remain
+supported; this metadata does not replace runtime rules validation.
 
 | Method | Path | Credential | Body / response |
 |---|---|---|---|
-| GET | `/api/{variant}/catalog` | none | Static board/tile catalog; see rendering below. |
+| GET | `/api/{variant}/catalog` | none | Board, tile, market and component metadata; see rendering below. |
+| GET | `/api/{variant}/schema` | none | Action-request JSON Schema, aliases, examples and error-code descriptions. |
 | POST | `/api/{variant}/games` | none | `{"max_players":3}` → room and credentials. Integer seat count 2–6, default 3. |
 | POST | `/api/{variant}/games/{room}/start` | creator | `{"player_names":["Alice","Bob","Carol"]}` → game view. Starts once. |
 | GET | `/api/{variant}/games/{room}` | any token for this room | Current game view. |
@@ -71,6 +77,7 @@ async function request(path, { method = "GET", token, body } = {}) {
   if (!response.ok) {
     const error = new Error(JSON.stringify(data.detail ?? data));
     error.status = response.status;
+    error.code = data.code;
     throw error;
   }
   return data;
@@ -109,9 +116,9 @@ await submit({
 });
 ```
 
-Read state after starting using the player's token: 1889's start response contains
+Read state after starting using the player's token: the start response contains
 hints for the active actor, whereas subsequent authenticated reads/actions
-contain hints for that player. The server supplies `action.player` from the
+contain hints for that player in both variants. The server supplies `action.player` from the
 credential. Omit it from requests; attempting to impersonate another player
 returns 403. Money, percentages, city indices, rotations and revisions use JSON
 integers; revisions specifically reject strings, floats and booleans.
@@ -139,6 +146,23 @@ revision produce one accepted successor and a conflict for the other writer.
 | 422 | Invalid request or illegal game action | Show `detail`; state remains unchanged. Validation details may be an array rather than a string. |
 | 503 | Room allocation/writer unavailable, or failed readiness | Back off; do not assume a room was created. |
 
+Controlled API errors retain their existing `detail` value and add a stable
+machine-readable `code`, for example:
+
+```json
+{"code":"STALE_REVISION","detail":"Stale action version; reload the current state"}
+```
+
+`REQUEST_VALIDATION_FAILED` has an array of validation details. `RULE_VIOLATION`
+means the payload reached the engine but the move was rejected. `STATE_CONFLICT`
+covers transactional initialization/write conflicts and database writer busy
+responses. `GAME_NOT_STARTED` and `SAVED_STATE_INVALID` distinguish waiting from
+restore failures. Authorization uses `AUTH_REQUIRED`, `INVALID_CREDENTIAL`,
+`ROLE_FORBIDDEN` and `PLAYER_MISMATCH`. Other codes and their descriptions are in
+`/api/{variant}/schema` under `x-error-codes`. Use codes and HTTP statuses for
+control flow rather than parsing English messages. Unexpected failures and
+middleware responses still require normal HTTP/network error handling.
+
 After a network timeout on a write, fetch the latest state before attempting
 anything else. The write may have committed. There are no idempotency keys.
 Never automatically rebase a move onto a new revision: another action may have
@@ -158,11 +182,8 @@ Both variants return:
 }
 ```
 
-1889 additionally returns `currency: "JPY"` and `legal_actions`. 1830 amounts
-are dollars and its HTTP view currently has no `legal_actions` field. Do not
-assume the response shapes are identical. Its Python library exposes discovery,
-but an HTTP-only 1830 client uses the action reference and state below, with
-server validation authoritative. 1889 `legal_actions` contains `player`,
+Both variants also return `currency` (`"USD"` for 1830, `"JPY"` for 1889) and
+player-specific `legal_actions`. `legal_actions` contains `player`,
 `active_player` (absent when finished), `types` and `choices`.
 These are action categories and candidate parameters, not an exhaustive list of
 legal tile rotations, prices or routes; a suggested category can still be
@@ -191,7 +212,7 @@ excess-train discards by the affected presidents, or 1889's ER seller choice.
 Use fresh state after each action; presidents, actors and steps can change during
 a private exchange or train purchase. Do not hide every action merely because
 `current_player` is another seat: permitted offers, M&H/DR exchanges and MF lays
-can occur out of turn. For 1889, use the authenticated player's discovery hints
+can occur out of turn. For both variants, use the authenticated player's discovery hints
 and `active_player` to distinguish personal options from the main turn.
 
 ## Action field reference
@@ -251,14 +272,25 @@ Private-power controls must account for these differences:
 
 ## Board, tiles and routes
 
-Fetch the catalog once per variant per server release. Both expose raw `hexes` and
-`tiles`: entries have `color` and a compact track `code`; tile entries also have
-`count`. 1889 additionally exposes `layout: "flat"` (1830 uses pointy layout),
-currency, market, par prices, corporations, privates, certificate limits, train
-types and phases. 1830's catalog contains
-board/tile definitions rather than those additional market/component tables;
-its static tables live in `app/engine1830/data.py` if needed by an external
-client build. Never load Python server modules in a browser.
+Fetch the catalog once per variant per server release. Both variants expose:
+
+- `variant`, `contract_version: 1`, `action_schema_url`, `currency`, `layout`,
+  `edge_deltas`, `market`, `par_prices`, `certificate_limits`, `rusts`, `upgrades`.
+- `board`: parsed initial geometry, and `tile_geometry`: parsed rotation-zero
+  tile geometry keyed by base tile ID. Rotate edge numbers modulo six to preview
+  other orientations; node/path indices stay fixed.
+- `components`: named objects under `corporations` (`name`, `home`,
+  `token_supply`), `privates` (`name`, `value`, `revenue`, `blocked_hexes`),
+  `train_types` (`initial_count`, `price`, `stops`, `unlimited`) and `phases`
+  (`train_limit`, `tile_colors`, `operating_rounds`). The full private inventory
+  is listed; use the started state's privates to see which are in this game.
+- Original raw `hexes` and `tiles` fields, and tuple-shaped `corporations`,
+  `privates`, `train_types`, `phases` tables, retained for compatibility. New
+  clients should use the named `components` objects for those tables.
+
+1889 uses flat layout and unlimited Diesels; 1830 uses pointy layout and a finite
+Diesel supply. `unlimited` distinguishes the roster policies without treating
+1889's initial Diesel count as its total supply.
 
 Draw the **current** geometry from `state.board[hex]`: `color`, `nodes`, `paths`,
 `rotation`, `tokens`, `label`, `tile`, and terrain/cost information where present.
@@ -277,14 +309,10 @@ to letter-row and numeric-column. The neighbor deltas for edges 0 through 5 are:
 | 1889 | `(0,2), (-1,1), (-1,-1), (0,-2), (1,-1), (1,1)` |
 
 The opposite edge is `(edge + 3) % 6`. Only coordinates in `state.board` exist.
-For catalog tile previews, parse semicolon-separated `code` clauses: `city`,
-`town` and `offboard` append revenue nodes in order; `path=a:0,b:_0` joins edge 0
-to node 0; `path=a:0,b:3` joins two edges. Underscore-prefixed values identify
-node indices. `revenue:20`, `slots:2`, `label=Y`, `upgrade=cost:80,terrain:mountain`,
-and `border=edge:0,type:impassable` supply display metadata. Tiered revenue such
-as `yellow_30|brown_60|diesel_100` supplies phase/train values. Refer to the
-variant's `board.decode` for the full parser. Gameplay geometry already comes
-parsed in `state.board`; clients never need to re-parse it.
+Catalog `tiles` entries retain compact track `code` strings for compatibility;
+new clients can render `tile_geometry` directly without parsing that notation.
+Gameplay geometry comes from `state.board`, including all accepted rotations,
+upgrades and token placements.
 
 Submit either explicit vertices or ordered tile path indices, per train:
 

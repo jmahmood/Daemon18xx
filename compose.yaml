@@ -1,10 +1,11 @@
 services:
   backend:
+    image: daemon18xx-backend
     build: .
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${DAEMON18XX_PORT:-8000}:8000"
     environment:
-      DAEMON18XX_DATABASE: /data/games.sqlite3
+      DAEMON18XX_DATABASE: ${DAEMON18XX_DATABASE:-/data/games.sqlite3}
       DAEMON18XX_CORS_ORIGINS: ${DAEMON18XX_CORS_ORIGINS:-}
     volumes:
       - games:/data

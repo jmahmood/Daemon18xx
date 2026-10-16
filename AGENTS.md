@@ -71,7 +71,7 @@ implementation or making further major architectural changes without discussion.
 - Consult docs/rules1830.rtf or docs/rules1889.pdf for the matching rules. Preserve
   attribution and recorded fixtures. See variant RULE_COVERAGE.md files for
   edition decisions and validation limits.
-- Add meaningful regression tests under app/unittests/. Install requirements.txt
+- Add meaningful regression tests under app/unittests/. Install requirements-dev.txt
   and run python -m unittest discover -q. Report skips or unrun checks accurately.
 - Keep the README concise. Document external-client behavior in the integration
   guide and action examples alongside interface changes. If the edge inventory
